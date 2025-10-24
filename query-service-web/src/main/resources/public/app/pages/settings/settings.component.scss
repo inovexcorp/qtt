@@ -1,0 +1,186 @@
+.settings-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px;
+}
+
+.settings-card {
+  flex: 1 1 calc(50% - 16px);
+  min-width: 300px;
+}
+
+.mat-mdc-card-header {
+  margin-bottom: 16px;
+  text-decoration: underline;
+}
+
+.cache-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+
+  p {
+    margin: 4px 0;
+  }
+}
+
+/* Align header title text and logo on one line */
+.mat-mdc-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Size and align the Redis logo specifically when used in the title */
+.mat-mdc-card-title .redis-logo {
+  height: 1.75em; /* scales with header font-size */
+  width: auto;
+  flex: 0 0 auto;
+  vertical-align: middle;
+  text-decoration: none;
+}
+
+/* SPARQi metrics card styling */
+.sparqi-metrics-card {
+  flex: 1 1 100%;
+  min-width: 300px;
+
+  .metrics-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px 16px;
+
+    .metric-item {
+      padding: 8px;
+      background-color: rgba(0, 0, 0, 0.02);
+      border-radius: 4px;
+
+      strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 0.9em;
+        color: rgba(0, 0, 0, 0.6);
+      }
+
+      &.cost-highlight {
+        background-color: rgba(76, 175, 80, 0.1);
+        border-left: 3px solid #4caf50;
+      }
+    }
+  }
+
+  .sparqi-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 16px;
+
+    p {
+      margin: 0;
+      color: rgba(0, 0, 0, 0.6);
+      font-size: 14px;
+    }
+  }
+
+  .sparqi-disabled {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+
+    .disabled-icon {
+      font-size: 64px;
+      width: 64px;
+      height: 64px;
+      color: rgba(0, 0, 0, 0.26);
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+      font-weight: 500;
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    p {
+      margin: 0;
+      color: rgba(0, 0, 0, 0.5);
+      font-size: 14px;
+    }
+  }
+
+  .sparqi-no-data {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+
+    .no-data-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      color: rgba(0, 0, 0, 0.26);
+      margin-bottom: 12px;
+    }
+
+    p {
+      margin: 4px 0;
+      color: rgba(0, 0, 0, 0.6);
+      font-size: 14px;
+
+      &.info-text {
+        font-size: 13px;
+        color: rgba(0, 0, 0, 0.5);
+      }
+    }
+  }
+
+  .metrics-actions {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    justify-content: center;
+
+    .view-charts-button {
+      padding: 0 32px;
+      height: 48px;
+      font-size: 15px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      }
+    }
+  }
+}
+
+.sparqi-logo {
+  width: 75px;
+}

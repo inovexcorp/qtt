@@ -1,0 +1,15 @@
+<persistence version="2.0" xmlns="http://java.sun.com/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd">
+    <persistence-unit name="qtt-pu" transaction-type="JTA">
+        <description>The persistence unit for the Query Templating Tool.  Driven by OSGi configuration in the Karaf etc/ directory</description>
+        <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+        <jta-data-source>osgi:service/javax.sql.DataSource</jta-data-source>
+        <properties>
+            <!-- Update the existing schema to adjust for changes to the entities -->
+            <property name="hibernate.hbm2ddl.auto" value="update"/>
+            <!-- PostgreSQL LOB configuration -->
+            <property name="hibernate.jdbc.lob.non_contextual_creation" value="true"/>
+        </properties>
+    </persistence-unit>
+</persistence>

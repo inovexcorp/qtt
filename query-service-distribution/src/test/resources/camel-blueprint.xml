@@ -1,0 +1,76 @@
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">
+
+    <bean id="rdf-serializer" class="com.inovexcorp.queryservice.RdfResultsJsonifier" activation="eager">
+        <argument type="java.lang.String" value="" index="0" />
+        <!-- COMPACT, EXPAND, FLATTEN -->
+        <property name="jsonldMode" value="COMPACT"/>
+        <property name="jsonldOptimize" value="true" />
+        <property name="jsonldNativeTypes" value="true" />
+        <property name="jsonldCompactArrays" value="true" />
+    </bean>
+
+    <camelContext id="query-service-manager"  xmlns="http://camel.apache.org/schema/blueprint">
+    </camelContext>
+
+    <!-- Camel Context Wrapper -->
+    <camelContext id="query-service"  xmlns="http://camel.apache.org/schema/blueprint">
+
+        <!-- Simple status route -->
+        <route id="qs-status">
+            <from uri="jetty:http://0.0.0.0:8123/status?httpMethodRestrict=GET" />
+            <to uri="freemarker:file:etc/templates/status.ftl?allowContextMapAll=true&amp;lazyStartProducer=true" />
+            <setHeader name="Exchange.CONTENT_TYPE">
+                <simple>application/json</simple>
+            </setHeader>
+        </route>
+
+        <!-- State Vectors Endpoint Example -->
+        <route id="qs-state_vectors" logMask="true">
+            <from uri="jetty:http://0.0.0.0:8123/stateVectors?matchOnUriPrefix=false&amp;httpMethodRestrict=GET" />
+            <log message="{id}: ${body}\n\t${headers}" />
+            <to uri="freemarker:file:etc/templates/state_vectors.ftl?lazyStartProducer=true" />
+            <log message="${body}" loggingLevel="TRACE" />
+            <to uri="anzo:https://anzodemo.inovexcorp.com:443?timeoutSeconds=30&amp;maxQueryHeaderLength=4000&amp;user=sysadmin&amp;password=f3!k5W6XRUZHJSq&amp;graphmartUri=http://cambridgesemantics.com/Graphmart/9d9ad115c3c0457fb463c56e75657cb0&amp;skipCache=true" />
+            <process ref="rdf-serializer" />
+        </route>
+
+        <!-- Query route -->
+        <route id="qs-query" logMask="true">
+            <from uri="jetty:http://0.0.0.0:8123/query?matchOnUriPrefix=true&amp;httpMethodRestrict=POST,GET" />
+            <log message="Starting request ${id}" />
+            <setHeader name="exchange_id">
+                <simple>${id}</simple>
+            </setHeader>
+            <when>
+                <simple>${headers.CamelHttpMethod} == 'POST'</simple>
+                <log loggingLevel="DEBUG" message="Unmarshaling incoming POSTed JSON: ${id}" />
+                <unmarshal>
+                    <json id="Json2Pojo" library="Jackson" />
+                </unmarshal>
+            </when>
+            <log loggingLevel="INFO" message="Received request ${id} to '${headers.CamelHttpUri}'" />
+            <log loggingLevel="DEBUG" message="####\nBody:\n${body}\n\tHEADERS:\n${headers}\n####" />
+            <!-- When performing a basic query. -->
+            <choice>
+                <when>
+                    <simple>${headers.CamelHttpUri} == '/query/test' &amp;&amp; ${headers.CamelHttpMethod} == 'POST'</simple>
+                    <to uri="freemarker:file:etc/templates/test.ftl?lazyStartProducer=true&amp;contentCache=true&amp;templateUpdateDelay=30" />
+                    <to uri="anzo:https://anzodemo.inovexcorp.com:443?timeoutSeconds=30&amp;maxQueryHeaderLength=8000&amp;user=sysadmin&amp;password=f3!k5W6XRUZHJSq&amp;graphmartUri=http://cambridgesemantics.com/Graphmart/9d9ad115c3c0457fb463c56e75657cb0" />
+                    <process ref="rdf-serializer" />
+                </when>
+                <otherwise>
+                    <log loggingLevel="WARN" message="Exchange targeted non-existing resource: ${headers.CamelHttpUri}" />
+                    <setHeader name="Exchange.HTTP_RESPONSE_CODE">
+                        <simple>400</simple>
+                    </setHeader>
+                    <setBody>
+                        <simple>'${headers.CamelHttpMethod}' @ '${headers.CamelHttpUri}' is not supported.  Please contact your administrator.</simple>
+                    </setBody>
+                </otherwise>
+            </choice>
+            <log loggingLevel="INFO" message="Complete request ${id}" />
+        </route>
+    </camelContext>
+</blueprint>
+
+

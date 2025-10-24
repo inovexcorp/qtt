@@ -1,0 +1,87 @@
+<div class="sparqi-metrics-dialog">
+  <!-- Header -->
+  <div class="dialog-header">
+    <h2 mat-dialog-title>
+      <mat-icon>analytics</mat-icon>
+      SPARQi Metrics Analytics
+    </h2>
+    <button mat-icon-button (click)="close()" matTooltip="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Content -->
+  <mat-dialog-content>
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-container">
+      <mat-spinner diameter="50"></mat-spinner>
+      <p>Loading metrics data...</p>
+    </div>
+
+    <!-- Charts View -->
+    <div *ngIf="!isLoading" class="charts-container">
+      <!-- Token Usage Over Time Chart -->
+      <div class="chart-card" *ngIf="sparqiChartData && sparqiChartData.length > 0">
+        <div class="chart-card-header">
+          <mat-icon>show_chart</mat-icon>
+          <h3>Token Usage Over Time</h3>
+          <span class="chart-subtitle">Last 7 days</span>
+        </div>
+        <div class="chart-content">
+          <ngx-charts-line-chart
+            [results]="sparqiChartData"
+            [xAxis]="true"
+            [yAxis]="true"
+            [legend]="false"
+            [showXAxisLabel]="true"
+            [showYAxisLabel]="true"
+            xAxisLabel="Time"
+            yAxisLabel="Total Tokens"
+            [timeline]="true"
+            [xAxisTickFormatting]="xAxisTickFormatting"
+            [scheme]="sparqiChartColorScheme"
+            [curve]="'monotoneX'"
+            [animations]="true">
+          </ngx-charts-line-chart>
+        </div>
+      </div>
+
+      <!-- Token Distribution by Route Pie Chart -->
+      <div class="chart-card" *ngIf="sparqiPieChartData && sparqiPieChartData.length > 0">
+        <div class="chart-card-header">
+          <mat-icon>pie_chart</mat-icon>
+          <h3>Token Distribution by Route</h3>
+          <span class="chart-subtitle">Total tokens consumed per route</span>
+        </div>
+        <div class="chart-content">
+          <ngx-charts-pie-chart
+            [results]="sparqiPieChartData"
+            [legend]="true"
+            [labels]="true"
+            [doughnut]="false"
+            [scheme]="sparqiPieColorScheme"
+            [animations]="true"
+            [explodeSlices]="false"
+            [gradient]="true">
+          </ngx-charts-pie-chart>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="(!sparqiChartData || sparqiChartData.length === 0) && (!sparqiPieChartData || sparqiPieChartData.length === 0)" class="empty-state">
+        <mat-icon>bar_chart</mat-icon>
+        <h3>No Metrics Data Available</h3>
+        <p>Start using SPARQi to see metrics analytics here</p>
+      </div>
+    </div>
+  </mat-dialog-content>
+
+  <!-- Footer with info -->
+  <mat-dialog-actions align="end">
+    <div class="dialog-footer-info">
+      <mat-icon class="info-icon">info</mat-icon>
+      <span>Metrics are tracked for the last 7 days</span>
+    </div>
+    <button mat-button (click)="close()">Close</button>
+  </mat-dialog-actions>
+</div>

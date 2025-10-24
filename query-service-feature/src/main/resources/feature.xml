@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<features xmlns:ns2="http://karaf.apache.org/xmlns/features/v1.6.0" name="query-service-feature">
+    <feature name="qs-rdf4j" description="qs-rdf4j" version="${project.version}">
+        <details>Query Service rdf4j support dependencies.</details>
+        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.elasticsearch/5.6.3_1</bundle>
+        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.elasticsearch-client/5.6.3_1</bundle>
+        <bundle>mvn:com.google.guava/guava/28.2-jre</bundle>
+        <bundle>mvn:com.google.guava/guava/30.1.1-jre</bundle>
+        <bundle>mvn:com.google.guava/failureaccess/1.0.1</bundle>
+        <bundle>mvn:commons-io/commons-io/2.5</bundle>
+        <bundle>mvn:org.apache.commons/commons-lang3/3.12.0</bundle>
+        <bundle>mvn:commons-collections/commons-collections/3.2.1</bundle>
+        <bundle>mvn:org.apache.commons/commons-collections4/4.4</bundle>
+        <bundle>mvn:com.opencsv/opencsv/5.6</bundle>
+        <bundle>mvn:commons-beanutils/commons-beanutils/1.9.3</bundle>
+        <bundle>mvn:org.apache.httpcomponents/httpcore-osgi/4.4.15</bundle>
+        <bundle>mvn:org.apache.httpcomponents/httpclient-osgi/4.5.8</bundle>
+        <bundle>mvn:org.apache.commons/commons-text/1.10.0</bundle>
+        <bundle>mvn:com.fasterxml.jackson.core/jackson-databind/2.13.2</bundle>
+        <bundle>mvn:com.fasterxml.jackson.core/jackson-core/2.13.2</bundle>
+        <bundle>mvn:com.fasterxml.jackson.core/jackson-annotations/2.13.2</bundle>
+        <bundle>mvn:com.fasterxml.jackson.dataformat/jackson-dataformat-yaml/2.13.2</bundle>
+        <bundle>mvn:com.fasterxml.jackson.dataformat/jackson-dataformat-smile/2.13.2</bundle>
+        <bundle>mvn:com.fasterxml.jackson.dataformat/jackson-dataformat-cbor/2.13.2</bundle>
+        <bundle>mvn:org.locationtech.jts/jts-core/1.18.2</bundle>
+        <bundle>mvn:com.github.jsonld-java/jsonld-java/0.13.4</bundle>
+        <bundle>mvn:com.ning/compress-lzf/1.0.4</bundle>
+        <bundle>mvn:org.yaml/snakeyaml/1.30</bundle>
+        <bundle>mvn:org.locationtech.jts/jts-core/1.15.1</bundle>
+        <bundle>mvn:org.locationtech.spatial4j/spatial4j/0.8</bundle>
+        <bundle>wrap:mvn:org.lwjgl/lwjgl/3.3.1</bundle>
+        <bundle>wrap:mvn:org.lwjgl/lwjgl-lmdb/3.3.1</bundle>
+        <bundle>mvn:org.mapdb/mapdb/1.0.9</bundle>
+        <bundle>mvn:com.carrotsearch/hppc/0.7.3</bundle>
+        <bundle>mvn:ch.qos.logback/logback-classic/${logback.version}</bundle>
+        <bundle>mvn:ch.qos.logback/logback-core/${logback.version}</bundle>
+        <bundle>mvn:org.eclipse.rdf4j/rdf4j-runtime-osgi/${rdf4j.version}</bundle>
+    </feature>
+
+    <feature name="qs-persistence" description="qs-persistence" version="${project.version}">
+        <details>Feature providing dependencies for JDBC/JPA/etc. for persistence</details>
+        <feature dependency="true">jndi</feature>
+        <feature dependency="true">jdbc</feature>
+        <feature dependency="true">transaction</feature>
+        <feature dependency="true">pax-jdbc-config</feature>
+        <feature dependency="true">pax-jdbc-derby</feature>
+        <feature dependency="true">pax-jdbc-mssql</feature>
+        <feature dependency="true">pax-jdbc-postgresql</feature>
+        <feature dependency="true">pax-jdbc-pool-dbcp2</feature>
+        <feature dependency="true">hibernate</feature>
+        <feature dependency="true">jpa</feature>
+    </feature>
+
+    <feature name="qs-camel" description="qs-camel" version="${project.version}">
+        <feature dependency="true">camel</feature>
+        <feature dependency="true">camel-jetty</feature>
+        <feature dependency="true">camel-freemarker</feature>
+    </feature>
+
+    <feature name="qs-redis-cache" description="qs-redis-cache" version="${project.version}">
+        <details>Redis caching layer for query results (optional)</details>
+        <!-- Apache Commons Pool2 for connection pooling -->
+        <bundle dependency="true">mvn:org.apache.commons/commons-pool2/2.12.1</bundle>
+
+        <!-- Netty (required by Lettuce) -->
+        <bundle dependency="true">mvn:io.netty/netty-common/4.1.94.Final</bundle>
+        <bundle dependency="true">mvn:io.netty/netty-buffer/4.1.94.Final</bundle>
+        <bundle dependency="true">mvn:io.netty/netty-transport/4.1.94.Final</bundle>
+        <bundle dependency="true">mvn:io.netty/netty-handler/4.1.94.Final</bundle>
+        <bundle dependency="true">mvn:io.netty/netty-codec/4.1.94.Final</bundle>
+        <bundle dependency="true">mvn:io.netty/netty-resolver/4.1.94.Final</bundle>
+        <bundle dependency="true">mvn:io.netty/netty-resolver-dns/4.1.94.Final</bundle>
+        <bundle dependency="true">mvn:io.netty/netty-codec-dns/4.1.94.Final</bundle>
+        <bundle dependency="true">mvn:io.netty/netty-transport-native-unix-common/4.1.94.Final</bundle>
+        <bundle dependency="true">mvn:io.netty/netty-transport-classes-epoll/4.1.94.Final</bundle>
+        <bundle dependency="true">mvn:io.netty/netty-transport-classes-kqueue/4.1.94.Final</bundle>
+
+        <!-- Reactor (required by Lettuce) -->
+        <bundle dependency="true">mvn:io.projectreactor/reactor-core/3.4.29</bundle>
+        <bundle dependency="true">mvn:org.reactivestreams/reactive-streams/1.0.4</bundle>
+
+        <!-- Lettuce Redis Client with proper OSGi wrapping -->
+        <bundle dependency="true">wrap:mvn:io.lettuce/lettuce-core/6.8.1.RELEASE$Bundle-SymbolicName=io.lettuce.core&amp;Bundle-Version=6.8.1&amp;Export-Package=io.lettuce.core*;version=6.8.1&amp;Import-Package=io.netty.channel.*;version="[4.1,5)",io.netty.buffer.*;version="[4.1,5)",io.netty.util.*;version="[4.1,5)",io.netty.handler.*;version="[4.1,5)",reactor.core.*;version="[3.4,4)",org.reactivestreams.*;version="[1.0,2)",org.apache.commons.pool2.*;version="[2.12,3)",brave*;resolution:=optional,io.micrometer*;resolution:=optional,*;resolution:=optional</bundle>
+    </feature>
+
+    <feature name="qs-sparqi" description="qs-sparqi" version="${project.version}">
+        <details>SPARQi - AI Assistant for SPARQL template development</details>
+
+        <!-- HTTP Client dependencies for LangChain4j -->
+        <bundle dependency="true" start-level="70">mvn:org.apache.httpcomponents/httpcore-osgi/4.4.15</bundle>
+        <bundle dependency="true" start-level="70">mvn:org.apache.httpcomponents/httpclient-osgi/4.5.8</bundle>
+        <!-- Gson for JSON parsing -->
+        <bundle dependency="true" start-level="70">wrap:mvn:com.google.code.gson/gson/2.10.1$Bundle-SymbolicName=com.google.gson&amp;Export-Package=com.google.gson.*;version=2.10.1</bundle>
+
+        <!-- Retrofit and OkHttp for HTTP -->
+        <bundle dependency="true" start-level="70">wrap:mvn:com.squareup.okhttp3/okhttp/4.12.0$Bundle-SymbolicName=okhttp3&amp;Export-Package=okhttp3.*;version=4.12.0&amp;Import-Package=javax.net.ssl,javax.security.*,org.conscrypt;resolution:=optional,*</bundle>
+        <bundle dependency="true" start-level="70">wrap:mvn:com.squareup.okio/okio-jvm/3.6.0$Bundle-SymbolicName=okio&amp;Export-Package=okio.*;version=3.6.0</bundle>
+        <bundle dependency="true" start-level="72">wrap:mvn:com.squareup.retrofit2/retrofit/2.9.0$Bundle-SymbolicName=retrofit2&amp;Export-Package=retrofit2.*;version=2.9.0&amp;Import-Package=okhttp3.*,okio.*,*</bundle>
+        <bundle dependency="true" start-level="72">wrap:mvn:com.squareup.retrofit2/converter-gson/2.9.0$Bundle-SymbolicName=retrofit2.converter.gson&amp;Export-Package=retrofit2.converter.gson.*;version=2.9.0&amp;Import-Package=!java.*,!jdk.*,retrofit2.*,com.google.gson.*,okhttp3.*,okio.*,*</bundle>
+
+        <!-- LangChain4j core with proper wrapping -->
+        <bundle dependency="true" start-level="74">wrap:mvn:dev.langchain4j/langchain4j-http-client/1.7.1</bundle>
+        <bundle dependency="true" start-level="74">wrap:mvn:dev.langchain4j/langchain4j-http-client-jdk/1.7.1</bundle>
+        <bundle dependency="true" start-level="75">wrap:mvn:dev.langchain4j/langchain4j-core/1.7.1$Bundle-SymbolicName=dev.langchain4j.core&amp;Export-Package=dev.langchain4j.*&amp;Import-Package=!java.*,!jdk.*,retrofit2.*;resolution:=optional,com.google.gson.*;resolution:=optional,okhttp3.*;resolution:=optional,okio.*;resolution:=optional,org.slf4j.*;resolution:=optional,*;resolution:=optional,*</bundle>
+        <bundle dependency="true" start-level="75">wrap:mvn:dev.langchain4j/langchain4j-open-ai/1.7.1$Bundle-SymbolicName=dev.langchain4j.openai&amp;Export-Package=dev.langchain4j.model.openai.*&amp;Import-Package=!java.*,!jdk.*,dev.langchain4j.*;resolution:=optional,retrofit2.*;resolution:=optional,com.google.gson.*;resolution:=optional,okhttp3.*;resolution:=optional,okio.*;resolution:=optional,org.slf4j.*;resolution:=optional,*;resolution:=optional,*</bundle>
+
+        <!-- LangGraph4j -->
+        <bundle dependency="true" start-level="75">wrap:mvn:org.bsc.langgraph4j/langgraph4j-core/1.7.0-beta2$Bundle-SymbolicName=org.bsc.langgraph4j&amp;Export-Package=org.bsc.langgraph4j.*&amp;Import-Package=!java.*,!jdk.*,dev.langchain4j.*;resolution:=optional,org.slf4j.*;resolution:=optional,*;resolution:=optional</bundle>
+        <bundle dependency="true" start-level="75">wrap:mvn:dev.langchain4j/langchain4j/1.7.1$Bundle-SymbolicName=dev.langchain4j&amp;Export-Package=dev.langchain4j.service.*,dev.langchain4j.model.*,dev.langchain4j.memory.*&amp;Import-Package=!java.*,!jdk.*,dev.langchain4j.*;resolution:=optional,com.google.gson.*;resolution:=optional,org.slf4j.*;resolution:=optional,*;resolution:=optional</bundle>
+
+        <!-- Freemarker for template analysis -->
+        <bundle dependency="true" start-level="70">mvn:org.freemarker/freemarker/2.3.32</bundle>
+    </feature>
+
+    <feature name="query-service" description="query-service" version="${project.version}">
+        <details>Karaf Feature describing the query service deployment into karaf.</details>
+        <feature dependency="true">scr</feature>
+        <feature dependency="true">http</feature>
+        <feature dependency="true">spifly</feature>
+        <feature dependency="true">mobi-aries-whiteboard</feature>
+        <feature dependency="true">qs-rdf4j</feature>
+        <feature dependency="true">qs-persistence</feature>
+        <feature dependency="true">qs-camel</feature>
+        <feature dependency="true">qs-redis-cache</feature>
+        <feature dependency="true">qs-sparqi</feature>
+        <bundle dependency="true">wrap:mvn:javax.validation/validation-api/2.0.1.Final</bundle>
+        <bundle dependency="true">wrap:mvn:org.json/json/20240303</bundle>
+        <bundle dependency="true">mvn:com.github.ben-manes.caffeine/caffeine/2.9.3</bundle>
+        <!-- Query Service Bundles -->
+        <bundle start-level="82">mvn:com.inovexcorp.queryservice/query-service-persistence/${project.version}</bundle>
+        <bundle start-level="82">mvn:com.inovexcorp.queryservice/camel-anzo/${project.version}</bundle>
+        <bundle start-level="84">mvn:com.inovexcorp.queryservice/query-service-cache/${project.version}</bundle>
+        <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-core/${project.version}</bundle>
+        <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-metrics/${project.version}</bundle>
+        <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-health/${project.version}</bundle>
+        <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-route-builder/${project.version}</bundle>
+        <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-scheduler/${project.version}</bundle>
+        <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-ontology/${project.version}</bundle>
+        <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-sparqi/${project.version}</bundle>
+        <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-web/${project.version}</bundle>
+    </feature>
+
+
+    <feature name="mobi-aries-whiteboard" description="Aries JAX-RS Whiteboard" version="${project.version}">
+        <feature dependency="true">mobi-cxf</feature>
+        <feature dependency="true">mobi-jaxb</feature>
+        <bundle dependency="true">mvn:org.osgi/org.osgi.util.function/1.1.0</bundle>
+        <bundle dependency="true">mvn:org.osgi/org.osgi.util.promise/1.1.1</bundle>
+        <bundle dependency="true">mvn:org.osgi/org.osgi.service.jaxrs/1.0.0</bundle>
+        <bundle>mvn:org.apache.aries.component-dsl/org.apache.aries.component-dsl.component-dsl/1.2.2</bundle>
+        <bundle>mvn:org.apache.aries.jax.rs/org.apache.aries.jax.rs.whiteboard/2.0.1</bundle>
+        <bundle>mvn:com.fasterxml.jackson.jaxrs/jackson-jaxrs-base/${jackson.version}</bundle>
+        <bundle>mvn:com.fasterxml.jackson.jaxrs/jackson-jaxrs-json-provider/${jackson.version}</bundle>
+        <bundle>mvn:com.fasterxml.jackson.module/jackson-module-jaxb-annotations/${jackson.version}</bundle>
+        <bundle>mvn:com.fasterxml.jackson.datatype/jackson-datatype-jsr310/${jackson.version}</bundle>
+        <bundle>mvn:org.apache.aries.jax.rs/org.apache.aries.jax.rs.jackson/1.0.0</bundle>
+    </feature>
+
+    <feature name="mobi-cxf" description="Apache CXF" version="${project.version}">
+        <feature dependency="true">mobi-jaxws</feature>
+        <bundle dependency="true">mvn:com.fasterxml.woodstox/woodstox-core/6.2.4</bundle>
+        <bundle dependency="true">mvn:jakarta.jws/jakarta.jws-api/2.1.0</bundle>
+        <bundle dependency="true">mvn:jakarta.xml.ws/jakarta.xml.ws-api/2.3.3</bundle>
+        <bundle dependency="true">mvn:javax.servlet/javax.servlet-api/3.1.0</bundle>
+        <bundle dependency="true">mvn:org.apache.aries.spec/org.apache.aries.javax.jax.rs-api/1.0.1</bundle>
+        <bundle dependency="true">mvn:org.apache.ws.xmlschema/xmlschema-core/2.2.5</bundle>
+        <bundle dependency="true">mvn:org.codehaus.woodstox/stax2-api/4.2.1</bundle>
+        <bundle>mvn:org.apache.cxf/cxf-core/3.4.3</bundle>
+        <bundle>mvn:org.apache.cxf/cxf-rt-frontend-jaxrs/3.4.3</bundle>
+        <bundle>mvn:org.apache.cxf/cxf-rt-rs-client/3.4.3</bundle>
+        <bundle>mvn:org.apache.cxf/cxf-rt-rs-sse/3.4.3</bundle>
+        <bundle>mvn:org.apache.cxf/cxf-rt-security/3.4.3</bundle>
+        <bundle>mvn:org.apache.cxf/cxf-rt-transports-http/3.4.3</bundle>
+    </feature>
+
+    <feature name="mobi-jaxb" description="JAXB bundles" version="${project.version}">
+        <bundle start-level="10">mvn:org.apache.servicemix.specs/org.apache.servicemix.specs.activation-api-1.2.1/1.2.1_4-MOBI</bundle>
+        <bundle start-level="10">mvn:jakarta.xml.bind/jakarta.xml.bind-api/2.3.3</bundle>
+        <bundle start-level="20">mvn:com.sun.xml.bind/jaxb-osgi/2.3.3</bundle>
+        <bundle start-level="20">mvn:org.glassfish.hk2/osgi-resource-locator/1.0.3</bundle>
+    </feature>
+
+    <feature name="mobi-jaxws" description="JAX-WS (SOAP) bundles" version="${project.version}">
+        <bundle start-level="10">mvn:org.apache.servicemix.specs/org.apache.servicemix.specs.saaj-api-1.4/1.4_2</bundle>
+        <bundle start-level="20">mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.saaj-impl/1.4.0_2</bundle>
+        <bundle start-level="20">mvn:org.jvnet.staxex/stax-ex/1.7.4</bundle>
+    </feature>
+</features>

@@ -1,0 +1,141 @@
+<div class="ontology-dialog">
+  <!-- Header -->
+  <div class="dialog-header">
+    <h2 mat-dialog-title>
+      <mat-icon>account_tree</mat-icon>
+      Ontology Elements - {{routeId}}
+    </h2>
+    <button mat-icon-button (click)="close()" matTooltip="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="dialog-toolbar">
+    <mat-form-field appearance="outline" class="type-filter">
+      <mat-label>Filter by Type</mat-label>
+      <mat-select [(ngModel)]="selectedType" (selectionChange)="applyFilters()">
+        <mat-option value="all">All Types</mat-option>
+        <mat-option value="class">Classes</mat-option>
+        <mat-option value="objectProperty">Object Properties</mat-option>
+        <mat-option value="datatypeProperty">Datatype Properties</mat-option>
+        <mat-option value="annotationProperty">Annotation Properties</mat-option>
+        <mat-option value="individual">Individuals</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Search</mat-label>
+      <input matInput [(ngModel)]="searchTerm" (input)="applyFilters()"
+             placeholder="Search labels, URIs, descriptions...">
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+
+    <button mat-stroked-button (click)="refreshCache()" [disabled]="isLoading" matTooltip="Refresh ontology cache">
+      <mat-icon>refresh</mat-icon>
+      Refresh
+    </button>
+  </div>
+
+  <!-- Statistics Bar -->
+  <div class="statistics-bar" *ngIf="!isLoading && !error">
+    <div class="stat-chip">
+      <mat-icon>category</mat-icon>
+      {{statistics.classes}} Classes
+    </div>
+    <div class="stat-chip">
+      <mat-icon>link</mat-icon>
+      {{statistics.objectProperties + statistics.datatypeProperties + statistics.annotationProperties}} Properties
+    </div>
+    <div class="stat-chip">
+      <mat-icon>person</mat-icon>
+      {{statistics.individuals}} Individuals
+    </div>
+    <div class="stat-chip total">
+      <strong>{{statistics.total}} Total</strong>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <mat-dialog-content>
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-container">
+      <mat-spinner diameter="50"></mat-spinner>
+      <p>Loading ontology elements...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error && !isLoading" class="error-container">
+      <mat-icon color="warn">error</mat-icon>
+      <p>{{error}}</p>
+      <button mat-raised-button color="primary" (click)="loadOntologyElements()">
+        <mat-icon>refresh</mat-icon>
+        Retry
+      </button>
+    </div>
+
+    <!-- List View -->
+    <div *ngIf="!isLoading && !error" class="list-view">
+      <!-- No elements at all (not just filtered) -->
+      <div *ngIf="elements.length === 0" class="empty-state zero-elements">
+        <mat-icon color="warn">layers_clear</mat-icon>
+        <h3>No Ontology Elements Cached</h3>
+        <p>The ontology cache is empty for this route. This could mean:</p>
+        <ul>
+          <li>The ontology hasn't been loaded yet</li>
+          <li>The graphmart has no ontology elements defined</li>
+          <li>The cache needs to be refreshed</li>
+        </ul>
+        <button mat-raised-button color="primary" (click)="refreshCache()" [disabled]="isLoading">
+          <mat-icon>refresh</mat-icon>
+          Refresh Cache Now
+        </button>
+      </div>
+
+      <!-- Elements exist, show them -->
+      <div *ngIf="elements.length > 0">
+        <mat-accordion multi>
+          <mat-expansion-panel *ngFor="let group of groupedElements" [expanded]="false">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <mat-icon>{{group.icon}}</mat-icon>
+                {{group.label}} ({{group.count}})
+              </mat-panel-title>
+            </mat-expansion-panel-header>
+
+            <mat-list>
+              <mat-list-item *ngFor="let element of group.elements" class="element-item">
+                <div matListItemTitle class="element-label">
+                  {{element.label}}
+                </div>
+                <div matListItemLine class="element-uri">
+                  <span [matTooltip]="element.uri" matTooltipPosition="above" class="uri-text">
+                    {{element.uri.length > 80 ? (element.uri | slice:0:77) + '...' : element.uri}}
+                  </span>
+                  <button mat-icon-button (click)="copyUri(element.uri, $event)"
+                          matTooltip="Copy URI"
+                          class="copy-btn">
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                </div>
+                <div matListItemLine *ngIf="element.description" class="element-description" [matTooltip]="element.description" matTooltipPosition="above">
+                  <mat-icon>info</mat-icon>
+                  <span>{{element.description}}</span>
+                </div>
+              </mat-list-item>
+            </mat-list>
+          </mat-expansion-panel>
+        </mat-accordion>
+
+        <!-- Filtered to zero (but elements exist) -->
+        <div *ngIf="filteredElements.length === 0" class="empty-state">
+          <mat-icon>search_off</mat-icon>
+          <p>No elements match your filters</p>
+          <button mat-button (click)="searchTerm = ''; selectedType = 'all'; applyFilters()">
+            Clear Filters
+          </button>
+        </div>
+      </div>
+    </div>
+  </mat-dialog-content>
+</div>

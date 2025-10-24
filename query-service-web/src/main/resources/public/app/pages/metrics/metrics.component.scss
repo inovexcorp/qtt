@@ -1,0 +1,92 @@
+.chart-container {
+    height: 400px; /* Set a fixed height */
+    width: 85%; /* Set a width that fits the parent container */
+    overflow:visible; /* Enable scrolling if necessary */
+    padding-left: 1rem;
+  }
+
+  .card-container{
+    padding-left:2rem;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .datasource-input-field{
+    padding-left:2.75rem;
+  }
+
+  .datasource-input-field-latency{
+    padding-left:4rem;
+  }
+
+  .header-graphs-container{
+    display:flex;
+    padding-bottom: 3rem;
+    width: 100%;
+    max-width: 100%;
+    gap: 2rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .gauge-class{
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+  
+  .mat-mdc-tab-group{
+    margin-left:2rem;
+    margin-right:2rem;
+    border-width: 2px;
+    border-style: solid;
+    border-color: #7b1fa2;
+    border-radius: 8px;
+    overflow: hidden;
+
+    // Purple tab styling
+    --mdc-tab-indicator-active-indicator-color: #7b1fa2;
+    --mat-tab-header-active-label-text-color: #7b1fa2;
+    --mat-tab-header-active-focus-label-text-color: #7b1fa2;
+    --mat-tab-header-active-hover-label-text-color: #7b1fa2;
+}
+
+.mat-mdc-tab-body{
+  padding-top: 1.5rem;
+}
+
+.table-class{
+  padding:1rem;
+}
+
+.persisted-metrics {
+  width: 15% !important;
+  padding-left: 4.2rem;
+}
+
+// Purple accent for form fields
+.mat-mdc-form-field {
+  --mdc-outlined-text-field-focus-outline-color: #7b1fa2;
+  --mat-form-field-focus-select-arrow-color: #7b1fa2;
+}
+
+// Purple accent for table header
+.table-class {
+  table {
+    thead {
+      th {
+        background-color: #f3e5f5 !important;
+        color: #4a148c !important;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+// Purple accent for paginator
+.mat-mdc-paginator {
+  --mat-paginator-container-text-color: #7b1fa2;
+
+  .mat-mdc-icon-button {
+    --mdc-icon-button-state-layer-color: #7b1fa2;
+  }
+}

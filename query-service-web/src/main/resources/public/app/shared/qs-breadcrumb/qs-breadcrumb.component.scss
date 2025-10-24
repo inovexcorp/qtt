@@ -1,0 +1,35 @@
+.breadcrumb {
+    display: inline-block;
+    margin-top: .75rem;
+}
+.breadcrumb:first-child:before {
+    display: none;
+}
+.breadcrumb:before {
+    vertical-align: top;
+    display: inline-block;
+    margin: 0 10px 0 8px;
+    -webkit-font-smoothing: antialiased;
+}
+
+.mat-toolbar{
+    height: 3rem;
+    background: linear-gradient(to right, #4a148c, #7b1fa2, #9c27b0, #ba68c8) !important;
+    color: white !important;
+}
+
+.separator{
+font-size: 1rem;
+}
+
+// Ensure breadcrumb links are visible on purple background
+::ng-deep xng-breadcrumb a {
+    color: rgba(255, 255, 255, 0.9) !important;
+    text-decoration: none;
+}
+
+::ng-deep xng-breadcrumb a:hover {
+    color: white !important;
+    text-decoration: underline;
+}
+

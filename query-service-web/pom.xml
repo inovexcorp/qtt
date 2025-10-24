@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <parent>
+    <artifactId>query-service</artifactId>
+    <groupId>com.inovexcorp.queryservice</groupId>
+    <version>1.0.39-SNAPSHOT</version>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <artifactId>query-service-web</artifactId>
+  <!-- Same packaging and name changes as the other bundles -->
+  <name>QTT :: Query Service Web</name>
+  <description>Web interface and user-facing components for Query Service</description>
+  <packaging>bundle</packaging>
+
+
+  <properties>
+    <servlet.version>3.1.0</servlet.version>
+    <logback.version>1.2.11</logback.version>
+    <skipTests>true</skipTests>
+  </properties>
+
+  <dependencies>
+    <!-- Add dependencies required for the Whiteboard Extender pattern -->
+    <dependency>
+      <groupId>org.ops4j.pax.web</groupId>
+      <artifactId>pax-web-extender-whiteboard</artifactId>
+      <version>8.0.11</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ops4j.pax.web</groupId>
+      <artifactId>pax-web-api</artifactId>
+      <version>8.0.11</version>
+    </dependency>
+    <!-- Core OSGi dependencies -->
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>osgi.core</artifactId>
+      <version>${osgi.core.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>org.osgi.service.component</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>org.osgi.service.cm</artifactId>
+      <version>1.6.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.osgi</groupId>
+      <artifactId>org.osgi.service.component.annotations</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>javax.servlet-api</artifactId>
+      <version>${servlet.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>${logback.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Needed similarily to the other bundles -->
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <extensions>true</extensions>
+        <configuration>
+          <instructions>
+            <Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
+            <Bundle-Version>${project.version}</Bundle-Version>
+            <Bundle-Name>${project.name}</Bundle-Name>
+            <!-- This bundle won't export anything -->
+            <Export-Package />
+            <Import-Package>
+              *
+            </Import-Package>
+            <Service-Component>*</Service-Component>
+            <build>${maven.build.timestamp}</build>
+            <_snapshot>${maven.build.timestamp}</_snapshot>
+          </instructions>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.github.eirslett</groupId>
+        <artifactId>frontend-maven-plugin</artifactId>
+        <version>1.13.4</version>
+        <configuration>
+          <workingDirectory>.</workingDirectory>
+          <installDirectory>target</installDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <id>install node and npm</id>
+            <goals>
+              <goal>install-node-and-npm</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <nodeVersion>v20.18.1</nodeVersion>
+              <npmVersion>10.8.2</npmVersion>
+            </configuration>
+          </execution>
+          <execution>
+            <id>npm install</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <arguments>install --legacy-peer-deps</arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>npm run build</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <phase>prepare-package</phase>
+            <configuration>
+              <arguments>run build</arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+    <resources>
+      <resource>
+        <directory>target/classes</directory>
+        <includes>
+          <include>build/**</include>
+        </includes>
+      </resource>
+    </resources>
+  </build>
+</project>

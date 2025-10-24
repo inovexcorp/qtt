@@ -1,0 +1,40 @@
+services:
+  redis:
+    image: docker.io/redis:8.2
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly no
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: mssql
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: verYs3cret
+    ports:
+      - "1433:1433"
+    volumes:
+      - "qtt-mssql:/var/opt/mssql"
+
+
+  postgresql:
+    image: postgres:latest
+    container_name: postgresql
+    environment:
+      POSTGRES_PASSWORD: verYs3cret
+    ports:
+      - "5432:5432"
+    volumes:
+      - "qtt-postgres:/var/lib/postgresql/data"
+
+volumes:
+  qtt-redis:
+  qtt-postgres:
+  qtt-mssql:

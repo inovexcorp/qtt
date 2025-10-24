@@ -1,0 +1,30 @@
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+// Define a Material 3 theme
+$my-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$violet-palette,
+    tertiary: mat.$blue-palette,
+  ),
+  typography: (
+    plain-family: 'Roboto, sans-serif',
+    brand-family: 'Roboto, sans-serif',
+  ),
+  density: (
+    scale: 0
+  )
+));
+
+// Apply the theme to all components - must be wrapped in html selector for M3
+html {
+  @include mat.all-component-themes($my-theme);
+}
+
+body {
+  margin: 0px;
+}
+
+

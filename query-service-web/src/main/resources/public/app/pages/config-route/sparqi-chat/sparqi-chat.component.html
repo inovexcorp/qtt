@@ -1,0 +1,135 @@
+<div class="chat-container">
+  <!-- Header -->
+  <div class="chat-header">
+    <div class="header-content">
+      <img src="assets/img/sparqi.png" alt="SPARQi Logo" class="sparqi-logo">
+      <h3>SPAR<span class="qi">Qi</span> Agent</h3>
+      <span class="session-indicator" *ngIf="sessionId" matTooltip="Active Session">●</span>
+    </div>
+    <div class="header-actions">
+      <button mat-icon-button matTooltip="View Context" (click)="loadContext()" [disabled]="!sessionId">
+        <mat-icon>info</mat-icon>
+      </button>
+      <button mat-icon-button matTooltip="Clear Chat" (click)="clearChat()" [disabled]="!sessionId">
+        <mat-icon>delete_sweep</mat-icon>
+      </button>
+      <button mat-icon-button (click)="close()" matTooltip="Close">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Context Panel (expandable) -->
+  <div class="context-panel" *ngIf="showContext && context">
+    <h4>Route Context</h4>
+    <mat-list dense>
+      <mat-list-item>
+        <mat-icon matListItemIcon>route</mat-icon>
+        <div matListItemTitle>Route ID</div>
+        <div matListItemLine>{{context.routeId}}</div>
+      </mat-list-item>
+      <mat-list-item>
+        <mat-icon matListItemIcon>description</mat-icon>
+        <div matListItemTitle>Description</div>
+        <div matListItemLine>{{context.routeDescription}}</div>
+      </mat-list-item>
+      <mat-list-item
+        class="clickable"
+        (click)="openOntologyVisualization()"
+        [matTooltip]="context.ontologyElementCount > 0 ? 'Click to view ontology elements' : 'Click to view and refresh ontology cache'"
+        matTooltipPosition="left">
+        <mat-icon matListItemIcon>layers</mat-icon>
+        <div matListItemTitle>Ontology Elements</div>
+        <div matListItemLine>
+          <span [class.zero-count]="context.ontologyElementCount === 0">
+            {{context.ontologyElementCount}}
+          </span>
+          <mat-icon *ngIf="context.ontologyElementCount === 0" class="warning-icon" inline>warning</mat-icon>
+        </div>
+      </mat-list-item>
+      <mat-list-item *ngIf="context.graphMartUri">
+        <mat-icon matListItemIcon>account_tree</mat-icon>
+        <div matListItemTitle>GraphMart</div>
+        <div matListItemLine class="uri-text">{{context.graphMartUri}}</div>
+      </mat-list-item>
+    </mat-list>
+  </div>
+
+  <!-- Messages Area -->
+  <div class="messages-container" #messagesContainer>
+    <div *ngIf="messages.length === 0 && !isLoading" class="empty-state">
+      <mat-icon>chat</mat-icon>
+      <p>Start a conversation with SPARQi</p>
+      <p class="hint">Ask about SPARQL, Freemarker, or this route's template</p>
+    </div>
+
+    <!-- Messages -->
+    <div *ngFor="let message of messages"
+         class="message"
+         [ngClass]="{
+           'user-message': message.role === 'user',
+           'assistant-message': message.role === 'assistant',
+           'system-message': message.role === 'system'
+         }">
+      <div class="message-header">
+        <mat-icon class="message-icon">
+          {{message.role === 'user' ? 'person' : message.role === 'assistant' ? 'smart_toy' : 'info'}}
+        </mat-icon>
+        <span class="message-role">{{message.role | titlecase}}</span>
+        <span class="message-time">{{message.timestamp | date:'shortTime'}}</span>
+      </div>
+      <div class="message-content" #messageContent>
+        <!-- Markdown Rendering for assistant messages -->
+        <markdown *ngIf="message.role === 'assistant'" [data]="message.content" class="markdown-content"></markdown>
+        <!-- Plain text for user and system messages -->
+        <p *ngIf="message.role !== 'assistant'" class="plain-content">{{message.content}}</p>
+      </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="message assistant-message loading-message" *ngIf="isLoading">
+      <div class="loading-content">
+        <mat-spinner diameter="20"></mat-spinner>
+        <span>SPARQi is thinking...</span>
+      </div>
+    </div>
+
+    <!-- Error Display -->
+    <div class="error-banner" *ngIf="error">
+      <mat-icon>error</mat-icon>
+      <span>{{error}}</span>
+      <button mat-button color="warn" (click)="retryLastMessage()" *ngIf="lastFailedMessage">
+        <mat-icon>refresh</mat-icon>
+        Retry
+      </button>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-container">
+    <mat-form-field appearance="outline" class="message-input">
+      <mat-label>Ask SPARQi...</mat-label>
+      <textarea
+        matInput
+        [(ngModel)]="currentMessage"
+        (keydown)="onKeyDown($event)"
+        [disabled]="isLoading || !sessionId"
+        rows="2"
+        placeholder="Ask about SPARQL, Freemarker, or this route template... (Ctrl+Enter to send)"
+        cdkTextareaAutosize
+        #autosize="cdkTextareaAutosize"
+        cdkAutosizeMinRows="2"
+        cdkAutosizeMaxRows="6">
+      </textarea>
+    </mat-form-field>
+    <button
+      mat-fab
+      color="primary"
+      (click)="sendMessage()"
+      [disabled]="!currentMessage.trim() || isLoading || !sessionId"
+      matTooltip="Send Message (Ctrl+Enter)"
+      class="send-button">
+      <mat-icon>send</mat-icon>
+    </button>
+  </div>
+</div>

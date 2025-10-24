@@ -1,0 +1,35 @@
+<mat-toolbar color="primary">
+  <button (click)="drawer.toggle()" mat-icon-button>
+    <mat-icon>menu</mat-icon>
+  </button>
+  <img class="logo" src="assets/logo.png" />
+  <span>Query Templating Tool</span>
+  <div class="example-spacer"></div>
+<!--  <button mat-icon-button routerLink=".">-->
+<!--    <mat-icon>person</mat-icon>-->
+<!--  </button>-->
+</mat-toolbar>
+<app-qs-breadcrumb></app-qs-breadcrumb>
+
+
+<mat-drawer-container class="primary_container" autosize color="primary">
+  <mat-drawer #drawer mode="side" class="sidebar" color="primary">
+    <mat-nav-list color="primary">
+      <mat-list-item routerLink="/metrics" routerLinkActive="active-nav-item">
+        <mat-icon color="primary">fact_check</mat-icon>&nbsp;&nbsp;Metrics
+      </mat-list-item>
+      <mat-list-item routerLink="/routes" routerLinkActive="active-nav-item">
+        <mat-icon color="primary">dashboard</mat-icon> &nbsp;Routes
+      </mat-list-item>
+      <mat-list-item routerLink="/datasources" routerLinkActive="active-nav-item">
+        <mat-icon color="primary">dns</mat-icon>&nbsp;&nbsp;Datasources
+      </mat-list-item>
+      <mat-list-item routerLink="/settings" routerLinkActive="active-nav-item">
+        <mat-icon color="primary">settings</mat-icon>&nbsp;&nbsp;Settings
+      </mat-list-item>
+    </mat-nav-list>
+  </mat-drawer>
+  <mat-drawer-content>
+    <router-outlet></router-outlet>
+  </mat-drawer-content>
+</mat-drawer-container>

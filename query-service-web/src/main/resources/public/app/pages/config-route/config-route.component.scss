@@ -1,0 +1,638 @@
+// Card and Header Styles
+.config-panel {
+  margin: 1rem 5rem 1rem 5rem;
+  padding: 0.75rem;
+  position: relative;
+  transition: all 0.3s ease;
+
+  &.fullscreen-mode {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    z-index: 1000;
+    border-radius: 0;
+    max-width: 100vw;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+}
+
+.route-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  gap: 0.5rem;
+}
+
+.back-button {
+  color: #7b1fa2;
+}
+
+h1.card-header {
+  margin: 0;
+  background: linear-gradient(to right, #4a148c, #7b1fa2, #9c27b0, #ba68c8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 600;
+}
+
+// Datasource Status Warning Banner
+.datasource-status-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  margin: 1rem 1.5rem;
+  border-radius: 8px;
+  border-left: 4px solid;
+
+  // Status-specific styling
+  &:has(.warning-icon:contains('error')) {
+    background-color: #ffebee;
+    border-left-color: #f44336;
+    color: #c62828;
+
+    .warning-icon {
+      color: #f44336;
+    }
+  }
+
+  &:has(.warning-icon:contains('block')) {
+    background-color: #f5f5f5;
+    border-left-color: #9e9e9e;
+    color: #616161;
+
+    .warning-icon {
+      color: #9e9e9e;
+    }
+  }
+
+  &:has(.warning-icon:contains('help')) {
+    background-color: #fff3e0;
+    border-left-color: #ff9800;
+    color: #e65100;
+
+    .warning-icon {
+      color: #ff9800;
+    }
+  }
+
+  .warning-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .warning-content {
+    flex: 1;
+  }
+
+  .warning-title {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .warning-message {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+  }
+
+  .warning-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+
+    a[mat-button] {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+}
+
+// Form and Configuration Fields
+.form-class {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.config-fields-section {
+  padding: 1rem 1.5rem;
+  transition: all 0.3s ease;
+
+  &.hidden {
+    display: none;
+  }
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #333;
+  }
+}
+
+.input-row-one {
+  padding-bottom: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.input-row-two {
+  padding-bottom: 1.5rem;
+}
+
+.input-row-three {
+  padding-bottom: 1.5rem;
+}
+
+.input-row-four {
+  padding-bottom: 1.5rem;
+}
+
+.input-row-five {
+  padding-bottom: 2.8rem;
+}
+
+.input-style-one {
+  width: 14rem;
+  padding-right: 1rem;
+}
+
+.input-style-two {
+  width: 97%;
+}
+
+// File Upload
+.file-input {
+  display: none;
+}
+
+.file-upload {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.upload-btn {
+  mat-icon {
+    margin-right: 0.5rem;
+  }
+}
+
+.file-name {
+  color: #666;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+// Buttons
+.btn-sec {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.cancel-btn {
+  width: 7rem;
+}
+
+#config-route-btn {
+  padding-left: 10px;
+  width: 7rem;
+  margin-left: 1rem;
+}
+
+#config-route-btn:disabled {
+  width: 7rem;
+  opacity: 30%;
+}
+
+// Editor Section
+.editor-section {
+  position: relative;
+  padding: 1rem 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+
+  &.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1001;
+    background: #1e1e1e;
+    margin: 0;
+    padding: 1rem;
+
+    .editor-title {
+      color: white;
+    }
+  }
+
+  &.with-chat {
+    padding-right: 320px; // Make room for chat panel
+  }
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.editor-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fullscreen-btn,
+.chat-toggle-btn {
+  color: #7b1fa2;
+}
+
+.editor-container {
+  flex: 1;
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  min-height: 500px;
+}
+
+.template-editor-div {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+}
+
+// Monaco Editor Overrides
+.monaco-editor {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.monaco-editor .monaco-editor-background,
+.monaco-editor-background,
+.monaco-editor .inputarea.ime-input {
+  background-color: #2d2d2d !important;
+}
+
+// Chat Panel (slide out from right)
+.chat-panel {
+  position: fixed;
+  top: 0;
+  height: 100vh;
+  background: white;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+  z-index: 1002;
+  overflow: hidden;
+  right: 0;
+  transform: translateX(100%);
+
+  &.open {
+    transform: translateX(0);
+  }
+
+  app-sparqi-chat {
+    display: block;
+    height: 100%;
+    width: 100%;
+  }
+}
+
+// Resize Handle
+.resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 1003;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: rgba(123, 31, 162, 0.1);
+
+    .resize-indicator {
+      background-color: #7b1fa2;
+      box-shadow: 0 0 4px rgba(123, 31, 162, 0.5);
+    }
+  }
+
+  &:active {
+    background-color: rgba(123, 31, 162, 0.2);
+  }
+
+  .resize-indicator {
+    width: 3px;
+    height: 40px;
+    background-color: #ccc;
+    border-radius: 2px;
+    transition: all 0.2s ease;
+  }
+}
+
+// Icons
+.ds-icon {
+  vertical-align: middle;
+}
+
+.started-icon {
+  color: green;
+  vertical-align: middle;
+}
+
+.stopped-icon {
+  color: gray;
+  opacity: 80%;
+  vertical-align: middle;
+}
+
+.started-icon-chip {
+  color: green;
+  vertical-align: middle;
+  transform: scale(.85);
+}
+
+.stopped-icon-chip {
+  color: gray;
+  vertical-align: middle;
+  transform: scale(.85);
+}
+
+// Layers
+.layer-list {
+  width: 97.5%;
+}
+
+// Material overrides
+.mat-mdc-select {
+  padding-right: 10px;
+}
+
+.mat-mdc-text-field-wrapper.mdc-text-field--outlined .mat-mdc-form-field-infix {
+  padding-top: 16px;
+  padding-bottom: 16px;
+  display: flex;
+}
+
+// Cache Configuration Styles
+.cache-config-section {
+  margin-top: 2rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: #f5f5f5;
+  border: 1px solid #e0e0e0;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #333;
+  }
+}
+
+.cache-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+
+  .info-icon {
+    color: #666;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    cursor: help;
+  }
+}
+
+.cache-details {
+  margin-top: 1rem;
+}
+
+.cache-expand-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  &:hover {
+    background-color: #fafafa;
+  }
+
+  > span:first-child {
+    font-weight: 500;
+    color: #555;
+    flex-shrink: 0;
+  }
+
+  > mat-icon:last-child {
+    color: #666;
+    margin-left: auto;
+  }
+
+  .cache-info-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    justify-content: flex-end;
+    margin-right: 0.5rem;
+
+    .cache-stat {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.75rem;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      border-radius: 16px;
+      font-size: 0.8125rem;
+      white-space: nowrap;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+      }
+
+      .stat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: #1565c0;
+      }
+
+      .stat-value {
+        font-weight: 600;
+        color: #0d47a1;
+      }
+
+      .stat-label {
+        color: #1976d2;
+        opacity: 0.9;
+      }
+
+      // Info variant for configuration pills (host, compression)
+      &.cache-stat-info {
+        background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+
+        .stat-icon {
+          color: #6a1b9a;
+        }
+
+        .stat-value {
+          color: #4a148c;
+          font-weight: 500;
+        }
+      }
+    }
+
+    mat-spinner {
+      margin: 0;
+    }
+  }
+
+  // Responsive: stack on smaller screens
+  @media (max-width: 768px) {
+    flex-wrap: wrap;
+
+    > span:first-child {
+      flex-basis: 100%;
+      margin-bottom: 0.5rem;
+    }
+
+    .cache-info-right {
+      flex-basis: 100%;
+      justify-content: flex-start;
+    }
+
+    > mat-icon:last-child {
+      margin-left: 0;
+    }
+  }
+}
+
+.cache-fields {
+  padding: 1rem;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+}
+
+.cache-input-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cache-input-field {
+  flex: 1;
+}
+
+.cache-clear-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.clear-cache-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .button-spinner {
+    margin-right: 4px;
+  }
+
+  .success-icon {
+    color: #4caf50;
+    animation: checkmark-pop 0.3s ease-out;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@keyframes checkmark-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Snackbar styles for success and error messages
+::ng-deep .success-snackbar {
+  background-color: #4caf50 !important;
+  color: white !important;
+
+  .mat-mdc-button {
+    color: white !important;
+  }
+}
+
+::ng-deep .error-snackbar {
+  background-color: #f44336 !important;
+  color: white !important;
+
+  .mat-mdc-button {
+    color: white !important;
+  }
+}

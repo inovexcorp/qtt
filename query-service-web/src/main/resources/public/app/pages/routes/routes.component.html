@@ -1,0 +1,126 @@
+<ng-container *ngIf="router.isActive('/routes', true)">
+<mat-card appearance="outlined" class="table-card">
+  <div class="route-table-header">
+  <mat-form-field appearance="outline">
+    <mat-label>Search</mat-label>
+    <input #inp matInput (keyup)="applyFilter(inp.value)">
+    <mat-icon matSuffix>search</mat-icon>
+  </mat-form-field>
+  <button mat-raised-button color="primary" class="add-button" (click)="openAddRouteDialog()">Add Route</button>
+</div>
+  <table mat-table [dataSource]="dataSource" matSort class="mat-elevation-z8">
+
+        <!-- Status Column -->
+        <ng-container matColumnDef="Status">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="status">Status</th>
+          <td mat-cell *matCellDef="let element">
+            <div class="status-cell">
+              <mat-icon class="started-icon" *ngIf="element.status=='Started'" >check_circle</mat-icon>
+              <mat-icon class="stopped-icon" *ngIf="element.status=='Stopped'" >stop_circle</mat-icon>
+              <mat-icon class="datasource-disabled-warning"
+                        *ngIf="isDatasourceDisabled(element)"
+                        matTooltip="Warning: Datasource '{{element.datasources.dataSourceId}}' is disabled. This route cannot execute queries."
+                        matTooltipPosition="right">
+                block
+              </mat-icon>
+              <mat-icon class="datasource-down-warning"
+                        *ngIf="isDatasourceDown(element)"
+                        matTooltip="Warning: Datasource '{{element.datasources.dataSourceId}}' is down. This route may fail."
+                        matTooltipPosition="right">
+                warning
+              </mat-icon>
+            </div>
+          </td>
+        </ng-container>
+
+
+    <!-- Route ID Column -->
+    <ng-container matColumnDef="Route ID">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header="routeId">Route ID</th>
+      <td mat-cell *matCellDef="let element">
+        {{element.routeId}}</td>
+    </ng-container>
+
+    <!-- URL Column -->
+    <ng-container matColumnDef="URL">
+      <th mat-header-cell *matHeaderCellDef>Endpoint URL </th>
+      <td mat-cell *matCellDef="let element">{{baseUrl}}/{{element.routeId}} </td>
+    </ng-container>
+
+    <!-- Description Column -->
+    <ng-container matColumnDef="Description">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header="description"> Description </th>
+      <td mat-cell class="description" *matCellDef="let element"> {{element.description}} </td>
+    </ng-container>
+
+    <!-- DataSource Column -->
+    <ng-container matColumnDef="DataSource ID">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header="datasource"> DataSource ID </th>
+      <td mat-cell *matCellDef="let element">
+        <div class="datasource-cell">
+          <span>{{element.datasource}}</span>
+          <mat-icon *ngIf="element.datasources?.status === 'UP'" class="ds-status-icon ds-status-up" matTooltip="Datasource is healthy">check_circle</mat-icon>
+          <mat-icon *ngIf="element.datasources?.status === 'DOWN'" class="ds-status-icon ds-status-down" matTooltip="Datasource is down">error</mat-icon>
+          <mat-icon *ngIf="element.datasources?.status === 'DISABLED'" class="ds-status-icon ds-status-disabled" matTooltip="Datasource is disabled">block</mat-icon>
+          <mat-icon *ngIf="element.datasources?.status === 'CHECKING'" class="ds-status-icon ds-status-checking" matTooltip="Health check in progress">sync</mat-icon>
+          <mat-icon *ngIf="!element.datasources?.status || element.datasources?.status === 'UNKNOWN'" class="ds-status-icon ds-status-unknown" matTooltip="Status unknown">help</mat-icon>
+        </div>
+      </td>
+    </ng-container>
+
+    <!-- Menu Action Column -->
+    <ng-container matColumnDef="Menu Actions">
+      <th mat-header-cell *matHeaderCellDef aria-label="menuActions">&nbsp;</th>
+      <td mat-cell *matCellDef="let element">
+        <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Example icon-button with a menu">
+          <mat-icon color="primary">more_vert</mat-icon>
+        </button>
+        <mat-menu #menu="matMenu">
+          <button mat-menu-item (click)="navigateToConfigRoute(element.routeId)">
+            <mat-icon color="primary">construction</mat-icon>
+            <span>Configure</span>
+          </button>
+          <button mat-menu-item *ngIf="element.status=='Started'" (click)="toggleRouteStatus(element.routeId, 'Stopped')">
+            <span>
+              <mat-icon color="primary">wifi_off</mat-icon>
+              <span>Turn Off</span>
+            </span>
+          </button>
+          <button mat-menu-item
+                  *ngIf="element.status=='Stopped'"
+                  [disabled]="!isDatasourceHealthy(element)"
+                  [matTooltip]="getDisabledTooltip(element)"
+                  [matTooltipDisabled]="isDatasourceHealthy(element)"
+                  (click)="toggleRouteStatus(element.routeId, 'Started')">
+            <span>
+              <mat-icon [color]="isDatasourceHealthy(element) ? 'primary' : 'disabled'">wifi_on</mat-icon>
+              <span>Turn On</span>
+              <mat-icon *ngIf="!isDatasourceHealthy(element)" class="warning-indicator">warning</mat-icon>
+            </span>
+          </button>
+          <button mat-menu-item (click)="cloneRoute(element.routeId)">
+            <mat-icon color="primary">group</mat-icon>
+            <span>Clone</span>
+          </button>
+          <button mat-menu-item (click)="openDeleteDialog(element.routeId)">
+            <mat-icon color="primary">delete</mat-icon>
+            <span>Delete</span>
+          </button>
+        </mat-menu>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+  </table>
+  <mat-paginator #paginator
+              color="primary"
+              [length]="16"
+              [pageSize]="25" [pageSizeOptions]="[5, 10, 25, 50]"
+              aria-label="Select page"
+              >
+</mat-paginator>
+
+</mat-card>
+</ng-container>
+<router-outlet></router-outlet>

@@ -1,0 +1,156 @@
+<div class="header-graphs-container">
+  <ngx-charts-number-card class="card-container" [results]="cardMetrics" [scheme]="purpleColorScheme" [view]="[850,180]"
+    [cardColor]="cardColor">
+
+  </ngx-charts-number-card>
+
+  <div class="gauge-class">
+    <ngx-charts-linear-gauge [value]="gaugeMetric" [units]="units" [view]="[350,150]"
+      [valueFormatting]="percentageFormat" [scheme]="purpleColorScheme">
+    </ngx-charts-linear-gauge>
+  </div>
+
+</div>
+
+<mat-tab-group mat-stretch-tabs animationDuration="500ms" class="charts-container">
+  <mat-tab label="Exchanges">
+    <div class="chart-container">
+      <form [formGroup]="metrics">
+        <mat-form-field class="datasource-input-field">
+          <mat-label>Datasource</mat-label>
+          <input type="text" placeholder="All Datasources" #exchangeDatasourceId formControlName="exchangeDatasourceId"
+            matInput [matAutocomplete]="datasourceExchangesAutoComplete">
+          <mat-autocomplete #datasourceExchangesAutoComplete="matAutocomplete"
+            (optionSelected)="fetchDatasourceSpecificMetrics($event.option.value)">
+            <mat-option value="">All Datasources</mat-option>
+            <mat-option *ngFor="let option of filteredDatasources | async" [value]="option.dataSourceId">
+              {{option.dataSourceId}}
+            </mat-option>
+          </mat-autocomplete>
+        </mat-form-field>
+        <mat-form-field class="route-input-checkbox">
+          <mat-label>Routes</mat-label>
+          <mat-select formControlName="routeId" #routeIdSelect multiple (selectionChange)="filterByRoutes($event)">
+            <mat-option *ngFor="let route of exchangeData" [value]="route.name">{{route.name}}</mat-option>
+          </mat-select>
+
+        </mat-form-field>
+      </form><ngx-charts-bar-vertical-stacked [results]="exchangeDisplay" [scheme]="purpleColorScheme" [xAxis]="true"
+        [yAxis]="true" [yAxisTickFormatting]="yAxisTickFormatting" [showXAxisLabel]="true" [showYAxisLabel]="true"
+        [wrapTicks]="true" [legend]="true">
+
+      </ngx-charts-bar-vertical-stacked>
+    </div>
+  </mat-tab>
+  <mat-tab label="Latency">
+    <div class="chart-container">
+
+      <form [formGroup]="metrics">
+        <mat-form-field class="datasource-input-field-latency">
+          <mat-label>Datasource</mat-label>
+          <input type="text" placeholder="All Datasources" #latencyDatasourceId formControlName="latencyDatasourceId"
+            matInput [matAutocomplete]="datasourceLatencyAutoComplete">
+          <mat-autocomplete #datasourceLatencyAutoComplete="matAutocomplete"
+            (optionSelected)="fetchDatasourceSpecificMetrics($event.option.value)">
+            <mat-option value="">All Datasources</mat-option>
+            <mat-option *ngFor="let option of filteredDatasources | async" [value]="option.dataSourceId">
+              {{option.dataSourceId}}
+            </mat-option>
+          </mat-autocomplete>
+        </mat-form-field>
+        <mat-form-field class="route-input-checkbox">
+          <mat-label>Routes</mat-label>
+          <mat-select formControlName="routeId" #routeIdSelect multiple (selectionChange)="filterByRoutes($event)">
+            <mat-option *ngFor="let route of exchangeData" [value]="route.name">{{route.name}}</mat-option>
+          </mat-select>
+
+        </mat-form-field>
+      </form>
+
+      <div class="chart-container">
+        <ngx-charts-bar-vertical-2d [view]="[1400,400]" [results]="latencyDisplay" [showXAxisLabel]="true"
+          [showYAxisLabel]="true" [wrapTicks]="true" [scheme]="purpleColorScheme" [xAxis]="true" [yAxis]="true" [legend]="true"
+          [yAxisTickFormatting]="verticalGroupedTickFormat"
+          [barPadding]="-20"
+          [groupPadding]="1">
+        </ngx-charts-bar-vertical-2d>
+      </div>
+    </div>
+  </mat-tab>
+  <mat-tab label="Trends">
+    <mat-form-field class="persisted-metrics">
+      <mat-label>Metric</mat-label>
+    <mat-select [ngModel]="'totalProcessingTime'" (selectionChange)="getPersistedMetrics($event.value)">
+      <mat-option value="totalProcessingTime">Total Processing Time</mat-option>
+      <mat-option value="minProcessingTime">Min Processing Time</mat-option>
+      <mat-option value="maxProcessingTime">Max Processing Time</mat-option>
+      <mat-option value="meanProcessingTime">Mean Processing Time</mat-option>
+      <mat-option value="exchangesCompleted">Completed Exchanges</mat-option>
+      <mat-option value="exchangesTotal">Total Exchanges</mat-option>
+      <mat-option value="exchangesInflight">Inflight Exchanges</mat-option>
+      <mat-option value="exchangesFailed">Failed Exchanges</mat-option>
+    </mat-select>
+  </mat-form-field>
+    <ngx-charts-line-chart
+    [view]="[1450,400]"
+    [results]="persistedData"
+    [xAxis]="true"
+    [yAxis]="true"
+    [scheme]="purpleColorScheme"></ngx-charts-line-chart>
+  </mat-tab>
+  <mat-tab label="Table">
+    <div class="table-class">
+      <mat-form-field appearance="outline">
+        <mat-label>Search</mat-label>
+        <input #inp matInput (keyup)="applyFilter(inp.value)">
+        <mat-icon matSuffix>search</mat-icon>
+      </mat-form-field>
+      <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+        <!-- Name Column -->
+        <ng-container matColumnDef="Name">
+          <th mat-header-cell *matHeaderCellDef>Name</th>
+          <td mat-cell *matCellDef="let element">{{element.name}}</td>
+        </ng-container>
+
+        <!-- Processing Time -->
+        <ng-container matColumnDef="Processing Time">
+          <th mat-header-cell *matHeaderCellDef>Processing Time (Min/Max/Avg)</th>
+          <td mat-cell *matCellDef="let element">
+            {{element.minProcessingTime}}ms/{{element.maxProcessingTime}}ms/{{element.averageProcessingTime}}ms</td>
+        </ng-container>
+
+        <!-- Successful Exchanges -->
+        <ng-container matColumnDef="Successful Exchanges">
+          <th mat-header-cell *matHeaderCellDef>Successful Exchanges</th>
+          <td mat-cell *matCellDef="let element">{{element.successfulExchanges}}</td>
+        </ng-container>
+
+        <!-- Failed Exchanges -->
+        <ng-container matColumnDef="Failed Exchanges">
+          <th mat-header-cell *matHeaderCellDef>Failed Exchanges</th>
+          <td mat-cell *matCellDef="let element">{{element.failedExchanges}}</td>
+        </ng-container>
+
+        <!-- State -->
+        <ng-container matColumnDef="State">
+          <th mat-header-cell *matHeaderCellDef>State</th>
+          <td mat-cell *matCellDef="let element">{{element.state}}</td>
+        </ng-container>
+
+        <!-- Uptime -->
+        <ng-container matColumnDef="Uptime">
+          <th mat-header-cell *matHeaderCellDef>Uptime</th>
+          <td mat-cell *matCellDef="let element">{{element.uptime}}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+
+    </div>
+    <mat-paginator #paginator color="primary" [length]="16" [pageSize]="5" aria-label="Select page">
+    </mat-paginator>
+  </mat-tab>
+
+
+</mat-tab-group>

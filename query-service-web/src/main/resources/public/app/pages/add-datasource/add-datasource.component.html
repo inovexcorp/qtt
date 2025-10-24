@@ -1,0 +1,100 @@
+<mat-card appearance="outlined" class="config-panel">
+  <h1>New Datasource</h1>
+  <mat-tab-group id="remove-border-bottom" mat-stretch-tabs animationDuration="500ms">
+    <mat-tab label="Config">
+      <div id="example-spacer"></div>
+      <form [formGroup]="createDatasource">
+        <div>
+          <mat-form-field appearance="outline" class="add-datasource-form-field">
+            <mat-label>Datasource ID</mat-label>
+            <input matInput placeholder="Datasource ID" formControlName="dataSourceId">
+            <mat-icon matSuffix>dns</mat-icon>
+            <mat-error *ngIf="dataSourceId && dataSourceId.invalid && dataSourceId.touched">Require a Datasource ID
+            </mat-error>
+          </mat-form-field>
+        </div>
+        <div>
+          <mat-form-field class="add-datasource-form-field" appearance="outline">
+            <mat-label>URL</mat-label>
+            <input matInput placeholder="URL" formControlName="url">
+            <mat-icon matSuffix>link</mat-icon>
+            <mat-error *ngIf="url && url.invalid && url.touched">Require a URL</mat-error>
+          </mat-form-field>
+        </div>
+        <div>
+          <mat-form-field class="add-datasource-form-field" appearance="outline">
+            <mat-label>Time Out Seconds</mat-label>
+            <input height="50rem" matInput placeholder="Time Out Seconds" formControlName="timeOutSeconds">
+            <mat-icon matSuffix>timelapse</mat-icon>
+            <mat-error *ngIf="timeOutSeconds && timeOutSeconds.invalid && timeOutSeconds.touched">Require a
+              TimeOutSeconds number
+            </mat-error>
+          </mat-form-field>
+        </div>
+        <div>
+          <mat-form-field class="add-datasource-form-field" appearance="outline">
+            <mat-label>Max Query Header Length</mat-label>
+            <input matInput placeholder="Max Query Header Length" formControlName="maxQueryHeaderLength">
+            <mat-icon matSuffix>settings_ethernet</mat-icon>
+            <mat-error *ngIf="maxQueryHeaderLength && maxQueryHeaderLength.invalid && maxQueryHeaderLength.touched">
+              Require a Max Query Header Length
+            </mat-error>
+          </mat-form-field>
+        </div>
+        <div>
+          <mat-form-field class="add-datasource-form-field" appearance="outline">
+            <mat-label>Username</mat-label>
+            <input matInput placeholder="Username" formControlName="username">
+            <mat-icon matSuffix>account_circle</mat-icon>
+            <mat-error *ngIf="username && username.invalid && username.touched">Require a Username</mat-error>
+          </mat-form-field>
+        </div>
+        <div>
+          <mat-form-field class="add-datasource-form-field" appearance="outline">
+            <mat-label>Password</mat-label>
+            <input matInput placeholder="Password" [type]="hide ? 'password' : 'text'" formControlName="password">
+            <mat-icon matSuffix (click)="hide = !hide">{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
+            <mat-error *ngIf="password && password.invalid && password.touched">Require a Password</mat-error>
+          </mat-form-field>
+        </div>
+        <div>
+          <mat-form-field class="add-datasource-form-field" appearance="outline">
+            <mat-label>Validate HTTPS Certificates</mat-label>
+            <mat-select formControlName="validateCertificate">
+              <mat-option value="true">
+                <mat-icon>key</mat-icon>
+                Validate Certificates
+              </mat-option>
+              <mat-option value="false">
+                <mat-icon>key_off</mat-icon>
+                Ignore Certificates
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </form>
+      <div>
+        <button type="submit" [disabled]="!createDatasource.valid" mat-raised-button color="primary" id="submit-button"
+                (click)="add(); "><mat-icon>check</mat-icon>Submit
+        </button>
+        <button type="button" [disabled]="!createDatasource.valid" mat-raised-button color="accent" id="test-button"
+                (click)="test()"><mat-icon>network_check</mat-icon>Test
+        </button>
+      </div>
+      <div *ngIf="testResponseStatus" class="test-response" [ngClass]="{
+          'success': testResponseStatus === 'success',
+          'error': testResponseStatus === 'error'
+        }">
+        <div *ngIf="testResponseStatus === 'success'">
+          Connection successful!
+          <pre *ngIf="testResponse">{{ testResponse | json }}</pre>
+        </div>
+        <div *ngIf="testResponseStatus === 'error'">
+          Connection failed!
+          <pre *ngIf="testResponse">{{ testResponse | json }}</pre>
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+  <div></div>
+</mat-card>

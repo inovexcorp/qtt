@@ -1,0 +1,175 @@
+<div class="flex-container">
+    <form [formGroup]="createRoute" class="form-class">
+        <div class="flex-child config-panel" [class.hidden]="showTemplateEditor">
+            <h1 class="modal-header">Add Route</h1>
+            <h3>Route Details</h3>
+            <div class="input-row-one">
+                <mat-form-field appearance="outline" class="input-style-one">
+                    <mat-label>Route Name</mat-label>
+                    <input type="text" matInput formControlName="routeId">
+                    <mat-icon matSuffix>router</mat-icon>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="input-style-one">
+                    <mat-label>Datasource</mat-label>
+                    <mat-select disableOptionCentering panelClass="myPanelClass" #datasourceSelect
+                        (valueChange)="getGraphMarts($event)" formControlName="datasourceValidator">
+                        <mat-option *ngFor="let datasource of datasources"
+                            value="{{datasource.dataSourceId}}">{{datasource.dataSourceId}}</mat-option>
+                    </mat-select>
+                    <mat-icon class="ds-icon" svgIcon="anzo-logo"></mat-icon>
+                </mat-form-field>
+            </div>
+            <div class="input-row-two">
+                <span>
+                    <mat-form-field appearance="outline" class="input-style-two">
+                        <mat-label>HTTP Methods</mat-label>
+                        <mat-select multiple formControlName="routeParams" disableOptionCentering panelClass="myPanelClass">
+                            <mat-option value="GET">GET</mat-option>
+                            <mat-option value="POST">POST</mat-option>
+                            <mat-option value="PUT">PUT</mat-option>
+                            <mat-option value="PATCH">PATCH</mat-option>
+                            <mat-option value="DELETE">DELETE</mat-option>
+                        </mat-select>
+                        <mat-icon matSuffix>http</mat-icon>
+                    </mat-form-field>
+                </span>
+            </div>
+            <div class="input-row-three">
+                <span>
+                    <mat-form-field appearance="outline" class="input-style-two">
+                        <mat-label>Route Description</mat-label>
+                        <input type="text" matInput formControlName="routeDescription">
+                        <mat-icon matSuffix>description</mat-icon>
+                    </mat-form-field>
+                </span>
+            </div>
+            <div class="input-row-four">
+                <span>
+                    <mat-form-field appearance="outline" class="input-style-two">
+                        <mat-label>GraphMart</mat-label>
+                        <input type="text" placeholder="Pick one" aria-label="Number" #graphMartUri
+                            formControlName="graphMartUri" matInput [matAutocomplete]="graphmartAutocomplete">
+                        <mat-autocomplete #graphmartAutocomplete="matAutocomplete"
+                            (optionSelected)="getGraphMartLayers($event.option.value)">
+                            <mat-option *ngFor="let option of filteredGraphmarts | async" [value]="option.title">
+                                {{option.title}}
+                                <mat-icon class="started-icon"
+                                    *ngIf="option.active=='true'; else stoppedBlock">check_circle</mat-icon>
+                            </mat-option>
+                        </mat-autocomplete>
+                    </mat-form-field>
+                </span>
+            </div>
+            <div class="input-row-five">
+                <mat-form-field class="layer-list" appearance="fill">
+                    <mat-label>GraphMart Layers</mat-label>
+                    <mat-chip-grid #chipGrid aria-label="Layer selection">
+                        <mat-chip-row *ngFor="let layer of layers" (removed)="remove(layer)">
+                            <mat-icon class="started-icon-chip" *ngIf="chipStatus(layer)==true; else stoppedBlock">check_circle</mat-icon>
+                            {{layer}}
+                            <button matChipRemove [attr.aria-label]="'remove ' + layer">
+                                <mat-icon>cancel</mat-icon>
+                            </button>
+                        </mat-chip-row>
+                    </mat-chip-grid>
+                    <input placeholder="{{layerPlaceholder}}" #layerElement formControlName="layersInput"
+                        [matChipInputFor]="chipGrid" [matAutocomplete]="layerAutocomplete"
+                        [matChipInputSeparatorKeyCodes]="separatorKeysCodes" (matChipInputTokenEnd)="add($event)" />
+                    <mat-autocomplete #layerAutocomplete="matAutocomplete" (optionSelected)="selected($event)">
+                        <mat-option *ngFor="let layer of filteredLayers | async" [value]="layer.title">
+                            {{layer.title}}
+                            <mat-icon class="started-icon"
+                                *ngIf="layer.active=='true'; else stoppedBlock">check_circle</mat-icon>
+                        </mat-option>
+                    </mat-autocomplete>
+                </mat-form-field>
+            </div>
+
+            <!-- Cache Configuration Section -->
+            <div class="cache-config-section" *ngIf="cacheInfo && cacheInfo.enabled">
+                <h3>Cache Configuration</h3>
+                <div class="cache-toggle-row">
+                    <mat-slide-toggle
+                        [(ngModel)]="cacheEnabled"
+                        [ngModelOptions]="{standalone: true}"
+                        (change)="toggleCacheEnabled()"
+                        color="primary">
+                        Enable Caching for this Route
+                    </mat-slide-toggle>
+                    <mat-icon class="info-icon" matTooltip="When enabled, query results will be cached to improve performance">info</mat-icon>
+                </div>
+
+                <div class="cache-details" *ngIf="cacheEnabled" [@slideDown]>
+                    <div class="cache-expand-header" (click)="toggleCacheExpanded()">
+                        <span>Cache Settings</span>
+                        <mat-icon>{{ cacheExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    </div>
+
+                    <div class="cache-fields" *ngIf="cacheExpanded">
+                        <div class="cache-input-row">
+                            <mat-form-field appearance="outline" class="cache-input-field">
+                                <mat-label>Cache TTL (seconds)</mat-label>
+                                <input type="number" matInput formControlName="cacheTtlSeconds"
+                                       [placeholder]="'Default: ' + (cacheInfo?.defaultTtlSeconds || 3600)">
+                                <mat-icon matSuffix matTooltip="Time to live - how long cached results remain valid">schedule</mat-icon>
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline" class="cache-input-field">
+                                <mat-label>Cache Key Strategy</mat-label>
+                                <mat-select formControlName="cacheKeyStrategy" disableOptionCentering>
+                                    <mat-option value="QUERY_HASH">Query Hash (Default)</mat-option>
+                                    <mat-option value="ROUTE_PARAMS">Route Parameters</mat-option>
+                                </mat-select>
+                                <mat-icon matSuffix matTooltip="How cache keys are generated for queries">key</mat-icon>
+                            </mat-form-field>
+                        </div>
+
+                        <div class="cache-info-banner">
+                            <mat-icon>info</mat-icon>
+                            <span>Global cache settings: Host: {{cacheInfo.host}}:{{cacheInfo.port}}, Compression: {{cacheInfo.compressionEnabled ? 'Enabled' : 'Disabled'}}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-row-six">
+                <span>
+                    <input type="file" class="file-input" (change)="onFileSelected($event)" #fileUpload>
+                    <div class="file-upload">
+                        <button mat-raised-button color="primary" class="upload-btn" (click)="fileUpload.click()">
+                            <mat-icon>upload_file</mat-icon>
+                            Upload Template
+                        </button>
+                        <button mat-raised-button color="primary" class="edit-btn" (click)="toggleEditor()">
+                            <mat-icon>edit</mat-icon>
+                            Edit Template
+                        </button>
+                        <span class="file-name">{{fileName || "No template uploaded yet"}}</span>
+                    </div>
+                </span>
+            </div>
+            <div class="btn-sec">
+                <button mat-raised-button type="button" class="close-btn" (click)="closeDialog()">Cancel</button>
+                <button mat-raised-button type="submit" id="add-route-button" color="primary"
+                    [disabled]="!createRoute.valid"
+                    (click)="addRoute(); ">Submit</button>
+            </div>
+        </div>
+        <div class="flex-child editor-panel" [class.editor-hidden]="!showTemplateEditor">
+            <button *ngIf="showTemplateEditor" mat-mini-fab color="primary" class="slide-back-btn"
+                    (click)="toggleEditor()" matTooltip="Back to Configuration">
+                <mat-icon>chevron_left</mat-icon>
+            </button>
+            <div [style.visibility]="showTemplateEditor ? 'visible' : 'hidden'">
+                <h2 class="editor-title">Template Editor</h2>
+                <div>
+                    <ngx-monaco-editor [options]="editorOptions" formControlName="template"
+                        (onInit)="onEditorInit($event)"
+                        class="template-editor-div"></ngx-monaco-editor>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<ng-template #stoppedBlock><mat-icon class="stopped-icon-chip">stop_circle</mat-icon></ng-template>

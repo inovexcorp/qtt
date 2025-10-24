@@ -1,0 +1,147 @@
+.mat-mdc-table {
+    min-width:70%!important;
+}
+
+.description{
+    width:25%
+}
+
+.mat-mdc-table{
+    margin:1rem;
+}
+
+td.mat-mdc-cell{
+    -webkit-hyphens: auto; /* iOS 4.2+ */
+    -moz-hyphens: auto; /* Firefox 5+ */
+    -ms-hyphens: auto; /* IE 10+ */
+    hyphens: auto;
+    word-wrap: break-word;
+}
+
+.table-card{
+    margin-top:7rem;
+    width: 80%;
+    margin-left: auto;
+    margin-right:auto;
+}
+
+.add-button{
+    float:right;
+    padding-bottom: none;
+    margin-top: .25rem;
+}
+
+
+
+
+// Status cell with warning icons
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.started-icon{
+    color:green;
+    vertical-align: middle;
+}
+
+.stopped-icon{
+    color:gray;
+    opacity: 80%;
+    vertical-align: middle;
+}
+
+// Datasource warning indicators
+.datasource-disabled-warning {
+  color: #9e9e9e;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  cursor: help;
+}
+
+.datasource-down-warning {
+  color: #ff9800;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  cursor: help;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.route-table-header{
+    padding:1rem;
+}
+
+// Datasource cell with status indicator
+.datasource-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+// Datasource status icons
+.ds-status-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+
+  &.ds-status-up {
+    color: #4caf50;
+  }
+
+  &.ds-status-down {
+    color: #f44336;
+  }
+
+  &.ds-status-disabled {
+    color: #9e9e9e;
+  }
+
+  &.ds-status-checking {
+    color: #ff9800;
+    animation: spin 2s linear infinite;
+  }
+
+  &.ds-status-unknown {
+    color: #757575;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Warning indicator in menu items
+.warning-indicator {
+  color: #ff9800;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-left: 0.25rem;
+}
+
+// Disabled menu item styling
+button[mat-menu-item][disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+
+  span {
+    color: #999;
+  }
+
+  mat-icon {
+    color: #999 !important;
+  }
+}

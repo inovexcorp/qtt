@@ -1,0 +1,337 @@
+h1.card-header {
+  margin-left: auto;
+  background: linear-gradient(to right, #4a148c, #7b1fa2, #9c27b0, #ba68c8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 600;
+}
+
+.config-panel {
+  margin: 1rem 5rem 1rem 5rem;
+  padding: .75rem;
+}
+
+.delete-datasource {
+  margin-left: auto;
+  margin-bottom: 10px;
+}
+
+.datasource-card-header {
+  display: flex;
+  align-items: center;
+}
+
+.example-spacer {
+  padding-top: 1.5rem;
+}
+
+// Health Status Section
+.health-status-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  margin: 1rem 1.5rem;
+  gap: 2rem;
+  flex-wrap: wrap;
+
+  .status-display {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    .status-label {
+      font-weight: 600;
+      font-size: 1rem;
+      color: #333;
+    }
+
+    .status-badge-large {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      border-radius: 24px;
+      gap: 8px;
+      font-weight: 500;
+      font-size: 0.95rem;
+
+      mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+
+      &.status-up {
+        background-color: #4caf50;
+        color: white;
+      }
+
+      &.status-down {
+        background-color: #f44336;
+        color: white;
+      }
+
+      &.status-disabled {
+        background-color: #9e9e9e;
+        color: white;
+      }
+
+      &.status-checking {
+        background-color: #ff9800;
+        color: white;
+
+        mat-icon {
+          animation: spin 2s linear infinite;
+        }
+      }
+
+      &.status-unknown {
+        background-color: #757575;
+        color: white;
+      }
+    }
+  }
+
+  .health-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      mat-icon {
+        margin-right: 0;
+      }
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+mat-divider {
+  margin: 1.5rem 0;
+}
+
+.config-datasource-form-field {
+  margin-left: 1.5rem;
+  width: 95%;
+  margin-top: 1rem;
+}
+
+.mat-mdc-tab-group {
+  margin-left: 2rem;
+  margin-right: 2rem;
+  border-width: 2.5px;
+  border-style: solid;
+
+  // Purple indicator for active tab
+  .mat-mdc-tab-header {
+    --mdc-tab-indicator-active-indicator-color: #7b1fa2;
+    --mat-tab-header-active-label-text-color: #7b1fa2;
+    --mat-tab-header-active-focus-label-text-color: #7b1fa2;
+    --mat-tab-header-active-hover-label-text-color: #7b1fa2;
+  }
+}
+
+.remove-border-bottom .mat-mdc-tab-header {
+  border-bottom: 1px groove black;
+}
+
+.remove-border-bottom {
+  margin-bottom: 2rem;
+}
+
+
+#submit-button {
+  width: 8rem;
+  height: 2.5rem;
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+  margin-top: 1rem;
+}
+
+#submit-button:disabled {
+  width: 8rem;
+  height: 2.5rem;
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+  opacity: 70%;
+  margin-top: 1rem;
+}
+
+#test-button {
+  margin-left: 2rem;
+}
+
+.test-response {
+  padding: 1rem;
+  margin-top: 1rem;
+  border-radius: 4px;
+  overflow: auto;
+  overflow-wrap: break-word;
+
+  &.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  &.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+}
+
+// Usage tab styles
+.usage-tab-content {
+  padding: 2rem;
+}
+
+.loading-container {
+  text-align: center;
+  padding: 2rem;
+
+  p {
+    margin-top: 1rem;
+    color: #666;
+  }
+}
+
+.metrics-container {
+  width: 100%;
+}
+
+.aggregate-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.metric-card {
+  text-align: center;
+
+  .mat-mdc-card-header {
+    display: block;
+    padding-bottom: 0.5rem;
+  }
+
+  .mat-mdc-card-title {
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .mat-mdc-card-content {
+    padding-top: 0.5rem;
+  }
+
+  .metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #7b1fa2;
+    margin-bottom: 0.25rem;
+  }
+
+  .metric-label {
+    font-size: 0.875rem;
+    color: #666;
+  }
+}
+
+.routes-table-container {
+  margin-top: 2rem;
+
+  .table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+
+    h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 500;
+    }
+
+    .filter-field {
+      width: 300px;
+      font-size: 0.875rem;
+
+      .mat-mdc-form-field-wrapper {
+        padding-bottom: 0;
+      }
+    }
+  }
+
+  table {
+    width: 100%;
+
+    th {
+      font-weight: 600;
+      background-color: #f5f5f5;
+
+      &.mat-sort-header-sorted {
+        color: #7b1fa2;
+      }
+    }
+
+    td, th {
+      padding: 0.75rem;
+    }
+  }
+
+  mat-paginator {
+    margin-top: 1rem;
+    background-color: transparent;
+  }
+
+  .state-started {
+    color: #2e7d32;
+    font-weight: 500;
+  }
+
+  .state-stopped {
+    color: #d32f2f;
+    font-weight: 500;
+  }
+
+  .success-count {
+    color: #2e7d32;
+  }
+
+  .failed-count {
+    color: #d32f2f;
+  }
+}
+
+.no-routes-message {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+
+  mat-icon {
+    font-size: 3rem;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 1rem;
+    color: #999;
+  }
+
+  p {
+    font-size: 1rem;
+    margin: 0;
+  }
+}

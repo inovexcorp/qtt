@@ -1,0 +1,125 @@
+<div class="settings-container">
+  <mat-card class="settings-card">
+    <mat-card-header>
+      <mat-card-title>System Information</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p><strong>Version:</strong> {{version}}</p>
+      <p><strong>Uptime:</strong> {{uptime}}</p>
+      <p><strong>Database Type:</strong> {{databaseType}}</p>
+      <p><strong>Remote Address:</strong> {{databaseRemoteUrl}}</p>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="settings-card">
+    <mat-card-header>
+      <mat-card-title>Application Stats</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p><strong>Datasources:</strong> {{datasourceCount}}</p>
+      <p><strong>Routes:</strong> {{routeCount}}</p>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="settings-card">
+    <mat-card-header>
+      <mat-card-title>Ontology Cache Statistics</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p><strong>Cache Size:</strong> {{cacheStats?.size || 0}} entries</p>
+      <p><strong>Hit Count:</strong> {{cacheStats?.hitCount || 0}}</p>
+      <p><strong>Miss Count:</strong> {{cacheStats?.missCount || 0}}</p>
+      <p><strong>Hit Rate:</strong> {{formatHitRate(cacheStats?.hitRate)}}</p>
+      <p><strong>Eviction Count:</strong> {{cacheStats?.evictionCount || 0}}</p>
+      <p><strong>Total Load Time:</strong> {{formatLoadTime(cacheStats?.totalLoadTime)}}</p>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="settings-card">
+    <mat-card-header>
+      <mat-card-title><img src="assets/img/Redis-Logo.png" alt="Redis Logo" class="redis-logo"> Query Cache Statistics</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+
+      <div *ngIf="!isCacheEnabled()">
+        <p><em>Redis query caching is not enabled</em></p>
+      </div>
+      <div *ngIf="isCacheEnabled()" class="cache-stats-grid">
+        <p><strong>Status:</strong> {{redisCacheInfo?.connected ? 'Connected' : 'Disconnected'}}</p>
+        <p><strong>Host:</strong> {{redisCacheInfo?.host}}:{{redisCacheInfo?.port}} (DB {{redisCacheInfo?.database}})</p>
+        <p><strong>Keys:</strong> {{redisCacheStats?.keyCount || 0}}</p>
+        <p><strong>Memory:</strong> {{formatBytes(redisCacheStats?.memoryUsageBytes)}}</p>
+        <p><strong>Hits:</strong> {{redisCacheStats?.hits || 0}}</p>
+        <p><strong>Misses:</strong> {{redisCacheStats?.misses || 0}}</p>
+        <p><strong>Hit Rate:</strong> {{formatCacheHitRate(redisCacheStats)}}</p>
+        <p><strong>Evictions:</strong> {{redisCacheStats?.evictions || 0}}</p>
+        <p><strong>TTL:</strong> {{redisCacheInfo?.defaultTtlSeconds}}s</p>
+        <p><strong>Compression:</strong> {{redisCacheInfo?.compressionEnabled ? 'On' : 'Off'}}</p>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="settings-card sparqi-metrics-card">
+    <mat-card-header>
+      <mat-card-title><img src="assets/img/sparqi.png" alt="sparqi logo" class="sparqi-logo"> SPARQi AI Assistant Metrics</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <!-- Loading State -->
+      <div *ngIf="!sparqiHealthChecked" class="sparqi-loading">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Checking SPARQi status...</p>
+      </div>
+
+      <!-- SPARQi Disabled State -->
+      <div *ngIf="sparqiHealthChecked && !sparqiEnabled" class="sparqi-disabled">
+<!--        <mat-icon class="disabled-icon">smart_toy</mat-icon>-->
+
+        <h3>SPARQi AI Assistant is Disabled</h3>
+      </div>
+
+      <!-- No Metrics Data -->
+      <div *ngIf="sparqiHealthChecked && sparqiEnabled && !sparqiMetricsSummary" class="sparqi-no-data">
+        <mat-icon class="no-data-icon">bar_chart</mat-icon>
+        <p><em>No SPARQi metrics data available yet</em></p>
+        <p class="info-text">Start using SPARQi to see usage metrics here</p>
+      </div>
+
+      <!-- Metrics Display -->
+      <div *ngIf="sparqiHealthChecked && sparqiEnabled && sparqiMetricsSummary" class="metrics-content">
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <strong>Total Messages:</strong> {{formatNumber(sparqiMetricsSummary.totalMessages)}}
+          </div>
+          <div class="metric-item">
+            <strong>Total Sessions:</strong> {{formatNumber(sparqiMetricsSummary.totalSessions)}}
+          </div>
+          <div class="metric-item">
+            <strong>Input Tokens:</strong> {{formatNumber(sparqiMetricsSummary.totalInputTokens)}}
+          </div>
+          <div class="metric-item">
+            <strong>Output Tokens:</strong> {{formatNumber(sparqiMetricsSummary.totalOutputTokens)}}
+          </div>
+          <div class="metric-item">
+            <strong>Total Tokens:</strong> {{formatNumber(sparqiMetricsSummary.totalTokens)}}
+          </div>
+          <div class="metric-item">
+            <strong>Avg Tokens/Message:</strong> {{formatDecimal(sparqiMetricsSummary.avgTokensPerMessage)}}
+          </div>
+          <div class="metric-item cost-highlight">
+            <strong>Total Cost:</strong> {{formatCurrency(sparqiMetricsSummary.totalEstimatedCost)}}
+          </div>
+          <div class="metric-item cost-highlight">
+            <strong>Avg Cost/Message:</strong> {{formatCurrency(sparqiMetricsSummary.avgCostPerMessage)}}
+          </div>
+        </div>
+
+        <div class="metrics-actions">
+          <button mat-raised-button color="primary" (click)="openMetricsCharts()" class="view-charts-button">
+            <mat-icon>analytics</mat-icon>
+            View Detailed Analytics
+          </button>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

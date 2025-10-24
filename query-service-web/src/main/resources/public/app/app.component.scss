@@ -1,0 +1,52 @@
+
+.primary_container{
+  position: absolute;
+  top: 112px;
+  bottom: 0px;
+  width: 100%;
+}
+
+.example-spacer {
+  flex: 1 1 auto;
+}
+
+.sidebar {
+  width: 200px;
+}
+
+.logo {
+  height: 100%;
+  margin-right: 30px;
+  margin-left: 10px;
+}
+
+// Purple gradient for top toolbar
+mat-toolbar {
+  background: linear-gradient(to right, #4a148c, #7b1fa2, #9c27b0, #ba68c8) !important;
+  color: white !important;
+
+  // White hamburger menu icon for contrast
+  button mat-icon {
+    color: white;
+  }
+}
+
+// Active navigation item styling with faint purple
+.active-nav-item {
+  background-color: rgba(123, 31, 162, 0.12) !important;
+  border-left: 4px solid #7b1fa2 !important;
+
+  mat-icon {
+    color: #7b1fa2 !important;
+  }
+}
+
+// Hover effect for nav items
+mat-list-item {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover:not(.active-nav-item) {
+    background-color: rgba(123, 31, 162, 0.05) !important;
+  }
+}

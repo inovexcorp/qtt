@@ -1,0 +1,11 @@
+<h2 class="modal-text">Are you sure you'd like to delete Datasource: {{data.dataSourceId}}?</h2>
+<ng-template [ngIf]="data.associatedRoutes.length>0">
+  <div class="associated-routes">
+    <div>These are the associated routes:</div>
+    <div *ngFor="let route of data.associatedRoutes"><strong>{{route}}</strong></div>
+  </div>
+</ng-template>
+<div class="btn-sec">
+  <button mat-raised-button type="submit" class="close-btn" (click)="closeDialog()">Cancel</button>
+  <button mat-raised-button type="button" class="confirm-btn" color="primary" (click)="deleteDatasource(data.dataSourceId)">Confirm</button>
+</div>

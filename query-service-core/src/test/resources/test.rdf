@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF
+	xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+
+<rdf:Description rdf:about="https://opensky-network.org/vector/a15bfa">
+	<p_Velocity xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">46.49</p_Velocity>
+	<p_Geometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">342.9</p_Geometric_Altitude>
+	<p_Vertical_Rate xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-3.9</p_Vertical_Rate>
+	<p_Last_Contact xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:48:36.000Z</p_Last_Contact>
+	<p_Barometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">388.62</p_Barometric_Altitude>
+	<p_True_Track_Heading xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">24.86</p_True_Track_Heading>
+	<p_Position_Source xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#int">0</p_Position_Source>
+	<p_On_the_Ground xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_On_the_Ground>
+	<p_ICAO24 xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">a15bfa</p_ICAO24>
+	<p_Callsign xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">N187PH  </p_Callsign>
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/OpenSky#State_Vector"/>
+	<p_Time_Position xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:48:34.000Z</p_Time_Position>
+	<p_Squawk xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">1200</p_Squawk>
+	<p_Special_Purpose_Indicator xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_Special_Purpose_Indicator>
+	<p_Origin_Country xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">United States</p_Origin_Country>
+	<p_Longitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-75.8461</p_Longitude>
+	<p_Latitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">39.9666</p_Latitude>
+</rdf:Description>
+
+<rdf:Description rdf:about="https://opensky-network.org/vector/a90383">
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Delta_Shuttle"/>
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Song_(airline)"/>
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Delta_Express"/>
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Delta_Air_Lines"/>
+	<p_Velocity xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">221.65</p_Velocity>
+	<p_Origin_Country xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">United States</p_Origin_Country>
+	<p_Longitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-79.1844</p_Longitude>
+	<p_Last_Contact xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:15.000Z</p_Last_Contact>
+	<p_Barometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">10980.42</p_Barometric_Altitude>
+	<p_Vertical_Rate xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-0.33</p_Vertical_Rate>
+	<p_Squawk xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">6261</p_Squawk>
+	<p_Position_Source xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#int">0</p_Position_Source>
+	<p_On_the_Ground xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_On_the_Ground>
+	<p_Callsign xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">DAL2614 </p_Callsign>
+	<p_Time_Position xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:15.000Z</p_Time_Position>
+	<p_Special_Purpose_Indicator xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_Special_Purpose_Indicator>
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/OpenSky#State_Vector"/>
+	<p_True_Track_Heading xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">229.99</p_True_Track_Heading>
+	<p_Latitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">37.6572</p_Latitude>
+	<p_ICAO24 xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">a90383</p_ICAO24>
+	<p_Geometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">11384.28</p_Geometric_Altitude>
+</rdf:Description>
+
+<rdf:Description rdf:about="https://opensky-network.org/vector/a4d826">
+	<p_Latitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">41.1712</p_Latitude>
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/OpenSky#State_Vector"/>
+	<p_True_Track_Heading xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">193.88</p_True_Track_Heading>
+	<p_Time_Position xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:44:27.000Z</p_Time_Position>
+	<p_Origin_Country xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">United States</p_Origin_Country>
+	<p_Last_Contact xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:44:27.000Z</p_Last_Contact>
+	<p_Geometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">106.68</p_Geometric_Altitude>
+	<p_Vertical_Rate xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-5.85</p_Vertical_Rate>
+	<p_Velocity xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">45.04</p_Velocity>
+	<p_Special_Purpose_Indicator xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_Special_Purpose_Indicator>
+	<p_Longitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-73.1196</p_Longitude>
+	<p_Callsign xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">N411DD  </p_Callsign>
+	<p_Barometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">213.36</p_Barometric_Altitude>
+	<p_Position_Source xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#int">0</p_Position_Source>
+	<p_On_the_Ground xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_On_the_Ground>
+	<p_ICAO24 xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">a4d826</p_ICAO24>
+</rdf:Description>
+
+<rdf:Description rdf:about="https://opensky-network.org/vector/a6a396">
+	<p_Velocity xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">46.54</p_Velocity>
+	<p_True_Track_Heading xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">23.45</p_True_Track_Heading>
+	<p_Squawk xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">1200</p_Squawk>
+	<p_Position_Source xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#int">0</p_Position_Source>
+	<p_On_the_Ground xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_On_the_Ground>
+	<p_Longitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-76.2585</p_Longitude>
+	<p_Vertical_Rate xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">5.53</p_Vertical_Rate>
+	<p_Time_Position xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:15.000Z</p_Time_Position>
+	<p_Special_Purpose_Indicator xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_Special_Purpose_Indicator>
+	<p_Callsign xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">N527GS  </p_Callsign>
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/OpenSky#State_Vector"/>
+	<p_Origin_Country xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">United States</p_Origin_Country>
+	<p_Latitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">40.4955</p_Latitude>
+	<p_Last_Contact xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:15.000Z</p_Last_Contact>
+	<p_ICAO24 xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">a6a396</p_ICAO24>
+	<p_Geometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">1112.52</p_Geometric_Altitude>
+	<p_Barometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">1127.76</p_Barometric_Altitude>
+</rdf:Description>
+
+<rdf:Description rdf:about="https://opensky-network.org/vector/ad5679">
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Delta_Air_Lines"/>
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Delta_Shuttle"/>
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Delta_Express"/>
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Song_(airline)"/>
+	<p_ICAO24 xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">ad5679</p_ICAO24>
+	<p_Position_Source xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#int">0</p_Position_Source>
+	<p_On_the_Ground xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_On_the_Ground>
+	<p_Longitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-81.6659</p_Longitude>
+	<p_Geometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">7551.42</p_Geometric_Altitude>
+	<p_Barometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">7178.04</p_Barometric_Altitude>
+	<p_Vertical_Rate xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-5.53</p_Vertical_Rate>
+	<p_True_Track_Heading xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">33.13</p_True_Track_Heading>
+	<p_Origin_Country xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">United States</p_Origin_Country>
+	<p_Last_Contact xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:16.000Z</p_Last_Contact>
+	<p_Velocity xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">231.58</p_Velocity>
+	<p_Time_Position xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:16.000Z</p_Time_Position>
+	<p_Squawk xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">5175</p_Squawk>
+	<p_Special_Purpose_Indicator xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_Special_Purpose_Indicator>
+	<p_Latitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">35.3634</p_Latitude>
+	<p_Callsign xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">DAL2445 </p_Callsign>
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/OpenSky#State_Vector"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="https://opensky-network.org/vector/a88072">
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Spirit_Airlines"/>
+	<p_Time_Position xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:15.000Z</p_Time_Position>
+	<p_Squawk xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">7322</p_Squawk>
+	<p_Special_Purpose_Indicator xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_Special_Purpose_Indicator>
+	<p_Last_Contact xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:16.000Z</p_Last_Contact>
+	<p_Vertical_Rate xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">0.0</p_Vertical_Rate>
+	<p_Velocity xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">242.93</p_Velocity>
+	<p_True_Track_Heading xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">42.17</p_True_Track_Heading>
+	<p_Longitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-77.994</p_Longitude>
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/OpenSky#State_Vector"/>
+	<p_Position_Source xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#int">0</p_Position_Source>
+	<p_Origin_Country xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">United States</p_Origin_Country>
+	<p_On_the_Ground xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_On_the_Ground>
+	<p_Latitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">37.5062</p_Latitude>
+	<p_ICAO24 xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">a88072</p_ICAO24>
+	<p_Geometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">10431.78</p_Geometric_Altitude>
+	<p_Callsign xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">NKS712  </p_Callsign>
+	<p_Barometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">10050.78</p_Barometric_Altitude>
+</rdf:Description>
+
+<rdf:Description rdf:about="https://opensky-network.org/vector/a84560">
+	<p_Vertical_Rate xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">0.0</p_Vertical_Rate>
+	<p_Longitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-80.2618</p_Longitude>
+	<p_Geometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">2011.68</p_Geometric_Altitude>
+	<p_Time_Position xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:11.000Z</p_Time_Position>
+	<p_On_the_Ground xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_On_the_Ground>
+	<p_Latitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">41.0677</p_Latitude>
+	<p_Last_Contact xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:11.000Z</p_Last_Contact>
+	<p_ICAO24 xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">a84560</p_ICAO24>
+	<p_Barometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">1981.2</p_Barometric_Altitude>
+	<p_Special_Purpose_Indicator xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_Special_Purpose_Indicator>
+	<p_Callsign xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">N632CD  </p_Callsign>
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/OpenSky#State_Vector"/>
+	<p_Velocity xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">76.83</p_Velocity>
+	<p_True_Track_Heading xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">290.38</p_True_Track_Heading>
+	<p_Position_Source xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#int">0</p_Position_Source>
+	<p_Origin_Country xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">United States</p_Origin_Country>
+</rdf:Description>
+
+<rdf:Description rdf:about="https://opensky-network.org/vector/a785fd">
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/PSA_Airlines"/>
+	<p_Position_Source xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#int">0</p_Position_Source>
+	<p_Special_Purpose_Indicator xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_Special_Purpose_Indicator>
+	<p_On_the_Ground xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_On_the_Ground>
+	<p_ICAO24 xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">a785fd</p_ICAO24>
+	<p_Geometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">10995.66</p_Geometric_Altitude>
+	<p_Barometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">10546.08</p_Barometric_Altitude>
+	<p_Vertical_Rate xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">4.88</p_Vertical_Rate>
+	<p_Origin_Country xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">United States</p_Origin_Country>
+	<p_Longitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-80.4061</p_Longitude>
+	<p_Latitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">37.2759</p_Latitude>
+	<p_Last_Contact xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:15.000Z</p_Last_Contact>
+	<p_Velocity xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">206.92</p_Velocity>
+	<p_True_Track_Heading xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">21.59</p_True_Track_Heading>
+	<p_Time_Position xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:15.000Z</p_Time_Position>
+	<p_Callsign xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">JIA5616 </p_Callsign>
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/OpenSky#State_Vector"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="https://opensky-network.org/vector/aaedcb">
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Southern_Airways_Express"/>
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Mokulele_Airlines"/>
+	<p_Associated_Airline xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:resource="http://dbpedia.org/resource/Sun_Air_Express"/>
+	<p_Special_Purpose_Indicator xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_Special_Purpose_Indicator>
+	<p_Latitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">39.4197</p_Latitude>
+	<p_Velocity xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">90.43</p_Velocity>
+	<p_True_Track_Heading xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">98.18</p_True_Track_Heading>
+	<p_Time_Position xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:16.000Z</p_Time_Position>
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/OpenSky#State_Vector"/>
+	<p_Position_Source xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#int">0</p_Position_Source>
+	<p_On_the_Ground xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_On_the_Ground>
+	<p_Last_Contact xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:16.000Z</p_Last_Contact>
+	<p_Geometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">2186.94</p_Geometric_Altitude>
+	<p_Callsign xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">FDY177  </p_Callsign>
+	<p_Barometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">2148.84</p_Barometric_Altitude>
+	<p_Vertical_Rate xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">0.33</p_Vertical_Rate>
+	<p_Origin_Country xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">United States</p_Origin_Country>
+	<p_Longitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-78.2096</p_Longitude>
+	<p_ICAO24 xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">aaedcb</p_ICAO24>
+</rdf:Description>
+
+<rdf:Description rdf:about="https://opensky-network.org/vector/a88d15">
+	<p_Position_Source xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#int">0</p_Position_Source>
+	<p_Latitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">39.8087</p_Latitude>
+	<p_Last_Contact xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:16.000Z</p_Last_Contact>
+	<p_Geometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">7200.9</p_Geometric_Altitude>
+	<p_Special_Purpose_Indicator xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_Special_Purpose_Indicator>
+	<p_ICAO24 xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">a88d15</p_ICAO24>
+	<p_Vertical_Rate xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">0.0</p_Vertical_Rate>
+	<p_Time_Position xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2023-08-09T14:49:16.000Z</p_Time_Position>
+	<p_Origin_Country xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">United States</p_Origin_Country>
+	<p_Callsign xmlns="http://cambridgesemantics.com/ontologies/OpenSky#">00000000</p_Callsign>
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/OpenSky#State_Vector"/>
+	<p_Velocity xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">223.91</p_Velocity>
+	<p_True_Track_Heading xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">53.97</p_True_Track_Heading>
+	<p_On_the_Ground xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</p_On_the_Ground>
+	<p_Longitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">-79.4133</p_Longitude>
+	<p_Barometric_Altitude xmlns="http://cambridgesemantics.com/ontologies/OpenSky#" rdf:datatype="http://www.w3.org/2001/XMLSchema#float">7010.4</p_Barometric_Altitude>
+</rdf:Description>
+
+</rdf:RDF>
