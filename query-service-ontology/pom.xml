@@ -13,6 +13,14 @@
     <description>Ontology caching and autocomplete service for Query Service</description>
     <packaging>bundle</packaging>
 
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <dependencies>
         <!-- Internal Dependencies -->
         <dependency>

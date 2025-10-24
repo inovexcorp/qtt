@@ -4901,3 +4901,11 @@ This user guide provides comprehensive documentation for installing, configuring
 - Optimize query performance
 
 Happy querying! 🚀
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2025 RealmOne

@@ -12,6 +12,13 @@
   <description>Web interface and user-facing components for Query Service</description>
   <packaging>bundle</packaging>
 
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
 
   <properties>
     <servlet.version>3.1.0</servlet.version>

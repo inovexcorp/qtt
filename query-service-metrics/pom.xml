@@ -11,6 +11,14 @@
     <description>Metrics and monitoring functionality for Query Service</description>
     <packaging>bundle</packaging>
 
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <dependencies>
         <dependency>
             <groupId>com.inovexcorp.queryservice</groupId>

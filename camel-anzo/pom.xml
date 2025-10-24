@@ -13,6 +13,14 @@
     <description>Bundle that will allow QTT interaction with Anzo back end services</description>
     <packaging>bundle</packaging>
 
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <dependencyManagement>
         <dependencies>
             <!-- Camel BOM -->

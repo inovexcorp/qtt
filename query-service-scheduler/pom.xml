@@ -11,6 +11,14 @@
     <description>Scheduling and task management services for Query Service</description>
     <packaging>bundle</packaging>
 
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <dependencies>
         <dependency>
             <groupId>org.osgi</groupId>

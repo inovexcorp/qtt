@@ -13,6 +13,14 @@
     <description>SPARQi - AI-powered assistant for SPARQL template development using LangGraph4j</description>
     <packaging>bundle</packaging>
 
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <properties>
         <langchain4j.version>1.7.1</langchain4j.version>
         <langgraph4j.version>1.7.0-beta2</langgraph4j.version>

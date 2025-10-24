@@ -8,6 +8,15 @@
     <name>QTT</name>
     <description>Query Templating Tool system for RDF-based SPARQL query templating and execution</description>
     <packaging>pom</packaging>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -48,18 +57,11 @@
     </modules>
 
     <scm>
-        <developerConnection>scm:git:git@gitlab.inovexcorp.com:qtt/query-service.git</developerConnection>
-        <url>scm:git:git@gitlab.inovexcorp.com:qtt/query-service.git</url>
-        <connection>scm:git:git@gitlab.inovexcorp.com:qtt/query-service.git</connection>
-        <tag>v1.0.0</tag>
+        <developerConnection>scm:git:git@github.com:inovexcorp/qtt.git</developerConnection>
+        <url>https://github.com/inovexcorp/qtt</url>
+        <connection>scm:git:git@github.com:inovexcorp/qtt.git</connection>
+        <tag>HEAD</tag>
     </scm>
-
-    <repositories>
-        <repository>
-            <id>inovex</id>
-            <url>https://nexus.inovexcorp.com/nexus/content/repositories/public-maven-prod-group/</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>
@@ -163,31 +165,6 @@
     </build>
 
     <profiles>
-        <profile>
-            <id>releases</id>
-            <distributionManagement>
-                <repository>
-                    <id>inovex</id>
-                    <url>https://nexus.inovexcorp.com/nexus/content/repositories/public-maven-prod-hosted/</url>
-                </repository>
-                <snapshotRepository>
-                    <id>inovex</id>
-                    <url>http://nexus.inovexcorp.com/nexus/repository/query-service-snapshots/</url>
-                </snapshotRepository>
-            </distributionManagement>
-            <repositories>
-                <repository>
-                    <id>inovex</id>
-                    <url>https://nexus.inovexcorp.com/nexus/content/repositories/public-maven-prod-group/</url>
-                </repository>
-            </repositories>
-            <pluginRepositories>
-                <pluginRepository>
-                    <id>inovex</id>
-                    <url>https://nexus.inovexcorp.com/nexus/content/repositories/public-maven-prod-group/</url>
-                </pluginRepository>
-            </pluginRepositories>
-        </profile>
         <profile>
             <id>coverage</id>
             <build>

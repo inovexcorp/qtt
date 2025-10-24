@@ -1,6 +1,7 @@
 {
   "name": "query-service-ui",
   "version": "0.0.0",
+  "license": "MIT",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --proxy-config proxy.conf.js",

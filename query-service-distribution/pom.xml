@@ -11,6 +11,14 @@
     <name>QTT :: Query Service Distribution</name>
     <packaging>karaf-assembly</packaging>
 
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <dependencies>
         <dependency>
             <!-- scope is compile so all features are installed into startup.properties and the feature repo itself is not added in etc/org.apache.karaf.features.cfg file -->
