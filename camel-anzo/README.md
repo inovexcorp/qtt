@@ -397,13 +397,13 @@ from("direct:queryWithErrorHandling")
 
 ### Common Issues
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| `QueryException: 401 Unauthorized` | Invalid credentials | Verify Base64-encoded user/password |
-| `QueryException: 404 Not Found` | Invalid graphmart URI | Check graphmart URI exists in Anzo |
-| `IOException: Connection timeout` | Network issue or long query | Increase `timeoutSeconds` parameter |
-| `QueryException: 400 Bad Request` | Invalid SPARQL syntax | Validate SPARQL query syntax |
-| `SSL handshake failed` | Certificate validation issue | Set `validateCert=false` or install cert |
+| Issue                              | Cause                        | Solution                                 |
+|------------------------------------|------------------------------|------------------------------------------|
+| `QueryException: 401 Unauthorized` | Invalid credentials          | Verify Base64-encoded user/password      |
+| `QueryException: 404 Not Found`    | Invalid graphmart URI        | Check graphmart URI exists in Anzo       |
+| `IOException: Connection timeout`  | Network issue or long query  | Increase `timeoutSeconds` parameter      |
+| `QueryException: 400 Bad Request`  | Invalid SPARQL syntax        | Validate SPARQL query syntax             |
+| `SSL handshake failed`             | Certificate validation issue | Set `validateCert=false` or install cert |
 
 ---
 
