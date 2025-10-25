@@ -235,8 +235,8 @@ podman run -d \
 
 #### Step 4: Access the Application
 
-- **Web UI**: https://localhost:8080/queryrest/app/
-- **API Base**: https://localhost:8080/queryrest/api/
+- **Web UI**: http://localhost:8080/queryrest/app/
+- **API Base**: http://localhost:8080/queryrest/api/
 
 #### Podman-Specific Considerations
 
@@ -1405,7 +1405,7 @@ docker run -d --name qtt -p 8080:8080 -p 8888:8888 docker.io/inovexis/qtt:latest
 ### Step 1: Access the Web UI
 
 1. Open your browser and navigate to: **http://localhost:8080/**
-   - If using the Docker image with HTTPS enabled, use **https://localhost:8080/** and accept the self-signed certificate warning
+   - If using the Docker image with HTTPS enabled, use **https://localhost:8443/** and accept the self-signed certificate warning
 2. You should see the Query Templating Tool dashboard
 
 ### Step 2: Create Your First Datasource
@@ -2657,7 +2657,7 @@ docker logs -f qtt
 
 QTT provides comprehensive RESTful APIs for all functionality.
 
-**Base URL:** `https://localhost:8080/queryrest/api`
+**Base URL:** `http://localhost:8080/queryrest/api`
 
 **Authentication:** Currently no authentication (HTTP only)
 
@@ -3451,7 +3451,7 @@ curl http://localhost:8888/my-route
 
 5. **Manually trigger health check:**
    ```bash
-   curl -X POST -k https://localhost:8080/queryrest/api/datasources/{id}/health-check
+   curl -X POST -k http://localhost:8080/queryrest/api/datasources/{id}/health-check
    ```
 
 #### Issue: SPARQi Not Appearing
