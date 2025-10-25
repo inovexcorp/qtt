@@ -235,8 +235,8 @@ podman run -d \
 
 #### Step 4: Access the Application
 
-- **Web UI**: https://localhost:8080/queryrest/app/
-- **API Base**: https://localhost:8080/queryrest/api/
+- **Web UI**: http://localhost:8080/queryrest/app/
+- **API Base**: http://localhost:8080/queryrest/api/
 
 #### Podman-Specific Considerations
 
@@ -1139,13 +1139,13 @@ This tutorial walks you through creating your first query route from start to fi
 
 ### Prerequisites
 
-- QTT is running and accessible at https://localhost:8080
+- QTT is running and accessible at http://localhost:8080
 - You have access to an Altair Graph Studio graph database instance
 - Basic familiarity with SPARQL and RDF
 
 ### Step 1: Access the Web UI
 
-1. Open your browser and navigate to: **https://localhost:8080/**
+1. Open your browser and navigate to: **http://localhost:8080/**
 2. Accept the self-signed certificate warning (if using default SSL)
 3. You should see the Query Templating Tool dashboard
 
@@ -2398,7 +2398,7 @@ docker logs -f qtt
 
 QTT provides comprehensive RESTful APIs for all functionality.
 
-**Base URL:** `https://localhost:8080/queryrest/api`
+**Base URL:** `http://localhost:8080/queryrest/api`
 
 **Authentication:** Currently no authentication (HTTP only)
 
@@ -3192,7 +3192,7 @@ curl http://localhost:8888/my-route
 
 5. **Manually trigger health check:**
    ```bash
-   curl -X POST -k https://localhost:8080/queryrest/api/datasources/{id}/health-check
+   curl -X POST -k http://localhost:8080/queryrest/api/datasources/{id}/health-check
    ```
 
 #### Issue: SPARQi Not Appearing
