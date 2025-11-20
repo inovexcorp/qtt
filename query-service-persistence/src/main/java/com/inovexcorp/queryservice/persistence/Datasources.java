@@ -30,8 +30,8 @@ public class Datasources {
 
     private static final Base64.Encoder encoder = Base64.getEncoder();
 
-    private static final String CAMEL_URL_FORMAT = "anzo:%s?timeoutSeconds=%s&maxQueryHeaderLength=%s" +
-            "&user=%s&password=%s&graphmartUri=%s&layerUris=%s";
+        private static final String CAMEL_URL_FORMAT = "anzo:%s?timeoutSeconds=%s&maxQueryHeaderLength=%s" +
+                "&user=%s&password=%s&graphmartUri=%s&layerUris=%s&validateCert=%s";
 
     @Id
     @Column(name = "dataSourceId")
@@ -87,7 +87,7 @@ public class Datasources {
 
     public String generateCamelUrl(String graphmartUri, String layerUris) {
         return String.format(CAMEL_URL_FORMAT, url, timeOutSeconds, maxQueryHeaderLength, encode(username),
-                encode(password), graphmartUri, layerUris);
+            encode(password), graphmartUri, layerUris, Boolean.toString(validateCertificate));
     }
 
     private static String encode(String value) {
