@@ -31,7 +31,7 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Run Maven tests with coverage
-        run: mvn clean verify -Pcoverage -T 2C
+        run: mvn clean verify -Pcoverage
 
       - name: Run Maven dependency check
         run: mvn org.apache.maven.plugins:maven-dependency-plugin:3.6.0:analyze-only
