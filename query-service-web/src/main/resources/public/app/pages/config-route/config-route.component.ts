@@ -68,6 +68,8 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   datasourceHealthError?: string;
   datasourceConsecutiveFailures?: number;
   showTemplateEditor: boolean = false;
+  templateLoading: boolean = false;
+  templateLoadError: boolean = false;
   isFullscreen: boolean = false;
   isChatPanelOpen: boolean = false;
   isSparqiEnabled: boolean = false;
@@ -209,6 +211,24 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
       this.fileReader.onload = (e) => {
         this.templateContent = this.fileReader.result;
         this.configRoute.controls['template'].setValue(this.templateContent as string);
+
+        // Update Monaco editor if it already exists
+        if (this.monacoEditor) {
+          this.monacoEditor.setValue(this.templateContent as string || '');
+        }
+      }
+      this.fileReader.onerror = (e) => {
+        console.error('Failed to read file:', e);
+        this.snackBar.open(
+          'Failed to read template file. Please try again.',
+          'Close',
+          {
+            duration: 5000,
+            horizontalPosition: 'end',
+            verticalPosition: 'top',
+            panelClass: ['error-snackbar']
+          }
+        );
       }
       this.fileReader.readAsText(file[0]);
     }
@@ -221,12 +241,43 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Get FTL template content
   getTemplateContent(routeId: string): void {
+    this.templateLoading = true;
+    this.templateLoadError = false;
+
     this.configRouteService.getTemplate(this.routeId)
-      .subscribe(templateContent => {
-        this.templateContent = templateContent;
-        this.configRoute.controls['template'].setValue(this.templateContent);
-      }
-      );
+      .subscribe({
+        next: (templateContent) => {
+          this.templateContent = templateContent;
+          this.configRoute.controls['template'].setValue(this.templateContent);
+          this.templateLoading = false;
+          this.templateLoadError = false;
+
+          // Update Monaco editor if it already exists (race condition fix)
+          if (this.monacoEditor) {
+            this.monacoEditor.setValue(this.templateContent as string || '');
+          }
+        },
+        error: (error) => {
+          console.error('Failed to load template content:', error);
+          this.templateLoading = false;
+          this.templateLoadError = true;
+
+          // Show user-friendly error message
+          this.snackBar.open(
+            'Failed to load template content. Please check datasource connection and try again.',
+            'Close',
+            {
+              duration: 7000,
+              horizontalPosition: 'end',
+              verticalPosition: 'top',
+              panelClass: ['error-snackbar']
+            }
+          );
+
+          // Keep existing template content in form if available
+          // but allow user to save other changes
+        }
+      });
   }
 
   // Modify a Route
