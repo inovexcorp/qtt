@@ -133,6 +133,7 @@
         <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-core/${project.version}</bundle>
         <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-metrics/${project.version}</bundle>
         <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-health/${project.version}</bundle>
+        <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-testing/${project.version}</bundle>
         <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-route-builder/${project.version}</bundle>
         <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-scheduler/${project.version}</bundle>
         <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-ontology/${project.version}</bundle>

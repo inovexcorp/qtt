@@ -27,6 +27,7 @@ import { CacheService } from '../../core/services/cache.service';
 import { CacheInfo, RouteCacheStats } from '../../core/models/cache-info';
 import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTabChangeEvent } from '@angular/material/tabs';
 import * as monaco from 'monaco-editor';
 
 // Import ALL editor features including suggest
@@ -142,6 +143,22 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   cacheExpanded: boolean = false;
   clearingCache: boolean = false;
   cacheJustCleared: boolean = false;
+
+  // Tab management
+  selectedTabIndex: number = 0;
+
+  // Testing properties
+  testVariables: any[] = [];
+  testForm: FormGroup = new FormGroup({});
+  testResults: any = null;
+  generatedSparql: string = '';
+  testExecutionTime: number | null = null;
+  testError: string = '';
+  testResultsExpanded: boolean = true;
+  testSparqlExpanded: boolean = true;
+  testErrorExpanded: boolean = true;
+  isTestExecuting: boolean = false;
+  isLoadingVariables: boolean = false;
 
   @ViewChild('layerElement') layerElement!: ElementRef<HTMLInputElement>;
   @ViewChild('monacoEditorContainer') monacoEditorContainer!: ElementRef<HTMLDivElement>;
@@ -883,6 +900,115 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     setTimeout(() => {
       this.onEditorInit(this.monacoEditor!);
     }, 100);
+  }
+
+  /**
+   * Handle tab change event
+   */
+  onTabChange(event: MatTabChangeEvent): void {
+    this.selectedTabIndex = event.index;
+
+    // If switching to Test Route tab (index 3)
+    if (event.index === 3) {
+      this.loadTestVariables();
+    }
+  }
+
+  /**
+   * Load test variables from current template
+   */
+  loadTestVariables(): void {
+    this.isLoadingVariables = true;
+    this.testVariables = [];
+    this.testError = '';
+
+    const templateContent = this.configRoute.value['template'] || '';
+
+    this.configRouteService.extractTestVariables(templateContent).subscribe({
+      next: (response: any) => {
+        this.testVariables = response.variables || [];
+        this.generateTestForm();
+        this.isLoadingVariables = false;
+      },
+      error: (error: any) => {
+        console.error('Error extracting variables:', error);
+        this.testError = 'Failed to extract template variables: ' + (error.error?.error || error.message);
+        this.isLoadingVariables = false;
+        this.testErrorExpanded = true;
+      }
+    });
+  }
+
+  /**
+   * Generate dynamic form from extracted variables
+   */
+  generateTestForm(): void {
+    const group: any = {};
+
+    this.testVariables.forEach(variable => {
+      group[variable.name] = new FormControl(variable.defaultValue || '');
+    });
+
+    this.testForm = new FormGroup(group);
+  }
+
+  /**
+   * Execute test with current template and parameters
+   */
+  executeTest(): void {
+    this.isTestExecuting = true;
+    this.testError = '';
+    this.testResults = null;
+    this.generatedSparql = '';
+    this.testExecutionTime = null;
+
+    const request = {
+      templateContent: this.configRoute.value['template'] || '',
+      dataSourceId: this.configRoute.value['datasourceValidator'] || '',
+      graphMartUri: this.configRoute.value['graphMartUri'] || '',
+      layers: this.layers.join(','),
+      routeParams: 'httpMethodRestrict=' + (this.configRoute.value['routeParams'] || []).join(','),
+      parameters: this.testForm.value
+    };
+
+    this.configRouteService.executeRouteTest(request).subscribe({
+      next: (response: any) => {
+        if (response.status === 'success') {
+          this.testResults = response.results;
+          this.generatedSparql = response.generatedSparql;
+          this.testExecutionTime = response.executionTimeMs;
+          this.testResultsExpanded = true;
+          this.testSparqlExpanded = true;
+          this.testErrorExpanded = false;
+        } else {
+          this.testError = response.error || 'Test execution failed';
+          this.testErrorExpanded = true;
+          this.testResultsExpanded = false;
+          this.testSparqlExpanded = false;
+        }
+        this.isTestExecuting = false;
+      },
+      error: (error: any) => {
+        console.error('Error executing test:', error);
+        this.testError = 'Failed to execute test: ' + (error.error?.error || error.message);
+        this.testErrorExpanded = true;
+        this.testResultsExpanded = false;
+        this.testSparqlExpanded = false;
+        this.isTestExecuting = false;
+      }
+    });
+  }
+
+  /**
+   * Get route configuration for test execution
+   */
+  getRouteConfigForTest(): any {
+    return {
+      dataSourceId: this.configRoute.value['datasourceValidator'],
+      graphMartUri: this.configRoute.value['graphMartUri'],
+      layers: this.layers.join(','),
+      routeParams: 'httpMethodRestrict=' + (this.configRoute.value['routeParams'] || []).join(',')
+    };
   }
 
   ngOnDestroy(): void {
