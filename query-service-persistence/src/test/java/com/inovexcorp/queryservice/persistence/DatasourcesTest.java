@@ -108,7 +108,7 @@ public class DatasourcesTest {
         String expectedPassword = encoder.encodeToString("pass".getBytes(StandardCharsets.UTF_8));
 
         String expectedUrl = String.format(
-                "anzo:http://localhost:8080?timeoutSeconds=30&maxQueryHeaderLength=10000&user=%s&password=%s&graphmartUri=%s&layerUris=%s",
+                "anzo:http://localhost:8080?timeoutSeconds=30&maxQueryHeaderLength=10000&user=%s&password=%s&graphmartUri=%s&layerUris=%s&validateCert=false",
                 expectedUsername, expectedPassword, graphmartUri, layerUris);
 
         // Act
