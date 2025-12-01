@@ -1,0 +1,81 @@
+name: Pull Request Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and Test (Java + Angular)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Run Maven tests with coverage
+        run: mvn clean verify -Pcoverage -T 2C
+
+      - name: Run Maven dependency check
+        run: mvn org.apache.maven.plugins:maven-dependency-plugin:3.6.0:analyze-only
+        continue-on-error: true
+
+      - name: Upload JaCoCo coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            **/target/site/jacoco/
+            **/target/jacoco.exec
+            query-service-web/coverage/
+          retention-days: 30
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          retention-days: 30
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This build includes both Java (JUnit) and Angular (Karma/Jasmine) tests." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Count Java test results
+          TOTAL_TESTS=$(find . -path "*/target/surefire-reports/TEST-*.xml" -exec grep -h "tests=" {} \; | sed 's/.*tests="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+          TOTAL_FAILURES=$(find . -path "*/target/surefire-reports/TEST-*.xml" -exec grep -h "failures=" {} \; | sed 's/.*failures="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+          TOTAL_ERRORS=$(find . -path "*/target/surefire-reports/TEST-*.xml" -exec grep -h "errors=" {} \; | sed 's/.*errors="\([0-9]*\)".*/\1/' | awk '{s+=$1} END {print s}')
+
+          echo "### Java Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Tests**: ${TOTAL_TESTS:-0}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failures**: ${TOTAL_FAILURES:-0}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Errors**: ${TOTAL_ERRORS:-0}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Angular Tests" >> $GITHUB_STEP_SUMMARY
+          echo "Angular tests (24 specs) are executed via Maven frontend-maven-plugin during the build." >> $GITHUB_STEP_SUMMARY
+          echo "Check the Maven build logs above for Angular test results." >> $GITHUB_STEP_SUMMARY
