@@ -94,8 +94,11 @@
           }
         },
         "test": {
-          "builder": "@angular-devkit/build-angular:karma",
+          "builder": "@angular-builders/custom-webpack:karma",
           "options": {
+            "customWebpackConfig": {
+              "path": "./webpack.config.js"
+            },
             "main": "src/main/resources/public/test.ts",
             "polyfills": [
               "zone.js",
