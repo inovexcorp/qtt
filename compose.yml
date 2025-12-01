@@ -32,7 +32,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - "qtt-postgres:/var/lib/postgresql/data"
+      - "qtt-postgres:/var/lib/postgresql"
 
 volumes:
   qtt-redis:
