@@ -41,19 +41,30 @@
         <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
     </properties>
     <modules>
+        <!-- Base modules with no internal dependencies -->
         <module>query-service-core</module>
         <module>camel-anzo</module>
-        <module>query-service-cache</module>
-        <module>query-service-route-builder</module>
         <module>query-service-persistence</module>
-        <module>query-service-web</module>
-        <module>query-service-scheduler</module>
-        <module>query-service-ontology</module>
-        <module>query-service-sparqi</module>
-        <module>query-service-feature</module>
-        <module>query-service-distribution</module>
+
+        <!-- Second level - depend on base modules -->
+        <module>query-service-cache</module>
         <module>query-service-metrics</module>
         <module>query-service-health</module>
+
+        <!-- Third level - depend on second level -->
+        <module>query-service-route-builder</module>
+
+        <!-- Fourth level - depend on third level -->
+        <module>query-service-scheduler</module>
+
+        <!-- Standalone modules -->
+        <module>query-service-ontology</module>
+        <module>query-service-sparqi</module>
+        <module>query-service-web</module>
+
+        <!-- Packaging modules (must be last) -->
+        <module>query-service-feature</module>
+        <module>query-service-distribution</module>
     </modules>
 
     <scm>

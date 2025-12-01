@@ -31,10 +31,10 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Run Maven tests with coverage
-        run: mvn clean verify -Pcoverage
+        run: mvn clean install -Pcoverage -T 2C
 
       - name: Run Maven dependency check
-        run: mvn org.apache.maven.plugins:maven-dependency-plugin:3.6.0:analyze-only
+        run: mvn dependency:analyze-only
         continue-on-error: true
 
       - name: Upload JaCoCo coverage reports
