@@ -38,7 +38,20 @@ describe('SparqiMetricsModalComponent', () => {
 
   it('should load charts data on init', () => {
     const mockHistory: SparqiMetricRecord[] = [
-      { timestamp: new Date(), totalTokens: 100, messageCount: 5 }
+      {
+        id: 1,
+        timestamp: new Date(),
+        inputTokens: 50,
+        outputTokens: 50,
+        totalTokens: 100,
+        messageCount: 5,
+        sessionId: 'session-1',
+        userId: 'user-1',
+        routeId: 'route-1',
+        modelName: 'claude-3-sonnet',
+        toolCallCount: 1,
+        estimatedCost: 0.005
+      }
     ];
     const mockTokensByRoute = new Map([['route-1', 1000]]);
 
@@ -82,8 +95,34 @@ describe('SparqiMetricsModalComponent', () => {
   describe('formatChartData', () => {
     it('should format history data correctly', () => {
       const history: SparqiMetricRecord[] = [
-        { timestamp: new Date('2025-01-01'), totalTokens: 100, messageCount: 5 },
-        { timestamp: new Date('2025-01-02'), totalTokens: 200, messageCount: 10 }
+        {
+          id: 1,
+          timestamp: new Date('2025-01-01'),
+          inputTokens: 50,
+          outputTokens: 50,
+          totalTokens: 100,
+          messageCount: 5,
+          sessionId: 'session-1',
+          userId: 'user-1',
+          routeId: 'route-1',
+          modelName: 'claude-3-sonnet',
+          toolCallCount: 1,
+          estimatedCost: 0.005
+        },
+        {
+          id: 2,
+          timestamp: new Date('2025-01-02'),
+          inputTokens: 100,
+          outputTokens: 100,
+          totalTokens: 200,
+          messageCount: 10,
+          sessionId: 'session-2',
+          userId: 'user-1',
+          routeId: 'route-1',
+          modelName: 'claude-3-sonnet',
+          toolCallCount: 2,
+          estimatedCost: 0.010
+        }
       ];
 
       const formatted = component.formatChartData(history);

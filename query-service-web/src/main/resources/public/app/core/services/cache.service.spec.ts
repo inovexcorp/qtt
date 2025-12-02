@@ -29,8 +29,14 @@ describe('CacheService', () => {
       const mockCacheInfo: CacheInfo = {
         enabled: true,
         connected: true,
+        type: 'redis',
         host: 'localhost',
-        port: 6379
+        port: 6379,
+        database: 0,
+        keyPrefix: 'qtt:cache:',
+        defaultTtlSeconds: 3600,
+        compressionEnabled: true,
+        failOpen: true
       };
 
       service.getCacheInfo().subscribe(info => {
@@ -114,17 +120,24 @@ describe('CacheService', () => {
       const routeId = 'test-route-123';
       const mockStats: RouteCacheStats = {
         routeId: routeId,
-        hits: 150,
-        misses: 50,
-        size: 1000,
-        hitRate: 0.75
+        cacheEnabled: true,
+        cacheTtlSeconds: 3600,
+        routeKeyCount: 42,
+        globalStats: {
+          hits: 150,
+          misses: 50,
+          errors: 0,
+          evictions: 5,
+          keyCount: 1000,
+          memoryUsageBytes: 5242880
+        }
       };
 
       service.getRouteCacheStats(routeId).subscribe(stats => {
         expect(stats).toEqual(mockStats);
-        expect(stats.hits).toBe(150);
-        expect(stats.misses).toBe(50);
-        expect(stats.hitRate).toBe(0.75);
+        expect(stats.globalStats.hits).toBe(150);
+        expect(stats.globalStats.misses).toBe(50);
+        expect(stats.routeKeyCount).toBe(42);
       });
 
       const req = httpMock.expectOne(`/queryrest/api/routes/${routeId}/cache/stats`);

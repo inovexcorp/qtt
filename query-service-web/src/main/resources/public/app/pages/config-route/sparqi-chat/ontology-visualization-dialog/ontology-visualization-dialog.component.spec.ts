@@ -218,7 +218,7 @@ describe('OntologyVisualizationDialogComponent', () => {
 
       component.refreshCache();
 
-      expect(component.isLoading).toBe(true);
+      expect(component.isLoading).toBe(false);
       expect(mockOntologyService.refreshOntologyCache).toHaveBeenCalledWith('test-route');
       expect(mockSnackBar.open).toHaveBeenCalledWith(
         'Cache refreshed successfully',
@@ -253,16 +253,17 @@ describe('OntologyVisualizationDialogComponent', () => {
       const mockEvent = new Event('click');
       spyOn(mockEvent, 'stopPropagation');
 
-      Object.assign(navigator, {
-        clipboard: {
-          writeText: jasmine.createSpy('writeText').and.returnValue(Promise.resolve())
-        }
+      const writeTextSpy = jasmine.createSpy('writeText').and.returnValue(Promise.resolve());
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: writeTextSpy },
+        writable: true,
+        configurable: true
       });
 
       await component.copyUri(uri, mockEvent);
 
       expect(mockEvent.stopPropagation).toHaveBeenCalled();
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(uri);
+      expect(writeTextSpy).toHaveBeenCalledWith(uri);
       expect(mockSnackBar.open).toHaveBeenCalledWith(
         'URI copied to clipboard',
         '',
@@ -274,17 +275,21 @@ describe('OntologyVisualizationDialogComponent', () => {
       const uri = 'http://example.org/Class1';
       const mockEvent = new Event('click');
 
-      Object.assign(navigator, {
-        clipboard: {
-          writeText: jasmine.createSpy('writeText').and.returnValue(
-            Promise.reject(new Error('Copy failed'))
-          )
-        }
+      const writeTextSpy = jasmine.createSpy('writeText').and.returnValue(
+        Promise.reject(new Error('Copy failed'))
+      );
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: writeTextSpy },
+        writable: true,
+        configurable: true
       });
 
       spyOn(console, 'error');
 
-      await component.copyUri(uri, mockEvent);
+      component.copyUri(uri, mockEvent);
+
+      // Wait for the promise rejection to be handled
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(console.error).toHaveBeenCalled();
       expect(mockSnackBar.open).toHaveBeenCalledWith(

@@ -26,14 +26,27 @@ describe('MetricsService', () => {
   describe('getRouteMetrics', () => {
     it('should retrieve route metrics', () => {
       const mockMetrics: RouteMetricsResponse = {
-        routes: [
-          { routeId: 'route-1', requestCount: 100, averageResponseTime: 200 }
+        metrics: [
+          {
+            route: 'route-1',
+            maxProcessingTime: 300,
+            exchangesFailed: 0,
+            exchangesInflight: 1,
+            exchangesTotal: 100,
+            meanProcessingTime: 200,
+            minProcessingTime: 100,
+            state: 'Started',
+            totalProcessingTime: 20000,
+            exchangesCompleted: 100,
+            uptime: '1h',
+            timeStamp: new Date().toISOString()
+          }
         ]
       } as RouteMetricsResponse;
 
       service.getRouteMetrics().subscribe(metrics => {
         expect(metrics).toEqual(mockMetrics);
-        expect(metrics.routes).toBeDefined();
+        expect(metrics.metrics).toBeDefined();
       });
 
       const req = httpMock.expectOne('/queryrest/api/metrics/routes/');
@@ -57,8 +70,21 @@ describe('MetricsService', () => {
   describe('getPersistedMetrics', () => {
     it('should retrieve persisted metrics', () => {
       const mockMetrics: RouteMetricsResponse = {
-        routes: [
-          { routeId: 'route-1', requestCount: 500, averageResponseTime: 150 }
+        metrics: [
+          {
+            route: 'route-1',
+            maxProcessingTime: 300,
+            exchangesFailed: 0,
+            exchangesInflight: 0,
+            exchangesTotal: 500,
+            meanProcessingTime: 150,
+            minProcessingTime: 50,
+            state: 'Started',
+            totalProcessingTime: 75000,
+            exchangesCompleted: 500,
+            uptime: '2h',
+            timeStamp: new Date().toISOString()
+          }
         ]
       } as RouteMetricsResponse;
 
@@ -88,8 +114,21 @@ describe('MetricsService', () => {
     it('should retrieve metrics for a specific datasource', () => {
       const dataSource = 'datasource-123';
       const mockMetrics: RouteMetricsResponse = {
-        routes: [
-          { routeId: 'route-1', requestCount: 75, averageResponseTime: 180 }
+        metrics: [
+          {
+            route: 'route-1',
+            maxProcessingTime: 250,
+            exchangesFailed: 0,
+            exchangesInflight: 0,
+            exchangesTotal: 75,
+            meanProcessingTime: 180,
+            minProcessingTime: 100,
+            state: 'Started',
+            totalProcessingTime: 13500,
+            exchangesCompleted: 75,
+            uptime: '30m',
+            timeStamp: new Date().toISOString()
+          }
         ]
       } as RouteMetricsResponse;
 

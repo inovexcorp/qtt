@@ -26,14 +26,32 @@ describe('DatasourceService', () => {
   describe('getDatasources', () => {
     it('should retrieve all datasources', () => {
       const mockDatasources: Datasources[] = [
-        { id: '1', name: 'Datasource 1', url: 'http://example.com/sparql' } as Datasources,
-        { id: '2', name: 'Datasource 2', url: 'http://example.com/sparql2' } as Datasources
+        {
+          camelRouteTemplate: [],
+          dataSourceId: '1',
+          timeOutSeconds: '30',
+          maxQueryHeaderLength: '1000',
+          username: 'user1',
+          password: 'pass1',
+          url: 'http://example.com/sparql',
+          validateCertificate: true
+        } as Datasources,
+        {
+          camelRouteTemplate: [],
+          dataSourceId: '2',
+          timeOutSeconds: '30',
+          maxQueryHeaderLength: '1000',
+          username: 'user2',
+          password: 'pass2',
+          url: 'http://example.com/sparql2',
+          validateCertificate: true
+        } as Datasources
       ];
 
       service.getDatasources().subscribe(datasources => {
         expect(datasources.length).toBe(2);
-        expect(datasources[0].name).toBe('Datasource 1');
-        expect(datasources[1].name).toBe('Datasource 2');
+        expect(datasources[0].dataSourceId).toBe('1');
+        expect(datasources[1].dataSourceId).toBe('2');
       });
 
       const req = httpMock.expectOne('/queryrest/api/datasources/');
@@ -45,14 +63,19 @@ describe('DatasourceService', () => {
   describe('getDatasource', () => {
     it('should retrieve a specific datasource by ID', () => {
       const mockDatasource: Datasources = {
-        id: '123',
-        name: 'Test Datasource',
-        url: 'http://example.com/sparql'
+        camelRouteTemplate: [],
+        dataSourceId: '123',
+        timeOutSeconds: '30',
+        maxQueryHeaderLength: '1000',
+        username: 'testuser',
+        password: 'testpass',
+        url: 'http://example.com/sparql',
+        validateCertificate: true
       } as Datasources;
 
       service.getDatasource('123').subscribe(datasource => {
-        expect(datasource.id).toBe('123');
-        expect(datasource.name).toBe('Test Datasource');
+        expect(datasource.dataSourceId).toBe('123');
+        expect(datasource.url).toBe('http://example.com/sparql');
       });
 
       const req = httpMock.expectOne('/queryrest/api/datasources/123');
@@ -64,9 +87,14 @@ describe('DatasourceService', () => {
   describe('modifyDatasource', () => {
     it('should modify a datasource', () => {
       const datasource: Datasources = {
-        id: '123',
-        name: 'Modified Datasource',
-        url: 'http://example.com/sparql'
+        camelRouteTemplate: [],
+        dataSourceId: '123',
+        timeOutSeconds: '30',
+        maxQueryHeaderLength: '1000',
+        username: 'testuser',
+        password: 'testpass',
+        url: 'http://example.com/sparql',
+        validateCertificate: true
       } as Datasources;
 
       service.modifyDatasource(datasource).subscribe(response => {
@@ -97,9 +125,14 @@ describe('DatasourceService', () => {
   describe('testDatasource', () => {
     it('should test a datasource connection', () => {
       const datasource: Datasources = {
-        id: '123',
-        name: 'Test Datasource',
-        url: 'http://example.com/sparql'
+        camelRouteTemplate: [],
+        dataSourceId: '123',
+        timeOutSeconds: '30',
+        maxQueryHeaderLength: '1000',
+        username: 'testuser',
+        password: 'testpass',
+        url: 'http://example.com/sparql',
+        validateCertificate: true
       } as Datasources;
 
       service.testDatasource(datasource).subscribe(response => {

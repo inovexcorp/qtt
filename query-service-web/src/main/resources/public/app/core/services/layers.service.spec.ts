@@ -28,14 +28,14 @@ describe('LayersService', () => {
       const dataSourceId = 'datasource-123';
       const graphmartUri = 'http://example.org/graphmart1';
       const mockLayers: GraphmartLayers[] = [
-        { uri: 'http://example.org/layer1', name: 'Layer 1' } as GraphmartLayers,
-        { uri: 'http://example.org/layer2', name: 'Layer 2' } as GraphmartLayers
+        { iri: 'http://example.org/layer1', active: 'true', title: 'Layer 1' } as GraphmartLayers,
+        { iri: 'http://example.org/layer2', active: 'true', title: 'Layer 2' } as GraphmartLayers
       ];
 
       service.getGraphmartLayers(dataSourceId, graphmartUri).subscribe(layers => {
         expect(layers.length).toBe(2);
-        expect(layers[0].name).toBe('Layer 1');
-        expect(layers[1].name).toBe('Layer 2');
+        expect(layers[0].title).toBe('Layer 1');
+        expect(layers[1].title).toBe('Layer 2');
       });
 
       const req = httpMock.expectOne(request =>

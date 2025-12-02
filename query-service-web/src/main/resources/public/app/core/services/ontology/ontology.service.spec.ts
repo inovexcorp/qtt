@@ -186,15 +186,18 @@ describe('OntologyService', () => {
       const routeId = 'test-route';
       const mockMetadata: OntologyMetadata = {
         routeId: routeId,
+        graphmartUri: 'http://example.org/graphmart',
+        layerUris: 'http://example.org/layer1,http://example.org/layer2',
         elementCount: 500,
         lastUpdated: new Date().toISOString(),
-        cacheStatus: 'VALID'
+        cached: true,
+        status: 'VALID'
       };
 
       service.getOntologyMetadata(routeId).subscribe(metadata => {
         expect(metadata.routeId).toBe(routeId);
         expect(metadata.elementCount).toBe(500);
-        expect(metadata.cacheStatus).toBe('VALID');
+        expect(metadata.status).toBe('VALID');
       });
 
       const req = httpMock.expectOne(`/queryrest/api/ontology/${routeId}/metadata`);
@@ -285,16 +288,17 @@ describe('OntologyService', () => {
   describe('getCacheStatistics', () => {
     it('should retrieve overall cache statistics', () => {
       const mockStats: CacheStatistics = {
-        totalRoutes: 10,
-        totalElements: 5000,
-        cacheHits: 1000,
-        cacheMisses: 100,
+        hitCount: 1000,
+        missCount: 100,
+        totalLoadTime: 5000,
+        evictionCount: 10,
+        size: 5000,
         hitRate: 0.91
       };
 
       service.getCacheStatistics().subscribe(stats => {
-        expect(stats.totalRoutes).toBe(10);
-        expect(stats.totalElements).toBe(5000);
+        expect(stats.hitCount).toBe(1000);
+        expect(stats.size).toBe(5000);
         expect(stats.hitRate).toBe(0.91);
       });
 

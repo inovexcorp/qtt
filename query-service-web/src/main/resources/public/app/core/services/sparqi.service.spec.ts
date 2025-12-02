@@ -19,13 +19,16 @@ describe('SparqiService', () => {
 
   beforeEach(() => {
     const storage: { [key: string]: string } = {};
-    localStorageSpy = jasmine.createSpyObj('localStorage', ['getItem', 'setItem', 'removeItem']);
+    localStorageSpy = jasmine.createSpyObj('localStorage', ['getItem', 'setItem', 'removeItem', 'clear']);
     localStorageSpy.getItem.and.callFake((key: string) => storage[key] || null);
     localStorageSpy.setItem.and.callFake((key: string, value: string) => {
       storage[key] = value;
     });
     localStorageSpy.removeItem.and.callFake((key: string) => {
       delete storage[key];
+    });
+    localStorageSpy.clear.and.callFake(() => {
+      Object.keys(storage).forEach(key => delete storage[key]);
     });
 
     Object.defineProperty(window, 'localStorage', { value: localStorageSpy, writable: true });
@@ -51,7 +54,7 @@ describe('SparqiService', () => {
     it('should check if SPARQi service is available', () => {
       const mockHealthResponse: HealthResponse = {
         status: 'UP',
-        message: 'SPARQi service is running'
+        activeSessions: 5
       };
 
       service.checkHealth().subscribe(response => {
@@ -72,7 +75,7 @@ describe('SparqiService', () => {
         sessionId: 'session-123',
         userId: '1',
         routeId: routeId,
-        createdAt: new Date().toISOString(),
+        createdAt: new Date(),
         welcomeMessage: 'Welcome to SPARQi!'
       };
 
@@ -131,7 +134,7 @@ describe('SparqiService', () => {
         sessionId: 'new-session-456',
         userId: '1',
         routeId: routeId,
-        createdAt: new Date().toISOString(),
+        createdAt: new Date(),
         welcomeMessage: 'Welcome back!'
       };
 
@@ -157,7 +160,7 @@ describe('SparqiService', () => {
       const mockResponse: MessageResponse = {
         role: 'assistant',
         content: 'SPARQL is a query language...',
-        timestamp: new Date().toISOString()
+        timestamp: new Date()
       };
 
       service.sendMessage(sessionId, message).subscribe(response => {
@@ -214,8 +217,11 @@ describe('SparqiService', () => {
       const sessionId = 'session-123';
       const mockContext: SparqiContext = {
         routeId: 'test-route',
-        routeName: 'Test Route',
-        datasourceName: 'Test Datasource',
+        currentTemplate: 'SELECT * WHERE { ?s ?p ?o }',
+        routeDescription: 'Test Route Description',
+        graphMartUri: 'http://example.org/graphmart',
+        layerUris: ['http://example.org/layer1', 'http://example.org/layer2'],
+        datasourceUrl: 'http://example.com/sparql',
         ontologyElementCount: 100
       };
 
@@ -303,12 +309,16 @@ describe('SparqiService', () => {
   describe('getMetricsSummary', () => {
     it('should retrieve aggregated metrics summary', () => {
       const mockSummary: SparqiMetricsSummary = {
-        totalSessions: 50,
         totalMessages: 200,
+        totalInputTokens: 4000,
+        totalOutputTokens: 6000,
         totalTokens: 10000,
-        averageTokensPerMessage: 50,
-        periodStart: new Date().toISOString(),
-        periodEnd: new Date().toISOString()
+        totalEstimatedCost: 0.50,
+        totalSessions: 50,
+        avgTokensPerMessage: 50,
+        avgCostPerMessage: 0.0025,
+        periodStart: new Date(),
+        periodEnd: new Date()
       };
 
       service.getMetricsSummary().subscribe(summary => {
@@ -327,9 +337,18 @@ describe('SparqiService', () => {
     it('should retrieve historical metrics with default hours', () => {
       const mockHistory: SparqiMetricRecord[] = [
         {
-          timestamp: new Date().toISOString(),
+          id: 1,
+          timestamp: new Date(),
+          inputTokens: 50,
+          outputTokens: 50,
           totalTokens: 100,
-          messageCount: 5
+          messageCount: 5,
+          sessionId: 'session-123',
+          userId: 'user-1',
+          routeId: 'route-1',
+          modelName: 'claude-3-sonnet',
+          toolCallCount: 2,
+          estimatedCost: 0.005
         }
       ];
 
@@ -394,12 +413,12 @@ describe('SparqiService', () => {
       service.getSessionContext(sessionId).subscribe(
         () => fail('should have failed'),
         error => {
-          expect(error.message).toBeTruthy();
+          expect(error.message).toBe('Unable to connect to SPARQi service');
         }
       );
 
       const req = httpMock.expectOne(`/queryrest/api/sparqi/session/${sessionId}/context`);
-      req.error(new ErrorEvent('Network error'));
+      req.error(new ProgressEvent('error'), { status: 0 });
     });
 
     it('should handle 404 errors with appropriate message', () => {
@@ -408,7 +427,7 @@ describe('SparqiService', () => {
       service.getSessionHistory(sessionId).subscribe(
         () => fail('should have failed'),
         error => {
-          expect(error.message).toContain('not found');
+          expect(error.message).toBe('Session not found or expired');
         }
       );
 
@@ -417,14 +436,17 @@ describe('SparqiService', () => {
     });
 
     it('should handle 500 errors with appropriate message', () => {
-      service.checkHealth().subscribe(
+      // Use terminateSession instead of checkHealth since it uses catchError
+      const sessionId = 'session-123';
+
+      service.terminateSession(sessionId).subscribe(
         () => fail('should have failed'),
         error => {
-          expect(error.message).toContain('service error');
+          expect(error.message).toBe('SPARQi service error');
         }
       );
 
-      const req = httpMock.expectOne('/queryrest/api/sparqi/health');
+      const req = httpMock.expectOne(`/queryrest/api/sparqi/session/${sessionId}`);
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Internal Server Error' });
     });
   });

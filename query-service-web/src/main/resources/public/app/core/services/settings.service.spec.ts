@@ -88,16 +88,17 @@ describe('SettingsService', () => {
   describe('getCacheStatistics', () => {
     it('should retrieve cache statistics', () => {
       const mockCacheStats: CacheStatistics = {
-        totalRoutes: 10,
-        totalElements: 5000,
-        cacheHits: 1000,
-        cacheMisses: 100,
+        hitCount: 1000,
+        missCount: 100,
+        totalLoadTime: 5000,
+        evictionCount: 10,
+        size: 5000,
         hitRate: 0.91
       };
 
       service.getCacheStatistics().subscribe(stats => {
         expect(stats).toEqual(mockCacheStats);
-        expect(stats.totalRoutes).toBe(10);
+        expect(stats.hitCount).toBe(1000);
         expect(stats.hitRate).toBe(0.91);
       });
 

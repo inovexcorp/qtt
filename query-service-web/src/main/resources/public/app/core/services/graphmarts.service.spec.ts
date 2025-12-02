@@ -27,14 +27,14 @@ describe('GraphmartsService', () => {
     it('should retrieve graphmarts for a datasource', () => {
       const dataSourceId = 'datasource-123';
       const mockGraphmarts: Graphmarts[] = [
-        { uri: 'http://example.org/graphmart1', name: 'Graphmart 1' } as Graphmarts,
-        { uri: 'http://example.org/graphmart2', name: 'Graphmart 2' } as Graphmarts
+        { iri: 'http://example.org/graphmart1', active: 'true', title: 'Graphmart 1' } as Graphmarts,
+        { iri: 'http://example.org/graphmart2', active: 'true', title: 'Graphmart 2' } as Graphmarts
       ];
 
       service.getGraphMarts(dataSourceId).subscribe(graphmarts => {
         expect(graphmarts.length).toBe(2);
-        expect(graphmarts[0].name).toBe('Graphmart 1');
-        expect(graphmarts[1].name).toBe('Graphmart 2');
+        expect(graphmarts[0].title).toBe('Graphmart 1');
+        expect(graphmarts[1].title).toBe('Graphmart 2');
       });
 
       const req = httpMock.expectOne('/queryrest/api/anzo/graphmarts/datasource-123');

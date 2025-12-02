@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { TextFieldModule } from '@angular/cdk/text-field';
 import { of, throwError } from 'rxjs';
 import { NO_ERRORS_SCHEMA, SimpleChange } from '@angular/core';
 import { SparqiChatComponent } from './sparqi-chat.component';
@@ -25,7 +26,7 @@ describe('SparqiChatComponent', () => {
 
     await TestBed.configureTestingModule({
       declarations: [SparqiChatComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, TextFieldModule],
       providers: [
         { provide: SparqiService, useValue: mockSparqiService },
         { provide: MatDialog, useValue: mockDialog }
@@ -111,7 +112,8 @@ describe('SparqiChatComponent', () => {
       mockSparqiService.getOrCreateSession.and.returnValue(of(mockSession));
       mockSparqiService.getSessionHistory.and.returnValue(of(mockHistory));
 
-      component.routeId = 'old-route';
+      // Simulate Angular's behavior: update the property before calling ngOnChanges
+      component.routeId = 'new-route';
       component.ngOnChanges({
         routeId: new SimpleChange('old-route', 'new-route', false)
       });
@@ -203,6 +205,7 @@ describe('SparqiChatComponent', () => {
     it('should retry last failed message', () => {
       component.lastFailedMessage = 'Failed message';
       component.sessionId = 'session-123';
+      component.routeId = 'test-route';
       const mockResponse: SparqiMessage = {
         role: 'assistant',
         content: 'Response',
@@ -212,7 +215,9 @@ describe('SparqiChatComponent', () => {
 
       component.retryLastMessage();
 
-      expect(component.currentMessage).toBe('Failed message');
+      // currentMessage gets cleared after sending, so check that sendMessage was called
+      expect(mockSparqiService.sendMessage).toHaveBeenCalledWith('session-123', 'Failed message');
+      expect(component.currentMessage).toBe('');
       expect(component.error).toBeNull();
     });
 
@@ -232,6 +237,16 @@ describe('SparqiChatComponent', () => {
 
     it('should toggle context visibility', () => {
       component.showContext = false;
+      // Set context so it won't try to load from service
+      component.context = {
+        routeId: 'test-route',
+        currentTemplate: 'SELECT * WHERE { ?s ?p ?o }',
+        routeDescription: 'Test Route Description',
+        graphMartUri: 'http://example.org/graphmart',
+        layerUris: ['http://example.org/layer1'],
+        datasourceUrl: 'http://example.com/sparql',
+        ontologyElementCount: 100
+      };
 
       component.loadContext();
 
@@ -241,8 +256,11 @@ describe('SparqiChatComponent', () => {
     it('should load context when not already loaded', () => {
       const mockContext: SparqiContext = {
         routeId: 'test-route',
-        routeName: 'Test Route',
-        datasourceName: 'Test Datasource',
+        currentTemplate: 'SELECT * WHERE { ?s ?p ?o }',
+        routeDescription: 'Test Route Description',
+        graphMartUri: 'http://example.org/graphmart',
+        layerUris: ['http://example.org/layer1'],
+        datasourceUrl: 'http://example.com/sparql',
         ontologyElementCount: 100
       };
       component.showContext = false;
@@ -257,8 +275,11 @@ describe('SparqiChatComponent', () => {
     it('should not reload context if already loaded', () => {
       component.context = {
         routeId: 'test-route',
-        routeName: 'Test Route',
-        datasourceName: 'Test Datasource',
+        currentTemplate: 'SELECT * WHERE { ?s ?p ?o }',
+        routeDescription: 'Test Route Description',
+        graphMartUri: 'http://example.org/graphmart',
+        layerUris: ['http://example.org/layer1'],
+        datasourceUrl: 'http://example.com/sparql',
         ontologyElementCount: 100
       };
       component.showContext = false;
@@ -381,8 +402,11 @@ describe('SparqiChatComponent', () => {
     it('should open ontology visualization dialog', () => {
       component.context = {
         routeId: 'test-route',
-        routeName: 'Test Route',
-        datasourceName: 'Test Datasource',
+        currentTemplate: 'SELECT * WHERE { ?s ?p ?o }',
+        routeDescription: 'Test Route Description',
+        graphMartUri: 'http://example.org/graphmart',
+        layerUris: ['http://example.org/layer1'],
+        datasourceUrl: 'http://example.com/sparql',
         ontologyElementCount: 100
       };
       component.routeId = 'test-route';
