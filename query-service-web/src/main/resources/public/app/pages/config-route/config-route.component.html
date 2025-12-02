@@ -225,6 +225,13 @@
               <h2 class="editor-title" *ngIf="!isFullscreen">Freemarker Template</h2>
               <h2 class="editor-title" *ngIf="isFullscreen">Template Editor - {{routeId}}</h2>
               <div class="editor-actions">
+                <!-- SPARQL Assistant Button (visible in fullscreen mode) -->
+                <button mat-icon-button (click)="toggleChatPanel()"
+                        matTooltip="Toggle AI Assistant"
+                        class="sparql-assistant-btn"
+                        *ngIf="isSparqiEnabled && isFullscreen">
+                  <mat-icon>{{isChatPanelOpen ? 'close' : 'smart_toy'}}</mat-icon>
+                </button>
                 <button mat-icon-button (click)="toggleFullscreen()"
                   [matTooltip]="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'"
                   class="fullscreen-btn">
