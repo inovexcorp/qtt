@@ -372,6 +372,19 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     return ((hits / total) * 100).toFixed(1);
   }
 
+  getCacheTabName(): string {
+    if (!this.cacheInfo) {
+      return 'Cache Info Loading...';
+    }
+    if (!this.cacheInfo.enabled) {
+      return '**Caching Disabled**';
+    }
+    if (!this.cacheInfo.connected) {
+      return '**Caching System Error**';
+    }
+    return 'Cache Configuration';
+  }
+
   toggleCacheEnabled(): void {
     // Note: ngModel already updated cacheEnabled, so don't toggle it again
     this.configRoute.controls['cacheEnabled'].setValue(this.cacheEnabled);

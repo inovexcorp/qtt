@@ -129,7 +129,9 @@
       </mat-tab>
 
       <!-- Tab 2: Cache Configuration -->
-      <mat-tab label="Cache Configuration">
+      <mat-tab label={{getCacheTabName()}}
+               [disabled]="!cacheInfo || !cacheInfo.enabled || !cacheInfo.connected"
+               matTooltipPosition="above">
         <div class="tab-content">
           <div class="cache-config-section" *ngIf="cacheInfo && cacheInfo.enabled">
             <h3>Cache Settings</h3>
