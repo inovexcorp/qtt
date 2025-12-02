@@ -47,6 +47,7 @@
         <module>query-service-persistence</module>
 
         <!-- Second level - depend on base modules -->
+        <module>query-service-auth</module>
         <module>query-service-cache</module>
         <module>query-service-metrics</module>
         <module>query-service-health</module>

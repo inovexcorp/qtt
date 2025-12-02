@@ -1,0 +1,70 @@
+<div class="login-container">
+  <mat-card class="login-card">
+    <mat-card-header>
+      <mat-card-title>
+        <h1>Sign In to QTT</h1>
+      </mat-card-title>
+      <mat-card-subtitle>Query Templating Tool</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- SSO Providers -->
+      <div class="provider-section" *ngIf="(providers$ | async) as providers">
+        <h3 *ngIf="providers.length > 0">Sign in with your account</h3>
+
+        <div class="provider-buttons">
+          <button
+            mat-raised-button
+            *ngFor="let provider of providers"
+            (click)="loginWithProvider(provider.id)"
+            [disabled]="provider.enabled === 'false'"
+            color="primary"
+            class="provider-button">
+            <mat-icon>{{ provider.icon }}</mat-icon>
+            <span>{{ provider.name }}</span>
+          </button>
+        </div>
+
+        <p class="info-text" *ngIf="providers.length === 0">
+          No authentication providers configured. Please contact your administrator.
+        </p>
+      </div>
+
+      <!-- Development Login (REMOVE IN PRODUCTION) -->
+      <div class="dev-login-section" *ngIf="devLoginEnabled">
+        <mat-divider></mat-divider>
+        <h3>Development Login</h3>
+        <p class="warning-text">
+          <mat-icon color="warn">warning</mat-icon>
+          This is for development only and should be disabled in production!
+        </p>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Email Address</mat-label>
+          <input
+            matInput
+            type="email"
+            [(ngModel)]="devEmail"
+            placeholder="user@example.com"
+            (keyup.enter)="devLogin()">
+          <mat-icon matPrefix>email</mat-icon>
+        </mat-form-field>
+
+        <button
+          mat-raised-button
+          color="accent"
+          class="full-width"
+          (click)="devLogin()"
+          [disabled]="!devEmail">
+          Dev Login
+        </button>
+      </div>
+    </mat-card-content>
+
+    <mat-card-footer>
+      <p class="footer-text">
+        Need help? Contact your system administrator.
+      </p>
+    </mat-card-footer>
+  </mat-card>
+</div>

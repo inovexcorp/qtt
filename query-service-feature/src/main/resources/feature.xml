@@ -112,6 +112,13 @@
         <bundle dependency="true" start-level="70">mvn:org.freemarker/freemarker/2.3.32</bundle>
     </feature>
 
+    <feature name="qs-auth" description="qs-auth" version="${project.version}">
+        <details>QTT Authentication with SSO Support (OAuth, OIDC, SAML)</details>
+        <!-- Note: Full PAC4J integration will be added in future iterations -->
+        <!-- For now, basic session-based authentication infrastructure -->
+        <bundle dependency="true">wrap:mvn:org.mindrot/jbcrypt/0.4</bundle>
+    </feature>
+
     <feature name="query-service" description="query-service" version="${project.version}">
         <details>Karaf Feature describing the query service deployment into karaf.</details>
         <feature dependency="true">scr</feature>
@@ -123,12 +130,14 @@
         <feature dependency="true">qs-camel</feature>
         <feature dependency="true">qs-redis-cache</feature>
         <feature dependency="true">qs-sparqi</feature>
+        <feature dependency="true">qs-auth</feature>
         <bundle dependency="true">wrap:mvn:javax.validation/validation-api/2.0.1.Final</bundle>
         <bundle dependency="true">wrap:mvn:org.json/json/20240303</bundle>
         <bundle dependency="true">mvn:com.github.ben-manes.caffeine/caffeine/2.9.3</bundle>
         <!-- Query Service Bundles -->
         <bundle start-level="82">mvn:com.inovexcorp.queryservice/query-service-persistence/${project.version}</bundle>
         <bundle start-level="82">mvn:com.inovexcorp.queryservice/camel-anzo/${project.version}</bundle>
+        <bundle start-level="84">mvn:com.inovexcorp.queryservice/query-service-auth/${project.version}</bundle>
         <bundle start-level="84">mvn:com.inovexcorp.queryservice/query-service-cache/${project.version}</bundle>
         <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-core/${project.version}</bundle>
         <bundle start-level="86">mvn:com.inovexcorp.queryservice/query-service-metrics/${project.version}</bundle>
