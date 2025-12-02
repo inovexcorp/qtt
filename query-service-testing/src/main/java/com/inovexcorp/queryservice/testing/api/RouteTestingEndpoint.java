@@ -111,13 +111,11 @@ public class RouteTestingEndpoint {
 
             if ("error".equals(response.getStatus())) {
                 log.warn("Test execution failed: {}", response.getError());
-                return Response.status(Response.Status.BAD_REQUEST)
-                        .entity(response)
-                        .build();
+            } else {
+                log.info("Test execution successful in {} ms", response.getExecutionTimeMs());
             }
 
-            log.info("Test execution successful in {} ms", response.getExecutionTimeMs());
-
+            // Always return HTTP 200 - the response.status field indicates success/error
             return Response.ok(response).build();
 
         } catch (Exception e) {

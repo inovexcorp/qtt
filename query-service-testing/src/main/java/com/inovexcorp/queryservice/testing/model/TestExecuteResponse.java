@@ -35,4 +35,9 @@ public class TestExecuteResponse {
      * Error message if execution failed (optional)
      */
     private String error;
+
+    /**
+     * Stack trace if execution failed (optional)
+     */
+    private String stackTrace;
 }

@@ -156,6 +156,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   generatedSparql: string = '';
   testExecutionTime: number | null = null;
   testError: string = '';
+  testStackTrace: string = '';
   testResultsExpanded: boolean = true;
   testSparqlExpanded: boolean = true;
   testErrorExpanded: boolean = true;
@@ -1009,14 +1010,19 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   executeTest(): void {
     this.isTestExecuting = true;
     this.testError = '';
+    this.testStackTrace = '';
     this.testResults = null;
     this.generatedSparql = '';
     this.testExecutionTime = null;
 
+    // Look up the actual graphmart IRI from the title stored in the form
+    const graphMartTitle = this.configRoute.value['graphMartUri'] || '';
+    const graphMartIri = this.graphMarts.find(item => item.title === graphMartTitle)?.iri || graphMartTitle;
+
     const request = {
       templateContent: this.configRoute.value['template'] || '',
       dataSourceId: this.configRoute.value['datasourceValidator'] || '',
-      graphMartUri: this.configRoute.value['graphMartUri'] || '',
+      graphMartUri: graphMartIri,
       layers: this.layers.join(','),
       routeParams: 'httpMethodRestrict=' + (this.configRoute.value['routeParams'] || []).join(','),
       parameters: this.testForm.value
@@ -1033,18 +1039,22 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
           this.testErrorExpanded = false;
         } else {
           this.testError = response.error || 'Test execution failed';
+          this.testStackTrace = response.stackTrace || '';
+          this.generatedSparql = response.generatedSparql || '';
           this.testErrorExpanded = true;
           this.testResultsExpanded = false;
-          this.testSparqlExpanded = false;
+          this.testSparqlExpanded = !!response.generatedSparql;  // Expand if SPARQL was generated
         }
         this.isTestExecuting = false;
       },
       error: (error: any) => {
         console.error('Error executing test:', error);
         this.testError = 'Failed to execute test: ' + (error.error?.error || error.message);
+        this.testStackTrace = error.error?.stackTrace || '';
+        this.generatedSparql = error.error?.generatedSparql || '';
         this.testErrorExpanded = true;
         this.testResultsExpanded = false;
-        this.testSparqlExpanded = false;
+        this.testSparqlExpanded = !!error.error?.generatedSparql;
         this.isTestExecuting = false;
       }
     });

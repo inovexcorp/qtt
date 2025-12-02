@@ -289,7 +289,7 @@
           </div>
 
           <!-- Test Results -->
-          <div *ngIf="testResults || generatedSparql" class="test-results-section">
+          <div *ngIf="testResults || generatedSparql || testError" class="test-results-section">
             <!-- Generated SPARQL Panel -->
             <mat-expansion-panel [(expanded)]="testSparqlExpanded" *ngIf="generatedSparql">
               <mat-expansion-panel-header>
@@ -326,7 +326,11 @@
                 </mat-panel-title>
               </mat-expansion-panel-header>
               <div class="error-container">
-                <p class="error-message">{{testError}}</p>
+                <div class="error-message">{{testError}}</div>
+                <div *ngIf="testStackTrace" class="stack-trace-section">
+                  <h4>Stack Trace:</h4>
+                  <pre class="stack-trace">{{testStackTrace}}</pre>
+                </div>
               </div>
             </mat-expansion-panel>
           </div>

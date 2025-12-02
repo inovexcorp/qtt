@@ -41,8 +41,6 @@ import java.util.Map;
 @Component(service = RouteTestExecutor.class, immediate = true)
 public class RouteTestExecutor {
 
-    private static final Base64.Decoder decoder = Base64.getDecoder();
-
     @Reference
     private DataSourceService dataSourceService;
 
@@ -54,11 +52,12 @@ public class RouteTestExecutor {
      */
     public TestExecuteResponse executeTest(TestExecuteRequest request) {
         long startTime = System.currentTimeMillis();
+        String sparqlQuery = null;
 
         try {
             // Validate datasource
             if (!dataSourceService.dataSourceExists(request.getDataSourceId())) {
-                return createErrorResponse("Datasource not found: " + request.getDataSourceId(), 0);
+                return createErrorResponse("Datasource not found: " + request.getDataSourceId(), 0, null);
             }
 
             Datasources datasource = dataSourceService.getDataSource(request.getDataSourceId());
@@ -66,12 +65,13 @@ public class RouteTestExecutor {
                 return createErrorResponse(
                         "Datasource is not healthy: " + datasource.getStatus() +
                                 (datasource.getLastHealthError() != null ? " - " + datasource.getLastHealthError() : ""),
-                        0
+                        0,
+                        null
                 );
             }
 
             // Process Freemarker template to generate SPARQL query
-            String sparqlQuery = processTemplate(request.getTemplateContent(), request.getParameters());
+            sparqlQuery = processTemplate(request.getTemplateContent(), request.getParameters());
             log.debug("Generated SPARQL query: {}", sparqlQuery);
 
             // Create AnzoClient from datasource configuration
@@ -106,30 +106,35 @@ public class RouteTestExecutor {
                     sparqlQuery,
                     executionTime,
                     "success",
+                    null,
                     null
             );
 
         } catch (TemplateException e) {
             log.error("Error processing Freemarker template", e);
             return createErrorResponse("Template processing error: " + e.getMessage(),
-                    System.currentTimeMillis() - startTime);
+                    System.currentTimeMillis() - startTime, sparqlQuery, e);
         } catch (QueryException e) {
             log.error("Error executing SPARQL query", e);
             return createErrorResponse("Query execution error: " + e.getMessage(),
-                    System.currentTimeMillis() - startTime);
+                    System.currentTimeMillis() - startTime, sparqlQuery, e);
         } catch (IOException | InterruptedException e) {
             log.error("Error communicating with Anzo", e);
             return createErrorResponse("Communication error: " + e.getMessage(),
-                    System.currentTimeMillis() - startTime);
+                    System.currentTimeMillis() - startTime, sparqlQuery, e);
         } catch (Exception e) {
             log.error("Unexpected error during test execution", e);
             return createErrorResponse("Unexpected error: " + e.getMessage(),
-                    System.currentTimeMillis() - startTime);
+                    System.currentTimeMillis() - startTime, sparqlQuery, e);
         }
     }
 
     /**
      * Process Freemarker template with provided parameters
+     * Supports nested structures for Camel route compatibility:
+     * - headers.fieldName → ${headers.fieldName}
+     * - body.fieldName → ${body.fieldName}
+     * - body.nested.field → ${body.nested.field}
      */
     private String processTemplate(String templateContent, Map<String, String> parameters)
             throws IOException, TemplateException {
@@ -141,14 +146,52 @@ public class RouteTestExecutor {
 
         // Build data model with parameters
         Map<String, Object> dataModel = new HashMap<>();
+        Map<String, Object> headers = new HashMap<>();
+        Map<String, Object> body = new HashMap<>();
+
         if (parameters != null) {
-            dataModel.putAll(parameters);
+            for (Map.Entry<String, String> entry : parameters.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+
+                // Skip empty or null values
+                if (value == null || value.trim().isEmpty()) {
+                    continue;
+                }
+
+                if (key.startsWith("headers.")) {
+                    // Extract the header field name (e.g., "headers.userId" → "userId")
+                    String headerField = key.substring("headers.".length());
+                    setNestedValue(headers, headerField, value);
+                } else if (key.startsWith("body.")) {
+                    // Extract the body field path (e.g., "body.name.first" → "name.first")
+                    String bodyField = key.substring("body.".length());
+                    setNestedValue(body, bodyField, value);
+                } else {
+                    // Regular parameter (backwards compatibility)
+                    dataModel.put(key, value);
+                }
+            }
         }
 
-        // Create mock Request object for parameter access
+        // Add headers and body to data model
+        if (!headers.isEmpty()) {
+            dataModel.put("headers", headers);
+        }
+        if (!body.isEmpty()) {
+            dataModel.put("body", body);
+        }
+
+        // Create mock Request object for parameter access (backwards compatibility)
+        // Only include non-empty values
         Map<String, String> requestParams = new HashMap<>();
         if (parameters != null) {
-            requestParams.putAll(parameters);
+            for (Map.Entry<String, String> entry : parameters.entrySet()) {
+                String value = entry.getValue();
+                if (value != null && !value.trim().isEmpty()) {
+                    requestParams.put(entry.getKey(), value);
+                }
+            }
         }
         dataModel.put("Request", requestParams);
 
@@ -156,6 +199,35 @@ public class RouteTestExecutor {
         StringWriter writer = new StringWriter();
         template.process(dataModel, writer);
         return writer.toString();
+    }
+
+    /**
+     * Set a nested value in a map using dot notation
+     * e.g., "name.first" with value "John" creates {name: {first: "John"}}
+     */
+    @SuppressWarnings("unchecked")
+    private void setNestedValue(Map<String, Object> map, String path, String value) {
+        String[] parts = path.split("\\.");
+        Map<String, Object> current = map;
+
+        for (int i = 0; i < parts.length - 1; i++) {
+            String part = parts[i];
+            if (!current.containsKey(part)) {
+                current.put(part, new HashMap<String, Object>());
+            }
+            Object next = current.get(part);
+            if (next instanceof Map) {
+                current = (Map<String, Object>) next;
+            } else {
+                // Conflict: existing non-map value, replace it with a map
+                Map<String, Object> newMap = new HashMap<>();
+                current.put(part, newMap);
+                current = newMap;
+            }
+        }
+
+        // Set the final value
+        current.put(parts[parts.length - 1], value);
     }
 
     /**
@@ -184,16 +256,58 @@ public class RouteTestExecutor {
     }
 
     /**
-     * Create an error response
+     * Create an error response without stack trace (for validation errors)
      */
-    private TestExecuteResponse createErrorResponse(String errorMessage, long executionTime) {
+    private TestExecuteResponse createErrorResponse(String errorMessage, long executionTime, String generatedSparql) {
         return new TestExecuteResponse(
                 null,
-                null,
+                generatedSparql,
                 executionTime,
                 "error",
-                errorMessage
+                errorMessage,
+                null
         );
+    }
+
+    /**
+     * Create an error response with stack trace
+     */
+    private TestExecuteResponse createErrorResponse(String errorMessage, long executionTime, String generatedSparql, Exception exception) {
+        return new TestExecuteResponse(
+                null,
+                generatedSparql,
+                executionTime,
+                "error",
+                errorMessage,
+                getStackTraceAsString(exception)
+        );
+    }
+
+    /**
+     * Convert exception stack trace to string
+     */
+    private String getStackTraceAsString(Exception exception) {
+        if (exception == null) {
+            return null;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(exception.getClass().getName()).append(": ").append(exception.getMessage()).append("\n");
+
+        for (StackTraceElement element : exception.getStackTrace()) {
+            sb.append("\tat ").append(element.toString()).append("\n");
+        }
+
+        // Include cause if present
+        Throwable cause = exception.getCause();
+        if (cause != null) {
+            sb.append("Caused by: ").append(cause.getClass().getName()).append(": ").append(cause.getMessage()).append("\n");
+            for (StackTraceElement element : cause.getStackTrace()) {
+                sb.append("\tat ").append(element.toString()).append("\n");
+            }
+        }
+
+        return sb.toString();
     }
 
     /**
@@ -201,18 +315,11 @@ public class RouteTestExecutor {
      */
     private AnzoClient createAnzoClient(Datasources datasource) {
         String server = datasource.getUrl();
-        String user = decode(datasource.getUsername());
-        String password = decode(datasource.getPassword());
+        String user = datasource.getUsername();
+        String password = datasource.getPassword();
         int timeout = Integer.parseInt(datasource.getTimeOutSeconds());
         boolean validateCert = datasource.isValidateCertificate();
 
         return new SimpleAnzoClient(server, user, password, timeout, validateCert);
-    }
-
-    /**
-     * Decode Base64 encoded credentials
-     */
-    private static String decode(String value) {
-        return new String(decoder.decode(value), StandardCharsets.UTF_8);
     }
 }

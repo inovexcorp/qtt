@@ -804,9 +804,40 @@ h1.card-header {
 
         .error-message {
           color: #c62828;
-          margin: 0;
+          margin: 0 0 16px 0;
           font-family: 'Courier New', Courier, monospace;
-          font-size: 13px;
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        .stack-trace-section {
+          margin-top: 16px;
+          border-top: 1px solid #ef9a9a;
+          padding-top: 12px;
+
+          h4 {
+            margin: 0 0 8px 0;
+            color: #c62828;
+            font-size: 13px;
+            font-weight: 600;
+          }
+
+          .stack-trace {
+            background-color: #ffffff;
+            border: 1px solid #ef9a9a;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 0;
+            color: #d32f2f;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+          }
         }
       }
     }
