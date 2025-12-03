@@ -180,7 +180,7 @@
                   <mat-form-field appearance="outline" class="cache-input-field">
                     <mat-label>Cache TTL (seconds)</mat-label>
                     <input type="number" matInput formControlName="cacheTtlSeconds"
-                      [placeholder]="'Default: ' + (cacheInfo?.defaultTtlSeconds || 3600)">
+                      [placeholder]="'Default: ' + (cacheInfo.defaultTtlSeconds || 3600)">
                     <mat-icon matSuffix matTooltip="Time to live - how long cached results remain valid">schedule</mat-icon>
                   </mat-form-field>
 

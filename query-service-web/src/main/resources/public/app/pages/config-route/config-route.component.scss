@@ -232,7 +232,6 @@ h1.card-header {
 .editor-section {
   position: relative;
   padding: 1rem 1.5rem;
-  flex: 1;
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
@@ -247,9 +246,22 @@ h1.card-header {
     background: #1e1e1e;
     margin: 0;
     padding: 1rem;
+    flex: 1;
 
     .editor-title {
       color: white;
+    }
+
+    .editor-container {
+      flex: 1;
+    }
+  }
+
+  &:not(.fullscreen) {
+    .editor-container {
+      height: 600px;
+      max-height: 600px;
+      flex: none;
     }
   }
 
@@ -263,6 +275,7 @@ h1.card-header {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .editor-title {
@@ -282,18 +295,15 @@ h1.card-header {
 }
 
 .editor-container {
-  flex: 1;
   position: relative;
   border: 1px solid #ddd;
   border-radius: 4px;
   overflow: hidden;
-  min-height: 500px;
 }
 
 .template-editor-div {
   width: 100%;
   height: 100%;
-  min-height: 500px;
 }
 
 // Monaco Editor Overrides
