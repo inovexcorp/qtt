@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.testing.api;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inovexcorp.queryservice.testing.model.TestExecuteRequest;
 import com.inovexcorp.queryservice.testing.model.TestExecuteResponse;
 import com.inovexcorp.queryservice.testing.model.TestVariablesRequest;
@@ -19,6 +20,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST API endpoint for route testing functionality
@@ -31,6 +33,8 @@ public class RouteTestingEndpoint {
 
     @Reference
     private RouteTestExecutor routeTestExecutor;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * Extract variables from a Freemarker template
@@ -54,9 +58,20 @@ public class RouteTestingEndpoint {
 
             List<TemplateVariable> variables = FreemarkerVariableExtractor.extractVariables(request.getTemplateContent());
 
-            TestVariablesResponse response = new TestVariablesResponse(variables);
+            // Extract body JSON structure for smart placeholder generation
+            Map<String, Object> bodyStructure = FreemarkerVariableExtractor.extractBodyJsonStructure(request.getTemplateContent());
 
-            log.debug("Found {} variables in template", variables.size());
+            // Convert to pretty-printed JSON string
+            String sampleBodyJson = null;
+            if (bodyStructure != null && !bodyStructure.isEmpty()) {
+                sampleBodyJson = objectMapper.writerWithDefaultPrettyPrinter()
+                        .writeValueAsString(bodyStructure);
+            }
+
+            TestVariablesResponse response = new TestVariablesResponse(variables, sampleBodyJson);
+
+            log.debug("Found {} variables in template with sample body JSON: {}",
+                    variables.size(), sampleBodyJson != null ? "generated" : "empty");
 
             return Response.ok(response).build();
 

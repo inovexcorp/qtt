@@ -17,4 +17,11 @@ public class TestVariablesResponse {
      * List of variables found in the template
      */
     private List<TemplateVariable> variables;
+
+    /**
+     * Sample JSON body structure pre-populated from template analysis.
+     * This provides a starting point for users to fill in test data.
+     * Format is pretty-printed JSON ready for Monaco Editor display.
+     */
+    private String sampleBodyJson;
 }

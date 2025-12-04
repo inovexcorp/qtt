@@ -36,6 +36,11 @@
             <artifactId>camel-anzo</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.inovexcorp.queryservice</groupId>
+            <artifactId>query-service-route-builder</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- Apache Freemarker -->
         <dependency>

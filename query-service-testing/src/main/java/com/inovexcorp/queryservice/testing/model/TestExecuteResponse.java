@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 /**
  * Response from executing a route test
  */
@@ -40,4 +42,10 @@ public class TestExecuteResponse {
      * Stack trace if execution failed (optional)
      */
     private String stackTrace;
+
+    /**
+     * Enhanced debug metadata including timing breakdown, request parameters,
+     * and route information (optional, from test routes)
+     */
+    private Map<String, Object> debug;
 }

@@ -163,6 +163,26 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   isTestExecuting: boolean = false;
   isLoadingVariables: boolean = false;
 
+  // Enhanced testing properties for JSON editor
+  bodyJsonContent: string = '{}';
+  sampleBodyJson: string | null = null;
+  queryParams: Array<{key: string, value: string}> = [];
+  bodyJsonExpanded: boolean = false;
+  queryParamsExpanded: boolean = false;
+
+  // Monaco editor options for JSON
+  jsonEditorOptions = {
+    theme: 'vs-dark',
+    language: 'json',
+    automaticLayout: true,
+    formatOnPaste: true,
+    formatOnType: true,
+    minimap: { enabled: false },
+    lineNumbers: 'on' as const,
+    scrollBeyondLastLine: false,
+    wordWrap: 'on' as const
+  };
+
   @ViewChild('layerElement') layerElement!: ElementRef<HTMLInputElement>;
   @ViewChild('monacoEditorContainer') monacoEditorContainer!: ElementRef<HTMLDivElement>;
 
@@ -992,6 +1012,28 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     this.configRouteService.extractTestVariables(templateContent).subscribe({
       next: (response: any) => {
         this.testVariables = response.variables || [];
+        this.sampleBodyJson = response.sampleBodyJson;
+
+        // Initialize body JSON content with sample or empty object
+        if (this.sampleBodyJson) {
+          this.bodyJsonContent = this.sampleBodyJson;
+        } else {
+          this.bodyJsonContent = '{}';
+        }
+
+        // Initialize query parameters from headers.* variables (without the prefix)
+        this.queryParams = [];
+        this.testVariables.forEach(variable => {
+          if (variable.name.startsWith('headers.')) {
+            // Extract parameter name without "headers." prefix
+            const paramName = variable.name.substring('headers.'.length);
+            this.queryParams.push({
+              key: paramName,
+              value: variable.defaultValue || ''
+            });
+          }
+        });
+
         this.generateTestForm();
         this.isLoadingVariables = false;
       },
@@ -1028,6 +1070,27 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     this.generatedSparql = '';
     this.testExecutionTime = null;
 
+    // Validate and parse JSON body
+    let bodyJson: any = {};
+    try {
+      bodyJson = JSON.parse(this.bodyJsonContent);
+    } catch (e: any) {
+      this.testError = 'Invalid JSON in request body: ' + e.message;
+      this.testErrorExpanded = true;
+      this.isTestExecuting = false;
+      return;
+    }
+
+    // Convert JSON body to flat parameters (body.field format)
+    const parameters: any = this.flattenJson(bodyJson, 'body');
+
+    // Add query parameters
+    this.queryParams.forEach(param => {
+      if (param.key && param.value) {
+        parameters[param.key] = param.value;
+      }
+    });
+
     // Look up the actual graphmart IRI from the title stored in the form
     const graphMartTitle = this.configRoute.value['graphMartUri'] || '';
     const graphMartIri = this.graphMarts.find(item => item.title === graphMartTitle)?.iri || graphMartTitle;
@@ -1038,7 +1101,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
       graphMartUri: graphMartIri,
       layers: this.layers.join(','),
       routeParams: 'httpMethodRestrict=' + (this.configRoute.value['routeParams'] || []).join(','),
-      parameters: this.testForm.value
+      parameters: parameters
     };
 
     this.configRouteService.executeRouteTest(request).subscribe({
@@ -1071,6 +1134,45 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
         this.isTestExecuting = false;
       }
     });
+  }
+
+  /**
+   * Flatten JSON object into dot-notation parameters
+   * e.g., {name: {first: "John"}} => {"body.name.first": "John"}
+   */
+  flattenJson(obj: any, prefix: string = ''): {[key: string]: string} {
+    const result: {[key: string]: string} = {};
+
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const value = obj[key];
+        const newKey = prefix ? `${prefix}.${key}` : key;
+
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          // Recursively flatten nested objects
+          Object.assign(result, this.flattenJson(value, newKey));
+        } else {
+          // Convert to string
+          result[newKey] = String(value);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Add a new query parameter row
+   */
+  addQueryParam(): void {
+    this.queryParams.push({key: '', value: ''});
+  }
+
+  /**
+   * Remove a query parameter row
+   */
+  removeQueryParam(index: number): void {
+    this.queryParams.splice(index, 1);
   }
 
   /**

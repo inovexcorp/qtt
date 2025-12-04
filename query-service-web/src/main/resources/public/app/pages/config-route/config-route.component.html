@@ -4,13 +4,21 @@
       <mat-icon>arrow_back</mat-icon>
     </button>
     <h1 class="card-header">Config Route: {{routeId}}</h1>
-    <!-- SPARQL Assistant Button (always visible) -->
-    <button mat-icon-button (click)="toggleChatPanel()"
-            matTooltip="Toggle AI Assistant"
-            class="sparql-assistant-btn"
-            *ngIf="isSparqiEnabled">
-      <mat-icon>{{isChatPanelOpen ? 'close' : 'smart_toy'}}</mat-icon>
-    </button>
+    <div class="header-actions">
+      <!-- Save/Cancel Buttons -->
+      <span class="template-buttons">
+        <button mat-raised-button type="button" class="cancel-btn" (click)="navigateBack()"><mat-icon>cancel</mat-icon> Cancel</button>
+        <button mat-raised-button type="submit" id="config-route-btn" color="primary" [disabled]="!configRoute.valid"
+                (click)="putRoute()"><mat-icon>save</mat-icon> Save</button>
+      </span>
+      <!-- SPARQL Assistant Button -->
+      <button mat-icon-button (click)="toggleChatPanel()"
+              matTooltip="Toggle AI Assistant"
+              class="sparql-assistant-btn"
+              *ngIf="isSparqiEnabled">
+        <mat-icon>{{isChatPanelOpen ? 'close' : 'smart_toy'}}</mat-icon>
+      </button>
+    </div>
   </div>
 
   <!-- Datasource Status Warning Banner -->
@@ -264,33 +272,76 @@
           </div>
 
           <!-- Test Form -->
-          <div *ngIf="!isLoadingVariables && testVariables && testVariables.length > 0" class="test-form-section">
+          <div *ngIf="!isLoadingVariables" class="test-form-section">
             <h3>Test Parameters</h3>
-            <p class="test-help-text">Fill in values for the template variables and execute the test:</p>
+            <p class="test-help-text">Configure request body and parameters to test your template:</p>
 
-            <form [formGroup]="testForm" class="test-parameters-form">
-              <mat-form-field *ngFor="let variable of testVariables" appearance="outline" class="test-input-field">
-                <mat-label>{{variable.name}}</mat-label>
-                <input matInput [formControlName]="variable.name" [placeholder]="variable.defaultValue || ''">
-                <mat-icon matSuffix *ngIf="variable.type === 'request_param'" matTooltip="Request parameter">link</mat-icon>
-                <mat-icon matSuffix *ngIf="variable.type === 'interpolation'" matTooltip="Template variable">data_object</mat-icon>
-              </mat-form-field>
-            </form>
+            <!-- Request Body JSON Editor -->
+            <mat-expansion-panel [(expanded)]="bodyJsonExpanded" class="test-section-panel">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon>code</mat-icon>
+                  Request Body (JSON)
+                </mat-panel-title>
+                <mat-panel-description *ngIf="sampleBodyJson">
+                  **Auto-generated from template
+                </mat-panel-description>
+              </mat-expansion-panel-header>
+              <div class="json-editor-container">
+                <div class="json-editor-help" *ngIf="sampleBodyJson">
+                  <mat-icon>info</mat-icon>
+                  <span>This JSON structure was detected from your template. Update the placeholder values with your test data.</span>
+                </div>
+                <ngx-monaco-editor
+                  class="test-json-editor"
+                  [(ngModel)]="bodyJsonContent"
+                  [ngModelOptions]="{standalone: true}"
+                  [options]="jsonEditorOptions">
+                </ngx-monaco-editor>
+              </div>
+            </mat-expansion-panel>
 
+            <!-- Query Parameters -->
+            <mat-expansion-panel [(expanded)]="queryParamsExpanded" class="test-section-panel">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon>link</mat-icon>
+                  Query Parameters
+                </mat-panel-title>
+                <mat-panel-description *ngIf="queryParams.length > 0">
+                  {{queryParams.length}} parameter{{queryParams.length === 1 ? '' : 's'}} from
+                </mat-panel-description>
+              </mat-expansion-panel-header>
+              <div class="query-params-container">
+                <div *ngFor="let param of queryParams; let i = index" class="query-param-row">
+                  <mat-form-field appearance="outline" class="param-key-field">
+                    <mat-label>Parameter Name</mat-label>
+                    <input matInput [(ngModel)]="param.key" [ngModelOptions]="{standalone: true}">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="param-value-field">
+                    <mat-label>Value</mat-label>
+                    <input matInput [(ngModel)]="param.value" [ngModelOptions]="{standalone: true}">
+                  </mat-form-field>
+                  <button mat-icon-button color="warn" (click)="removeQueryParam(i)" matTooltip="Remove parameter">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+                <button mat-stroked-button color="primary" (click)="addQueryParam()" class="add-param-btn">
+                  <mat-icon>add</mat-icon>
+                  Add Parameter
+                </button>
+              </div>
+            </mat-expansion-panel>
+
+            <!-- No Body Variables -->
+            <div *ngIf="queryParams.length === 0 && !sampleBodyJson" class="no-variables-message">
+              <mat-icon>info</mat-icon>
+              <p>No template variables detected. You can still test with an empty request.</p>
+            </div>
+
+            <!-- Execute Button -->
             <button mat-raised-button color="primary" class="execute-test-btn"
                     (click)="executeTest()" [disabled]="isTestExecuting">
-              <mat-spinner *ngIf="isTestExecuting" diameter="20" class="button-spinner"></mat-spinner>
-              <mat-icon *ngIf="!isTestExecuting">play_arrow</mat-icon>
-              <span>Execute Test</span>
-            </button>
-          </div>
-
-          <!-- No Variables Found -->
-          <div *ngIf="!isLoadingVariables && testVariables && testVariables.length === 0" class="no-variables-message">
-            <mat-icon>info</mat-icon>
-            <p>No template variables found in the current template.</p>
-            <p class="hint">You can still execute a test without parameters.</p>
-            <button mat-raised-button color="primary" (click)="executeTest()" [disabled]="isTestExecuting">
               <mat-spinner *ngIf="isTestExecuting" diameter="20" class="button-spinner"></mat-spinner>
               <mat-icon *ngIf="!isTestExecuting">play_arrow</mat-icon>
               <span>Execute Test</span>
@@ -346,13 +397,6 @@
         </div>
       </mat-tab>
     </mat-tab-group>
-
-    <!-- Save/Cancel Buttons (always visible at bottom) -->
-    <div class="btn-sec">
-      <button mat-raised-button type="button" class="cancel-btn" (click)="navigateBack()">Cancel</button>
-      <button mat-raised-button type="submit" id="config-route-btn" color="primary" [disabled]="!configRoute.valid"
-        (click)="putRoute()">Save</button>
-    </div>
 
     <!-- Chat Panel (slide out from right) -->
     <div class="chat-panel"
