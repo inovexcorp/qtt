@@ -142,7 +142,6 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   routeCacheStats?: RouteCacheStats;
   cacheStatsLoading: boolean = false;
   cacheEnabled: boolean = false;
-  cacheExpanded: boolean = false;
   clearingCache: boolean = false;
   cacheJustCleared: boolean = false;
 
@@ -408,13 +407,6 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   toggleCacheEnabled(): void {
     // Note: ngModel already updated cacheEnabled, so don't toggle it again
     this.configRoute.controls['cacheEnabled'].setValue(this.cacheEnabled);
-    if (this.cacheEnabled) {
-      this.cacheExpanded = true;
-    }
-  }
-
-  toggleCacheExpanded(): void {
-    this.cacheExpanded = !this.cacheExpanded;
   }
 
   clearRouteCache(): void {

@@ -2,8 +2,8 @@ package com.inovexcorp.queryservice.testing.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
-import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
+import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.routebuilder.service.TestRouteService;
 import com.inovexcorp.queryservice.testing.model.TestExecuteRequest;
 import com.inovexcorp.queryservice.testing.model.TestExecuteResponse;
@@ -15,6 +15,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -82,7 +83,7 @@ public class RouteTestExecutor {
             String requestBody = buildRequestBody(request.getParameters());
 
             // Execute HTTP POST to the temporary route
-            String url = "http://localhost:8888/" + tempRouteId;
+            String url = buildUriWithParameters(request.getParameters(), tempRouteId);
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .header("Content-Type", "application/json")
@@ -267,5 +268,37 @@ public class RouteTestExecutor {
         }
 
         return sb.toString();
+    }
+
+    private String buildUriWithParameters(Map<String, String> parameters, String tempRouteId) {
+        StringBuilder url = new StringBuilder("http://localhost:8888");
+        url.append("/");
+        url.append(tempRouteId);
+        if (parameters != null && !parameters.isEmpty()) {
+            url.append("?");
+            boolean first = true;
+            for (Map.Entry<String, String> entry : parameters.entrySet()) {
+                if (!first) {
+                    url.append("&");
+                }
+                url.append(urlEncode(entry.getKey()))
+                        .append("=")
+                        .append(urlEncode(entry.getValue()));
+                first = false;
+            }
+        }
+        return url.toString();
+    }
+
+    /**
+     * URL encode a string value
+     */
+    private String urlEncode(String value) {
+        try {
+            return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            log.warn("Failed to URL encode value: {}", value, e);
+            return value;
+        }
     }
 }

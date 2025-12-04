@@ -154,70 +154,104 @@
               <mat-icon class="info-icon" matTooltip="When enabled, query results will be cached to improve performance">info</mat-icon>
             </div>
 
-            <div class="cache-details" *ngIf="cacheEnabled" [@slideDown]>
-              <div class="cache-expand-header" (click)="toggleCacheExpanded()">
-                <span>Cache Statistics</span>
-                <div class="cache-info-right" *ngIf="!cacheStatsLoading && routeCacheStats && cacheInfo">
-                  <div class="cache-stat" matTooltip="Number of cached query results for this route">
-                    <mat-icon class="stat-icon">storage</mat-icon>
-                    <span class="stat-value">{{routeCacheStats.routeKeyCount}}</span>
-                    <span class="stat-label">{{routeCacheStats.routeKeyCount === 1 ? 'entry' : 'entries'}}</span>
-                  </div>
-                  <div class="cache-stat" matTooltip="Global cache hit rate">
-                    <mat-icon class="stat-icon">trending_up</mat-icon>
-                    <span class="stat-value">{{getCacheHitRatio()}}%</span>
-                    <span class="stat-label">hit rate</span>
-                  </div>
-                  <div class="cache-stat cache-stat-info" matTooltip="Redis host and port">
-                    <mat-icon class="stat-icon">dns</mat-icon>
-                    <span class="stat-value">{{cacheInfo.host}}:{{cacheInfo.port}}</span>
-                  </div>
-                  <div class="cache-stat cache-stat-info" matTooltip="Cache compression setting">
-                    <mat-icon class="stat-icon">{{cacheInfo.compressionEnabled ? 'compress' : 'text_fields'}}</mat-icon>
-                    <span class="stat-value">{{cacheInfo.compressionEnabled ? 'Compressed' : 'Uncompressed'}}</span>
-                  </div>
-                </div>
-                <div class="cache-info-right" *ngIf="cacheStatsLoading">
-                  <mat-spinner diameter="20"></mat-spinner>
-                </div>
-                <mat-icon>{{ cacheExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+            <!-- Cache Metrics Cards -->
+            <div class="cache-metrics" *ngIf="cacheEnabled">
+              <h4>Cache Metrics</h4>
+
+              <!-- Loading State -->
+              <div *ngIf="cacheStatsLoading" class="metrics-loading">
+                <mat-spinner diameter="40"></mat-spinner>
+                <p>Loading cache statistics...</p>
               </div>
 
-              <div class="cache-fields" *ngIf="cacheExpanded">
-                <div class="cache-input-row">
-                  <mat-form-field appearance="outline" class="cache-input-field">
-                    <mat-label>Cache TTL (seconds)</mat-label>
-                    <input type="number" matInput formControlName="cacheTtlSeconds"
-                      [placeholder]="'Default: ' + (cacheInfo.defaultTtlSeconds || 3600)">
-                    <mat-icon matSuffix matTooltip="Time to live - how long cached results remain valid">schedule</mat-icon>
-                  </mat-form-field>
+              <!-- Metrics Grid -->
+              <div *ngIf="!cacheStatsLoading && routeCacheStats && cacheInfo" class="cache-metrics-grid">
+                <!-- Cached Entries Card -->
+                <mat-card class="cache-metric-card">
+                  <mat-card-content>
+                    <div class="metric-icon">
+                      <mat-icon>storage</mat-icon>
+                    </div>
+                    <div class="metric-value">{{routeCacheStats.routeKeyCount}}</div>
+                    <div class="metric-label">Cached {{routeCacheStats.routeKeyCount === 1 ? 'Entry' : 'Entries'}}</div>
+                    <div class="metric-subtitle">For this route</div>
+                  </mat-card-content>
+                </mat-card>
 
-                  <mat-form-field appearance="outline" class="cache-input-field">
-                    <mat-label>Cache Key Strategy</mat-label>
-                    <mat-select formControlName="cacheKeyStrategy" disableOptionCentering>
-                      <mat-option value="QUERY_HASH">Query Hash (Default)</mat-option>
-                      <mat-option value="ROUTE_PARAMS">Route Parameters</mat-option>
-                    </mat-select>
-                    <mat-icon matSuffix matTooltip="How cache keys are generated for queries">key</mat-icon>
-                  </mat-form-field>
-                </div>
+                <!-- Hit Rate Card -->
+                <mat-card class="cache-metric-card">
+                  <mat-card-content>
+                    <div class="metric-icon">
+                      <mat-icon>trending_up</mat-icon>
+                    </div>
+                    <div class="metric-value">{{getCacheHitRatio()}}%</div>
+                    <div class="metric-label">Hit Rate</div>
+                    <div class="metric-subtitle">Global cache performance</div>
+                  </mat-card-content>
+                </mat-card>
 
-                <div class="cache-clear-section">
-                  <button mat-raised-button
-                          color="warn"
-                          class="clear-cache-btn"
-                          (click)="clearRouteCache()"
-                          [disabled]="!cacheEnabled || clearingCache"
-                          matTooltip="Clear all cached query results for this route">
-                    <mat-icon *ngIf="!clearingCache && !cacheJustCleared">delete_sweep</mat-icon>
-                    <mat-spinner *ngIf="clearingCache" diameter="20" class="button-spinner"></mat-spinner>
-                    <mat-icon *ngIf="cacheJustCleared" class="success-icon">check_circle</mat-icon>
-                    <span>Clear Cache</span>
-                  </button>
-                </div>
+                <!-- Redis Connection Card -->
+                <mat-card class="cache-metric-card cache-info-card">
+                  <mat-card-content>
+                    <div class="metric-icon">
+                      <mat-icon>dns</mat-icon>
+                    </div>
+                    <div class="metric-value small">{{cacheInfo.host}}:{{cacheInfo.port}}</div>
+                    <div class="metric-label">Redis Server</div>
+                    <div class="metric-subtitle">Cache backend</div>
+                  </mat-card-content>
+                </mat-card>
+
+                <!-- Compression Card -->
+                <mat-card class="cache-metric-card cache-info-card">
+                  <mat-card-content>
+                    <div class="metric-icon">
+                      <mat-icon>{{cacheInfo.compressionEnabled ? 'compress' : 'text_fields'}}</mat-icon>
+                    </div>
+                    <div class="metric-value small">{{cacheInfo.compressionEnabled ? 'Enabled' : 'Disabled'}}</div>
+                    <div class="metric-label">Compression</div>
+                    <div class="metric-subtitle">Gzip compression</div>
+                  </mat-card-content>
+                </mat-card>
+              </div>
+
+              <!-- Configuration Fields -->
+              <h4 class="config-section-title">Configuration</h4>
+              <div class="cache-config-fields">
+                <mat-form-field appearance="outline" class="cache-input-field">
+                  <mat-label>Cache TTL (seconds)</mat-label>
+                  <input type="number" matInput formControlName="cacheTtlSeconds"
+                    [placeholder]="'Default: ' + (cacheInfo.defaultTtlSeconds || 3600)">
+                  <mat-icon matSuffix matTooltip="Time to live - how long cached results remain valid">schedule</mat-icon>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="cache-input-field">
+                  <mat-label>Cache Key Strategy</mat-label>
+                  <mat-select formControlName="cacheKeyStrategy" disableOptionCentering>
+                    <mat-option value="QUERY_HASH">Query Hash (Default)</mat-option>
+                    <mat-option value="ROUTE_PARAMS">Route Parameters</mat-option>
+                  </mat-select>
+                  <mat-icon matSuffix matTooltip="How cache keys are generated for queries">key</mat-icon>
+                </mat-form-field>
+              </div>
+
+              <!-- Clear Cache Button -->
+              <div class="cache-actions">
+                <button mat-raised-button
+                        color="warn"
+                        class="clear-cache-btn"
+                        (click)="clearRouteCache()"
+                        [disabled]="!cacheEnabled || clearingCache"
+                        matTooltip="Clear all cached query results for this route">
+                  <mat-icon *ngIf="!clearingCache && !cacheJustCleared">delete_sweep</mat-icon>
+                  <mat-spinner *ngIf="clearingCache" diameter="20" class="button-spinner"></mat-spinner>
+                  <mat-icon *ngIf="cacheJustCleared" class="success-icon">check_circle</mat-icon>
+                  <span>Clear Route Cache</span>
+                </button>
               </div>
             </div>
           </div>
+
           <div *ngIf="!cacheInfo || !cacheInfo.enabled" class="cache-disabled-message">
             <mat-icon>info</mat-icon>
             <p>Redis caching is not enabled globally. Enable Redis in the system configuration to use route caching.</p>
@@ -309,7 +343,7 @@
                   Query Parameters
                 </mat-panel-title>
                 <mat-panel-description *ngIf="queryParams.length > 0">
-                  {{queryParams.length}} parameter{{queryParams.length === 1 ? '' : 's'}} from
+                  {{queryParams.length}} parameter{{queryParams.length === 1 ? '' : 's'}}
                 </mat-panel-description>
               </mat-expansion-panel-header>
               <div class="query-params-container">
