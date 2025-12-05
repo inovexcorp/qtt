@@ -50,6 +50,7 @@
         <module>query-service-cache</module>
         <module>query-service-metrics</module>
         <module>query-service-health</module>
+        <module>query-service-testing</module>
 
         <!-- Third level - depend on second level -->
         <module>query-service-route-builder</module>

@@ -14,10 +14,13 @@ import com.inovexcorp.queryservice.routebuilder.CamelRouteTemplateBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.spi.RouteController;
+import org.apache.commons.io.FileUtils;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -177,6 +180,19 @@ public class RouteManagementServiceImpl implements RouteManagementService {
 
         // Remove route from Camel Context
         camelContext.removeRoute(routeId);
+
+        // Delete template file
+        File templateFile = new File(camelKarafComponent.getTemplateLocation(), routeId + ".ftl");
+        if (templateFile.exists()) {
+            log.info("Deleting template file for route {}: {}", routeId, templateFile.getAbsolutePath());
+            try {
+                FileUtils.forceDelete(templateFile);
+                log.debug("Successfully deleted template file: {}", templateFile.getAbsolutePath());
+            } catch (IOException e) {
+                log.error("Failed to delete template file for route {}: {}", routeId, templateFile.getAbsolutePath(), e);
+                // Continue with route deletion even if file cleanup fails
+            }
+        }
 
         // Delete route's layer associations
         layerService.deleteAll(routeService.getRoute(routeId));

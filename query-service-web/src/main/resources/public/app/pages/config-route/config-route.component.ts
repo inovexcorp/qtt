@@ -27,6 +27,7 @@ import { CacheService } from '../../core/services/cache.service';
 import { CacheInfo, RouteCacheStats } from '../../core/models/cache-info';
 import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTabChangeEvent } from '@angular/material/tabs';
 import * as monaco from 'monaco-editor';
 
 // Import ALL editor features including suggest
@@ -141,9 +142,45 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   routeCacheStats?: RouteCacheStats;
   cacheStatsLoading: boolean = false;
   cacheEnabled: boolean = false;
-  cacheExpanded: boolean = false;
   clearingCache: boolean = false;
   cacheJustCleared: boolean = false;
+
+  // Tab management
+  selectedTabIndex: number = 0;
+
+  // Testing properties
+  testVariables: any[] = [];
+  testForm: FormGroup = new FormGroup({});
+  testResults: any = null;
+  generatedSparql: string = '';
+  testExecutionTime: number | null = null;
+  testError: string = '';
+  testStackTrace: string = '';
+  testResultsExpanded: boolean = true;
+  testSparqlExpanded: boolean = true;
+  testErrorExpanded: boolean = true;
+  isTestExecuting: boolean = false;
+  isLoadingVariables: boolean = false;
+
+  // Enhanced testing properties for JSON editor
+  bodyJsonContent: string = '{}';
+  sampleBodyJson: string | null = null;
+  queryParams: Array<{key: string, value: string}> = [];
+  bodyJsonExpanded: boolean = false;
+  queryParamsExpanded: boolean = false;
+
+  // Monaco editor options for JSON
+  jsonEditorOptions = {
+    theme: 'vs-dark',
+    language: 'json',
+    automaticLayout: true,
+    formatOnPaste: true,
+    formatOnType: true,
+    minimap: { enabled: false },
+    lineNumbers: 'on' as const,
+    scrollBeyondLastLine: false,
+    wordWrap: 'on' as const
+  };
 
   @ViewChild('layerElement') layerElement!: ElementRef<HTMLInputElement>;
   @ViewChild('monacoEditorContainer') monacoEditorContainer!: ElementRef<HTMLDivElement>;
@@ -354,16 +391,22 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     return ((hits / total) * 100).toFixed(1);
   }
 
+  getCacheTabName(): string {
+    if (!this.cacheInfo) {
+      return 'Cache Info Loading...';
+    }
+    if (!this.cacheInfo.enabled) {
+      return '**Caching Disabled**';
+    }
+    if (!this.cacheInfo.connected) {
+      return '**Caching System Error**';
+    }
+    return 'Cache Configuration';
+  }
+
   toggleCacheEnabled(): void {
     // Note: ngModel already updated cacheEnabled, so don't toggle it again
     this.configRoute.controls['cacheEnabled'].setValue(this.cacheEnabled);
-    if (this.cacheEnabled) {
-      this.cacheExpanded = true;
-    }
-  }
-
-  toggleCacheExpanded(): void {
-    this.cacheExpanded = !this.cacheExpanded;
   }
 
   clearRouteCache(): void {
@@ -934,6 +977,206 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     setTimeout(() => {
       this.onEditorInit(this.monacoEditor!);
     }, 100);
+  }
+
+  /**
+   * Handle tab change event
+   */
+  onTabChange(event: MatTabChangeEvent): void {
+    this.selectedTabIndex = event.index;
+
+    // If switching to Test Route tab (index 3)
+    if (event.index === 3) {
+      this.loadTestVariables();
+    }
+  }
+
+  /**
+   * Load test variables from current template
+   */
+  loadTestVariables(): void {
+    this.isLoadingVariables = true;
+    this.testVariables = [];
+    this.testError = '';
+
+    const templateContent = this.configRoute.value['template'] || '';
+
+    this.configRouteService.extractTestVariables(templateContent).subscribe({
+      next: (response: any) => {
+        this.testVariables = response.variables || [];
+        this.sampleBodyJson = response.sampleBodyJson;
+
+        // Initialize body JSON content with sample or empty object
+        if (this.sampleBodyJson) {
+          this.bodyJsonContent = this.sampleBodyJson;
+        } else {
+          this.bodyJsonContent = '{}';
+        }
+
+        // Initialize query parameters from headers.* variables (without the prefix)
+        this.queryParams = [];
+        this.testVariables.forEach(variable => {
+          if (variable.name.startsWith('headers.')) {
+            // Extract parameter name without "headers." prefix
+            const paramName = variable.name.substring('headers.'.length);
+            this.queryParams.push({
+              key: paramName,
+              value: variable.defaultValue || ''
+            });
+          }
+        });
+
+        this.generateTestForm();
+        this.isLoadingVariables = false;
+      },
+      error: (error: any) => {
+        console.error('Error extracting variables:', error);
+        this.testError = 'Failed to extract template variables: ' + (error.error?.error || error.message);
+        this.isLoadingVariables = false;
+        this.testErrorExpanded = true;
+      }
+    });
+  }
+
+  /**
+   * Generate dynamic form from extracted variables
+   */
+  generateTestForm(): void {
+    const group: any = {};
+
+    this.testVariables.forEach(variable => {
+      group[variable.name] = new FormControl(variable.defaultValue || '');
+    });
+
+    this.testForm = new FormGroup(group);
+  }
+
+  /**
+   * Execute test with current template and parameters
+   */
+  executeTest(): void {
+    this.isTestExecuting = true;
+    this.testError = '';
+    this.testStackTrace = '';
+    this.testResults = null;
+    this.generatedSparql = '';
+    this.testExecutionTime = null;
+
+    // Validate and parse JSON body
+    let bodyJson: any = {};
+    try {
+      bodyJson = JSON.parse(this.bodyJsonContent);
+    } catch (e: any) {
+      this.testError = 'Invalid JSON in request body: ' + e.message;
+      this.testErrorExpanded = true;
+      this.isTestExecuting = false;
+      return;
+    }
+
+    // Convert JSON body to flat parameters (body.field format)
+    const parameters: any = this.flattenJson(bodyJson, 'body');
+
+    // Add query parameters
+    this.queryParams.forEach(param => {
+      if (param.key && param.value) {
+        parameters[param.key] = param.value;
+      }
+    });
+
+    // Look up the actual graphmart IRI from the title stored in the form
+    const graphMartTitle = this.configRoute.value['graphMartUri'] || '';
+    const graphMartIri = this.graphMarts.find(item => item.title === graphMartTitle)?.iri || graphMartTitle;
+
+    const request = {
+      templateContent: this.configRoute.value['template'] || '',
+      dataSourceId: this.configRoute.value['datasourceValidator'] || '',
+      graphMartUri: graphMartIri,
+      layers: this.layers.join(','),
+      routeParams: 'httpMethodRestrict=' + (this.configRoute.value['routeParams'] || []).join(','),
+      parameters: parameters
+    };
+
+    this.configRouteService.executeRouteTest(request).subscribe({
+      next: (response: any) => {
+        if (response.status === 'success') {
+          this.testResults = response.results;
+          this.generatedSparql = response.generatedSparql;
+          this.testExecutionTime = response.executionTimeMs;
+          this.testResultsExpanded = true;
+          this.testSparqlExpanded = true;
+          this.testErrorExpanded = false;
+        } else {
+          this.testError = response.error || 'Test execution failed';
+          this.testStackTrace = response.stackTrace || '';
+          this.generatedSparql = response.generatedSparql || '';
+          this.testErrorExpanded = true;
+          this.testResultsExpanded = false;
+          this.testSparqlExpanded = !!response.generatedSparql;  // Expand if SPARQL was generated
+        }
+        this.isTestExecuting = false;
+      },
+      error: (error: any) => {
+        console.error('Error executing test:', error);
+        this.testError = 'Failed to execute test: ' + (error.error?.error || error.message);
+        this.testStackTrace = error.error?.stackTrace || '';
+        this.generatedSparql = error.error?.generatedSparql || '';
+        this.testErrorExpanded = true;
+        this.testResultsExpanded = false;
+        this.testSparqlExpanded = !!error.error?.generatedSparql;
+        this.isTestExecuting = false;
+      }
+    });
+  }
+
+  /**
+   * Flatten JSON object into dot-notation parameters
+   * e.g., {name: {first: "John"}} => {"body.name.first": "John"}
+   */
+  flattenJson(obj: any, prefix: string = ''): {[key: string]: string} {
+    const result: {[key: string]: string} = {};
+
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const value = obj[key];
+        const newKey = prefix ? `${prefix}.${key}` : key;
+
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          // Recursively flatten nested objects
+          Object.assign(result, this.flattenJson(value, newKey));
+        } else {
+          // Convert to string
+          result[newKey] = String(value);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Add a new query parameter row
+   */
+  addQueryParam(): void {
+    this.queryParams.push({key: '', value: ''});
+  }
+
+  /**
+   * Remove a query parameter row
+   */
+  removeQueryParam(index: number): void {
+    this.queryParams.splice(index, 1);
+  }
+
+  /**
+   * Get route configuration for test execution
+   */
+  getRouteConfigForTest(): any {
+    return {
+      dataSourceId: this.configRoute.value['datasourceValidator'],
+      graphMartUri: this.configRoute.value['graphMartUri'],
+      layers: this.layers.join(','),
+      routeParams: 'httpMethodRestrict=' + (this.configRoute.value['routeParams'] || []).join(',')
+    };
   }
 
   ngOnDestroy(): void {
