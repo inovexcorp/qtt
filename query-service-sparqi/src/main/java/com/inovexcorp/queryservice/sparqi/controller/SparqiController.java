@@ -7,6 +7,8 @@ import com.inovexcorp.queryservice.sparqi.SparqiException;
 import com.inovexcorp.queryservice.sparqi.SparqiService;
 import com.inovexcorp.queryservice.sparqi.model.SparqiContext;
 import com.inovexcorp.queryservice.sparqi.model.SparqiMessage;
+import com.inovexcorp.queryservice.sparqi.model.TestGenerationRequest;
+import com.inovexcorp.queryservice.sparqi.model.TestGenerationResponse;
 import com.inovexcorp.queryservice.sparqi.session.SparqiSession;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -318,6 +320,68 @@ public class SparqiController {
             log.error("Failed to retrieve SPARQi tokens by route", e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity(Map.of("error", "Failed to retrieve tokens by route"))
+                    .build();
+        }
+    }
+
+    /**
+     * Generates test request data using SPARQi AI.
+     * This is a one-shot generation endpoint (not part of a conversation session).
+     * The agent explores the ontology and graphmart data using tools to generate
+     * realistic, semantically correct test values.
+     *
+     * @param request Test generation request with template, context, and options
+     * @return A Response object:
+     *         - 200 (OK) with TestGenerationResponse containing generated test data
+     *         - 400 (Bad Request) if the request is invalid
+     *         - 500 (Internal Server Error) if generation fails
+     */
+    @POST
+    @Path("/generate-test-request")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response generateTestRequest(TestGenerationRequest request) {
+        log.info("Received test generation request for route: {}", request != null ? request.getRouteId() : "null");
+
+        if (request == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "Request body is required"))
+                    .build();
+        }
+
+        // Validate required fields
+        if (request.getRouteId() == null || request.getRouteId().trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "routeId is required"))
+                    .build();
+        }
+
+        if (request.getTemplateContent() == null || request.getTemplateContent().trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "templateContent is required"))
+                    .build();
+        }
+
+        if (request.getDataSourceId() == null || request.getDataSourceId().trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "dataSourceId is required"))
+                    .build();
+        }
+
+        if (request.getGraphMartUri() == null || request.getGraphMartUri().trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "graphMartUri is required"))
+                    .build();
+        }
+
+        try {
+            TestGenerationResponse response = sparqiService.generateTestRequest(request);
+            return Response.ok(response).build();
+
+        } catch (SparqiException e) {
+            log.error("Test generation failed for route: {}", request.getRouteId(), e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(Map.of("error", e.getMessage()))
                     .build();
         }
     }

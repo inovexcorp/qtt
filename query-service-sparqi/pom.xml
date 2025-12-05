@@ -40,7 +40,17 @@
         </dependency>
         <dependency>
             <groupId>com.inovexcorp.queryservice</groupId>
+            <artifactId>query-service-cache</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.inovexcorp.queryservice</groupId>
             <artifactId>camel-anzo</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.inovexcorp.queryservice</groupId>
+            <artifactId>query-service-testing</artifactId>
             <version>${project.version}</version>
         </dependency>
 

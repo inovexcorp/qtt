@@ -2,13 +2,16 @@ package com.inovexcorp.queryservice.sparqi;
 
 import com.inovexcorp.queryservice.sparqi.model.SparqiContext;
 import com.inovexcorp.queryservice.sparqi.model.SparqiMessage;
+import com.inovexcorp.queryservice.sparqi.model.TestGenerationRequest;
+import com.inovexcorp.queryservice.sparqi.model.TestGenerationResponse;
 import com.inovexcorp.queryservice.sparqi.session.SparqiSession;
 
 import java.util.List;
 
 /**
  * Service interface for SPARQi AI Assistant.
- * Provides conversational AI assistance for SPARQL template development.
+ * Provides conversational AI assistance for SPARQL template development
+ * and intelligent test data generation.
  */
 public interface SparqiService {
 
@@ -80,4 +83,16 @@ public interface SparqiService {
      * @return Number of active sessions
      */
     long getActiveSessionCount();
+
+    /**
+     * Generates test request body and query parameters using SPARQi AI.
+     * This is a specialized, goal-oriented interaction separate from chat sessions.
+     * The agent will explore the ontology and actual graphmart data to generate
+     * realistic, semantically correct test values.
+     *
+     * @param request Test generation request with template, context, and options
+     * @return Generated test data with reasoning and metadata
+     * @throws SparqiException if generation fails or service is disabled
+     */
+    TestGenerationResponse generateTestRequest(TestGenerationRequest request) throws SparqiException;
 }

@@ -169,6 +169,17 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   bodyJsonExpanded: boolean = false;
   queryParamsExpanded: boolean = false;
 
+  // SPARQi test generation properties
+  sparqiPanelExpanded: boolean = true;
+  testGenUserContext: string = '';
+  includeEdgeCases: boolean = false;
+  isGeneratingRequest: boolean = false;
+  generationStage: 'analyzing' | 'exploring' | 'generating' | 'applying' | null = null;
+  generationSuccess: boolean = false;
+  generationReasoning: string = '';
+  generationConfidence: number = 0;
+  toolCallsCount: number = 0;
+
   // Monaco editor options for JSON
   jsonEditorOptions = {
     theme: 'vs-dark',
@@ -1177,6 +1188,97 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
       layers: this.layers.join(','),
       routeParams: 'httpMethodRestrict=' + (this.configRoute.value['routeParams'] || []).join(',')
     };
+  }
+
+  /**
+   * Generate test request using SPARQi AI
+   */
+  generateTestRequestWithSparqi(): void {
+    this.isGeneratingRequest = true;
+    this.generationSuccess = false;
+    this.generationStage = 'analyzing';
+    this.toolCallsCount = 0;
+
+    const graphMartTitle = this.configRoute.value['graphMartUri'] || '';
+    const graphMartIri = this.graphMarts.find(item => item.title === graphMartTitle)?.iri || graphMartTitle;
+
+    const request = {
+      routeId: this.routeId,
+      templateContent: this.configRoute.value['template'] || '',
+      dataSourceId: this.configRoute.value['datasourceValidator'] || '',
+      graphMartUri: graphMartIri,
+      layerUris: this.layers,
+      includeEdgeCases: this.includeEdgeCases,
+      userContext: this.testGenUserContext || null
+    };
+
+    // Simulate stage progression
+    setTimeout(() => this.generationStage = 'exploring', 500);
+
+    this.sparqiService.generateTestRequest(request).subscribe({
+      next: (response: any) => {
+        this.generationStage = 'generating';
+
+        setTimeout(() => {
+          this.generationStage = 'applying';
+
+          // Apply generated data
+          if (response.bodyJson) {
+            this.bodyJsonContent = JSON.stringify(response.bodyJson, null, 2);
+            this.bodyJsonExpanded = true;
+          }
+
+          if (response.queryParams) {
+            this.queryParams = Object.entries(response.queryParams).map(([key, value]) => ({
+              key,
+              value: String(value)
+            }));
+            if (this.queryParams.length > 0) {
+              this.queryParamsExpanded = true;
+            }
+          }
+
+          // Update tool calls count from response
+          if (response.toolCallsSummary && response.toolCallsSummary.length > 0) {
+            // Extract number from summary like "3 tool calls executed"
+            const match = response.toolCallsSummary[0].match(/(\d+)/);
+            if (match) {
+              this.toolCallsCount = parseInt(match[1], 10);
+            }
+          }
+
+          // Show success
+          setTimeout(() => {
+            this.isGeneratingRequest = false;
+            this.generationStage = null;
+            this.generationSuccess = true;
+            this.generationReasoning = response.reasoning || 'Generated intelligent test data';
+            this.generationConfidence = response.confidence || 0.85;
+          }, 300);
+        }, 500);
+      },
+      error: (error: any) => {
+        console.error('Test generation failed:', error);
+        this.isGeneratingRequest = false;
+        this.generationStage = null;
+
+        this.snackBar.open(
+          'Failed to generate test data: ' + (error.error?.error || error.message),
+          'Retry',
+          { duration: 10000 }
+        ).onAction().subscribe(() => {
+          this.generateTestRequestWithSparqi();
+        });
+      }
+    });
+  }
+
+  /**
+   * Regenerate test request with different values
+   */
+  regenerateTestRequest(): void {
+    this.generationSuccess = false;
+    this.generateTestRequestWithSparqi();
   }
 
   ngOnDestroy(): void {

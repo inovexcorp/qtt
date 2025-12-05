@@ -211,6 +211,23 @@ export class SparqiService {
     );
   }
 
+  /**
+   * Generate test request using SPARQi AI.
+   * The agent will explore the ontology and graphmart data to generate
+   * realistic, semantically correct test values.
+   */
+  generateTestRequest(request: any): Observable<any> {
+    const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+
+    return this.http.post<any>(
+      `${this.BASE_URL}/generate-test-request`,
+      request,
+      { headers }
+    ).pipe(
+      catchError(this.handleError)
+    );
+  }
+
   // ===== LocalStorage Management =====
 
   /**
