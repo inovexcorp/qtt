@@ -170,6 +170,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   queryParamsExpanded: boolean = false;
 
   // SPARQi test generation properties
+  sparqiPanelExpanded: boolean = true;
   testGenUserContext: string = '';
   includeEdgeCases: boolean = false;
   isGeneratingRequest: boolean = false;
@@ -1253,9 +1254,6 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
             this.generationSuccess = true;
             this.generationReasoning = response.reasoning || 'Generated intelligent test data';
             this.generationConfidence = response.confidence || 0.85;
-
-            // Auto-hide after 8 seconds
-            setTimeout(() => this.generationSuccess = false, 8000);
           }, 300);
         }, 500);
       },

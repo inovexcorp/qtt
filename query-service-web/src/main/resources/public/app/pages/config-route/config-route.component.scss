@@ -718,6 +718,39 @@ h1.card-header {
 
     .json-editor-container {
       padding: 16px;
+      position: relative;
+
+      &.disabled-overlay {
+        pointer-events: none;
+
+        .test-json-editor {
+          opacity: 0.5;
+        }
+      }
+
+      .disabled-overlay-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        background-color: rgba(33, 33, 33, 0.9);
+        color: white;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        z-index: 10;
+
+        mat-icon {
+          font-size: 20px;
+          width: 20px;
+          height: 20px;
+        }
+      }
 
       .json-editor-help {
         display: flex;
@@ -943,40 +976,52 @@ h1.card-header {
 }
 
 // SPARQi Test Generation Section
-.sparqi-generation-section {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
+.sparqi-expansion-panel {
+  margin-bottom: 16px;
   background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-  border-radius: 8px;
   border: 1px solid rgba(102, 126, 234, 0.2);
 
-  .sparqi-gen-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
+  ::ng-deep .mat-expansion-panel-header {
+    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
 
-    .sparqi-icon {
-      font-size: 32px;
-      width: 32px;
-      height: 32px;
-      color: #7b1fa2;
+    &:hover {
+      background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%) !important;
+    }
+  }
+
+  .sparqi-panel-header {
+    .mat-panel-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 600;
+
+      .sparqi-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+        color: #7b1fa2;
+      }
+
+      .sparqi-title {
+        font-size: 1.1rem;
+      }
     }
 
-    .sparqi-gen-text {
-      flex: 1;
+    .mat-panel-description {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+  }
 
-      h4 {
-        margin: 0;
-        font-size: 1.1rem;
-        font-weight: 600;
-      }
+  .sparqi-panel-content {
+    padding: 1rem 1.5rem 1.5rem 1.5rem;
 
-      p {
-        margin: 0.25rem 0 0 0;
-        font-size: 0.9rem;
-        opacity: 0.8;
-      }
+    .sparqi-description {
+      margin: 0 0 1rem 0;
+      font-size: 0.95rem;
+      opacity: 0.9;
+      line-height: 1.5;
     }
   }
 

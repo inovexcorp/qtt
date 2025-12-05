@@ -311,45 +311,52 @@
             <p class="test-help-text">Configure request body and parameters to test your template:</p>
 
             <!-- SPARQi Test Generation Section -->
-            <div class="sparqi-generation-section" *ngIf="isSparqiEnabled">
-              <div class="sparqi-gen-header">
-                <mat-icon class="sparqi-icon">psychology</mat-icon>
-                <div class="sparqi-gen-text">
-                  <h4>AI-Powered Test Generation</h4>
-                  <p>SPARQi will analyze your template, explore the ontology and data, then generate intelligent test values</p>
+            <mat-expansion-panel [(expanded)]="sparqiPanelExpanded" class="sparqi-expansion-panel test-section-panel" *ngIf="isSparqiEnabled">
+              <mat-expansion-panel-header class="sparqi-panel-header">
+                <mat-panel-title>
+                  <mat-icon class="sparqi-icon">psychology</mat-icon>
+                  <span class="sparqi-title">SPARQi Test Generation</span>
+                </mat-panel-title>
+                <mat-panel-description>
+                  AI-powered intelligent test data generation
+                </mat-panel-description>
+              </mat-expansion-panel-header>
+
+              <div class="sparqi-panel-content">
+                <p class="sparqi-description">SPARQi will analyze your template, explore the ontology and data, then generate intelligent test values.</p>
+
+                <div class="sparqi-gen-controls">
+                  <!-- User Context Input -->
+                  <mat-form-field appearance="outline" class="user-context-field">
+                    <mat-label>Additional Context (Optional)</mat-label>
+                    <textarea matInput
+                              [(ngModel)]="testGenUserContext"
+                              [ngModelOptions]="{standalone: true}"
+                              [disabled]="isGeneratingRequest"
+                              placeholder="E.g., 'Use John Smith as the person name' or 'Test with a date in 2024'"
+                              rows="2"></textarea>
+                    <mat-hint>Provide guidance to help SPARQi generate better test data</mat-hint>
+                  </mat-form-field>
+
+                  <!-- Options Row -->
+                  <div class="sparqi-gen-options">
+                    <mat-checkbox [(ngModel)]="includeEdgeCases"
+                                  [ngModelOptions]="{standalone: true}"
+                                  [disabled]="isGeneratingRequest">
+                      Include edge cases (empty values, special chars, boundaries)
+                    </mat-checkbox>
+
+                    <button mat-raised-button
+                            color="accent"
+                            class="generate-btn"
+                            (click)="generateTestRequestWithSparqi()"
+                            [disabled]="isGeneratingRequest || isLoadingVariables">
+                      <mat-icon *ngIf="!isGeneratingRequest">auto_awesome</mat-icon>
+                      <mat-spinner *ngIf="isGeneratingRequest" diameter="20"></mat-spinner>
+                      <span>Generate Test Data</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <div class="sparqi-gen-controls">
-                <!-- User Context Input -->
-                <mat-form-field appearance="outline" class="user-context-field">
-                  <mat-label>Additional Context (Optional)</mat-label>
-                  <textarea matInput
-                            [(ngModel)]="testGenUserContext"
-                            [ngModelOptions]="{standalone: true}"
-                            placeholder="E.g., 'Use John Smith as the person name' or 'Test with a date in 2024'"
-                            rows="2"></textarea>
-                  <mat-hint>Provide guidance to help SPARQi generate better test data</mat-hint>
-                </mat-form-field>
-
-                <!-- Options Row -->
-                <div class="sparqi-gen-options">
-                  <mat-checkbox [(ngModel)]="includeEdgeCases"
-                                [ngModelOptions]="{standalone: true}">
-                    Include edge cases (empty values, special chars, boundaries)
-                  </mat-checkbox>
-
-                  <button mat-raised-button
-                          color="accent"
-                          class="generate-btn"
-                          (click)="generateTestRequestWithSparqi()"
-                          [disabled]="isGeneratingRequest || isLoadingVariables">
-                    <mat-icon *ngIf="!isGeneratingRequest">auto_awesome</mat-icon>
-                    <mat-spinner *ngIf="isGeneratingRequest" diameter="20"></mat-spinner>
-                    <span>Generate Test Data</span>
-                  </button>
-                </div>
-              </div>
 
               <!-- Progress Indicator -->
               <div class="sparqi-gen-progress" *ngIf="isGeneratingRequest" @slideDown>
@@ -396,9 +403,8 @@
                   </button>
                 </div>
               </div>
-
-              <mat-divider></mat-divider>
-            </div>
+              </div>
+            </mat-expansion-panel>
 
             <!-- Request Body JSON Editor -->
             <mat-expansion-panel [(expanded)]="bodyJsonExpanded" class="test-section-panel">
@@ -408,10 +414,10 @@
                   Request Body (JSON)
                 </mat-panel-title>
                 <mat-panel-description *ngIf="sampleBodyJson">
-                  **Auto-generated from template
+                  The body payload (typically JSON) to use with the test request
                 </mat-panel-description>
               </mat-expansion-panel-header>
-              <div class="json-editor-container">
+              <div class="json-editor-container" [class.disabled-overlay]="isGeneratingRequest">
                 <div class="json-editor-help" *ngIf="sampleBodyJson">
                   <mat-icon>info</mat-icon>
                   <span>This JSON structure was detected from your template. Update the placeholder values with your test data.</span>
@@ -422,6 +428,10 @@
                   [ngModelOptions]="{standalone: true}"
                   [options]="jsonEditorOptions">
                 </ngx-monaco-editor>
+                <div class="disabled-overlay-message" *ngIf="isGeneratingRequest">
+                  <mat-icon>lock</mat-icon>
+                  <span>Locked while SPARQi is generating test data</span>
+                </div>
               </div>
             </mat-expansion-panel>
 
@@ -432,25 +442,25 @@
                   <mat-icon>link</mat-icon>
                   Query Parameters
                 </mat-panel-title>
-                <mat-panel-description *ngIf="queryParams.length > 0">
-                  {{queryParams.length}} parameter{{queryParams.length === 1 ? '' : 's'}}
+                <mat-panel-description>
+                  {{queryParams.length}} parameter{{queryParams.length === 1 ? '' : 's'}} to use with the test request
                 </mat-panel-description>
               </mat-expansion-panel-header>
               <div class="query-params-container">
                 <div *ngFor="let param of queryParams; let i = index" class="query-param-row">
                   <mat-form-field appearance="outline" class="param-key-field">
                     <mat-label>Parameter Name</mat-label>
-                    <input matInput [(ngModel)]="param.key" [ngModelOptions]="{standalone: true}">
+                    <input matInput [(ngModel)]="param.key" [ngModelOptions]="{standalone: true}" [disabled]="isGeneratingRequest">
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="param-value-field">
                     <mat-label>Value</mat-label>
-                    <input matInput [(ngModel)]="param.value" [ngModelOptions]="{standalone: true}">
+                    <input matInput [(ngModel)]="param.value" [ngModelOptions]="{standalone: true}" [disabled]="isGeneratingRequest">
                   </mat-form-field>
-                  <button mat-icon-button color="warn" (click)="removeQueryParam(i)" matTooltip="Remove parameter">
+                  <button mat-icon-button color="warn" (click)="removeQueryParam(i)" matTooltip="Remove parameter" [disabled]="isGeneratingRequest">
                     <mat-icon>delete</mat-icon>
                   </button>
                 </div>
-                <button mat-stroked-button color="primary" (click)="addQueryParam()" class="add-param-btn">
+                <button mat-stroked-button color="primary" (click)="addQueryParam()" class="add-param-btn" [disabled]="isGeneratingRequest">
                   <mat-icon>add</mat-icon>
                   Add Parameter
                 </button>
@@ -465,7 +475,7 @@
 
             <!-- Execute Button -->
             <button mat-raised-button color="primary" class="execute-test-btn"
-                    (click)="executeTest()" [disabled]="isTestExecuting">
+                    (click)="executeTest()" [disabled]="isTestExecuting || isGeneratingRequest">
               <mat-spinner *ngIf="isTestExecuting" diameter="20" class="button-spinner"></mat-spinner>
               <mat-icon *ngIf="!isTestExecuting">play_arrow</mat-icon>
               <span>Execute Test</span>
