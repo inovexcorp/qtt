@@ -310,6 +310,96 @@
             <h3>Test Parameters</h3>
             <p class="test-help-text">Configure request body and parameters to test your template:</p>
 
+            <!-- SPARQi Test Generation Section -->
+            <div class="sparqi-generation-section" *ngIf="isSparqiEnabled">
+              <div class="sparqi-gen-header">
+                <mat-icon class="sparqi-icon">psychology</mat-icon>
+                <div class="sparqi-gen-text">
+                  <h4>AI-Powered Test Generation</h4>
+                  <p>SPARQi will analyze your template, explore the ontology and data, then generate intelligent test values</p>
+                </div>
+              </div>
+
+              <div class="sparqi-gen-controls">
+                <!-- User Context Input -->
+                <mat-form-field appearance="outline" class="user-context-field">
+                  <mat-label>Additional Context (Optional)</mat-label>
+                  <textarea matInput
+                            [(ngModel)]="testGenUserContext"
+                            [ngModelOptions]="{standalone: true}"
+                            placeholder="E.g., 'Use John Smith as the person name' or 'Test with a date in 2024'"
+                            rows="2"></textarea>
+                  <mat-hint>Provide guidance to help SPARQi generate better test data</mat-hint>
+                </mat-form-field>
+
+                <!-- Options Row -->
+                <div class="sparqi-gen-options">
+                  <mat-checkbox [(ngModel)]="includeEdgeCases"
+                                [ngModelOptions]="{standalone: true}">
+                    Include edge cases (empty values, special chars, boundaries)
+                  </mat-checkbox>
+
+                  <button mat-raised-button
+                          color="accent"
+                          class="generate-btn"
+                          (click)="generateTestRequestWithSparqi()"
+                          [disabled]="isGeneratingRequest || isLoadingVariables">
+                    <mat-icon *ngIf="!isGeneratingRequest">auto_awesome</mat-icon>
+                    <mat-spinner *ngIf="isGeneratingRequest" diameter="20"></mat-spinner>
+                    <span>Generate Test Data</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Progress Indicator -->
+              <div class="sparqi-gen-progress" *ngIf="isGeneratingRequest" @slideDown>
+                <div class="progress-header">
+                  <mat-spinner diameter="24"></mat-spinner>
+                  <span class="progress-title">SPARQi is working...</span>
+                </div>
+                <div class="progress-stages">
+                  <div class="stage" [class.active]="generationStage === 'analyzing'">
+                    <mat-icon>search</mat-icon>
+                    <span>Analyzing template variables</span>
+                  </div>
+                  <div class="stage" [class.active]="generationStage === 'exploring'">
+                    <mat-icon>travel_explore</mat-icon>
+                    <span>Exploring ontology and data ({{toolCallsCount}} {{toolCallsCount === 1 ? 'query' : 'queries'}})</span>
+                  </div>
+                  <div class="stage" [class.active]="generationStage === 'generating'">
+                    <mat-icon>psychology</mat-icon>
+                    <span>Generating realistic test values</span>
+                  </div>
+                  <div class="stage" [class.active]="generationStage === 'applying'">
+                    <mat-icon>check_circle</mat-icon>
+                    <span>Applying generated data</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Success Banner -->
+              <div class="sparqi-gen-success" *ngIf="generationSuccess" @slideDown>
+                <mat-icon>check_circle</mat-icon>
+                <div class="success-content">
+                  <strong>Test data generated successfully!</strong>
+                  <p class="reasoning">{{generationReasoning}}</p>
+                  <div class="success-meta">
+                    <span class="confidence-badge" [class.high]="generationConfidence > 0.8">
+                      Confidence: {{(generationConfidence * 100).toFixed(0)}}%
+                    </span>
+                    <span class="tool-calls-badge" *ngIf="toolCallsCount > 0">
+                      {{toolCallsCount}} data {{toolCallsCount === 1 ? 'query' : 'queries'}} executed
+                    </span>
+                  </div>
+                  <button mat-stroked-button (click)="regenerateTestRequest()" class="regenerate-btn">
+                    <mat-icon>refresh</mat-icon> Generate Different Values
+                  </button>
+                </div>
+              </div>
+
+              <mat-divider></mat-divider>
+            </div>
+
             <!-- Request Body JSON Editor -->
             <mat-expansion-panel [(expanded)]="bodyJsonExpanded" class="test-section-panel">
               <mat-expansion-panel-header>
