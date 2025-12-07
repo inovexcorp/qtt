@@ -14,6 +14,10 @@
 #Maven
 target
 
+#Maven Release Plugin (keep visible for debugging)
+#release.properties
+#pom.xml.releaseBackup
+
 #Web
 node_modules/
 

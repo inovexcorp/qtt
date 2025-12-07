@@ -1,0 +1,148 @@
+name: Docker Build and Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to build (e.g., v1.0.39)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Building from tag: $TAG"
+
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          # Remove 'v' prefix to get version number (e.g., v1.0.39 -> 1.0.39)
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build Maven project
+        run: |
+          echo "Building project version ${{ steps.version.outputs.version }}"
+          mvn clean install -DskipTests
+
+      - name: Verify Dockerfile exists
+        run: |
+          DOCKERFILE="query-service-distribution/target/assembly/Dockerfile"
+          if [ -f "$DOCKERFILE" ]; then
+            echo "Dockerfile found at: $DOCKERFILE"
+            echo "Dockerfile contents:"
+            cat "$DOCKERFILE"
+          else
+            echo "ERROR: Dockerfile not found at $DOCKERFILE"
+            exit 1
+          fi
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image with fabric8 plugin
+        run: |
+          echo "Building Docker image: docker.io/inovexis/qtt:${{ steps.version.outputs.version }}"
+          mvn -pl query-service-distribution docker:build
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag and push Docker images
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # The fabric8 plugin already built the image with both tags
+          # Now we need to push them
+          echo "Pushing version tag: docker.io/inovexis/qtt:$VERSION"
+          docker push docker.io/inovexis/qtt:$VERSION
+
+          echo "Pushing latest tag: docker.io/inovexis/qtt:latest"
+          docker push docker.io/inovexis/qtt:latest
+
+      - name: Verify pushed images
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          echo "Verifying images were pushed successfully..."
+          docker pull docker.io/inovexis/qtt:$VERSION
+          docker pull docker.io/inovexis/qtt:latest
+
+          echo "Images pulled successfully!"
+          docker images | grep inovexis/qtt
+
+      - name: Docker Build Summary
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          echo "## Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Tag**: $TAG" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: $VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: docker.io" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: inovexis/qtt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Published Tags" >> $GITHUB_STEP_SUMMARY
+          echo "- \`docker.io/inovexis/qtt:$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`docker.io/inovexis/qtt:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pull Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Pull specific version" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull docker.io/inovexis/qtt:$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Pull latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull docker.io/inovexis/qtt:latest" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Run Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d --name qtt -p 8443:8443 -p 8888:8888 docker.io/inovexis/qtt:$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
