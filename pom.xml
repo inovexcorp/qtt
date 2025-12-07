@@ -206,5 +206,31 @@
                 </plugins>
             </build>
         </profile>
+        <profile>
+            <id>github-release</id>
+            <activation>
+                <property>
+                    <name>env.GITHUB_ACTIONS</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-release-plugin</artifactId>
+                        <configuration>
+                            <scmDevelopmentCommitComment>@{prefix} prepare for next development iteration [ci skip]</scmDevelopmentCommitComment>
+                            <scmReleaseCommitComment>@{prefix} prepare release @{releaseLabel} [ci skip]</scmReleaseCommitComment>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+            <scm>
+                <developerConnection>scm:git:https://github.com/inovexcorp/qtt.git</developerConnection>
+                <connection>scm:git:https://github.com/inovexcorp/qtt.git</connection>
+                <url>https://github.com/inovexcorp/qtt</url>
+                <tag>HEAD</tag>
+            </scm>
+        </profile>
     </profiles>
 </project>

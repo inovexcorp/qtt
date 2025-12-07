@@ -95,6 +95,7 @@ jobs:
         if: steps.check-snapshot.outputs.is_snapshot == 'true'
         run: |
           mvn -B release:prepare release:perform \
+            -Pgithub-release \
             -DskipTests \
             -Darguments="-DskipTests"
         env:
