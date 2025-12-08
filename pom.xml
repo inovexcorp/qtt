@@ -207,16 +207,5 @@
                 </plugins>
             </build>
         </profile>
-        <profile>
-            <id>github-release</id>
-            <activation>
-                <property>
-                    <name>env.GITHUB_ACTIONS</name>
-                </property>
-            </activation>
-            <properties>
-                <developer.connection>scm:git:https://github.com/inovexcorp/qtt.git</developer.connection>
-            </properties>
-        </profile>
     </profiles>
 </project>
