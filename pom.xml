@@ -39,7 +39,6 @@
         <sonar.projectKey>qtt_query-service_b5da24ad-f31f-4606-8928-205b8a248ed5</sonar.projectKey>
         <sonar.projectName>query-service</sonar.projectName>
         <sonar.qualitygate.wait>true</sonar.qualitygate.wait>
-        <developer.connection>scm:git:git@github.com:inovexcorp/qtt.git</developer.connection>
     </properties>
     <modules>
         <!-- Base modules with no internal dependencies -->
@@ -70,7 +69,7 @@
     </modules>
 
     <scm>
-        <developerConnection>${developer.connection}</developerConnection>
+        <developerConnection>scm:git:git@github.com:inovexcorp/qtt.git</developerConnection>
         <url>https://github.com/inovexcorp/qtt</url>
         <connection>scm:git:git@github.com:inovexcorp/qtt.git</connection>
         <tag>HEAD</tag>
