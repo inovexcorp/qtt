@@ -135,25 +135,25 @@ jobs:
         run: |
           RELEASE_TAG="${{ steps.release-version.outputs.tag }}"
           CHANGELOG_FILE="${{ steps.changelog.outputs.changelog_file }}"
-
-          # Create release with changelog
-          gh release create "$RELEASE_TAG" \
-            --title "Release $RELEASE_TAG" \
-            --notes-file "$CHANGELOG_FILE"
-
-          # Upload artifacts if they exist
           TAR_FILE="${{ steps.artifacts.outputs.tar_file }}"
           ZIP_FILE="${{ steps.artifacts.outputs.zip_file }}"
 
+          # Prepare artifact list
+          ARTIFACTS=()
           if [ -n "$TAR_FILE" ] && [ -f "$TAR_FILE" ]; then
-            echo "Uploading $TAR_FILE"
-            gh release upload "$RELEASE_TAG" "$TAR_FILE"
+            echo "Will upload: $TAR_FILE"
+            ARTIFACTS+=("$TAR_FILE")
+          fi
+          if [ -n "$ZIP_FILE" ] && [ -f "$ZIP_FILE" ]; then
+            echo "Will upload: $ZIP_FILE"
+            ARTIFACTS+=("$ZIP_FILE")
           fi
 
-          if [ -n "$ZIP_FILE" ] && [ -f "$ZIP_FILE" ]; then
-            echo "Uploading $ZIP_FILE"
-            gh release upload "$RELEASE_TAG" "$ZIP_FILE"
-          fi
+          # Create release with all artifacts in a single command
+          gh release create "$RELEASE_TAG" \
+            --title "Release $RELEASE_TAG" \
+            --notes-file "$CHANGELOG_FILE" \
+            "${ARTIFACTS[@]}"
 
       - name: Release Summary
         if: always()
