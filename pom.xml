@@ -145,11 +145,14 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
-                <version>2.5.3</version>
+                <version>3.0.1</version>
                 <configuration>
                     <tagNameFormat>v@{project.version}</tagNameFormat>
                     <autoVersionSubmodules>true</autoVersionSubmodules>
                     <scmCommentPrefix>[maven-release-plugin]</scmCommentPrefix>
+                    <!--suppress UnresolvedMavenProperty -->
+                    <scmReleaseCommitComment>@{prefix} prepare release @{releaseLabel} [skip ci]</scmReleaseCommitComment>
+                    <scmDevelopmentCommitComment>@{prefix} prepare for next development iteration [skip ci]</scmDevelopmentCommitComment>
                 </configuration>
             </plugin>
         </plugins>

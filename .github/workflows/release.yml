@@ -96,7 +96,7 @@ jobs:
         run: |
           mvn -B release:prepare release:perform \
             -DskipTests \
-            -Darguments="-DskipTests"
+            -Darguments="-DskipTests -Dmaven.deploy.skip=true"
 
       - name: Get release version
         if: steps.check-snapshot.outputs.is_snapshot == 'true'
