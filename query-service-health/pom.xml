@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.inovexcorp.queryservice</groupId>
         <artifactId>query-service</artifactId>
-        <version>1.0.43-SNAPSHOT</version>
+        <version>1.0.43</version>
     </parent>
     <artifactId>query-service-health</artifactId>
     <name>QTT :: Query Service Health</name>
