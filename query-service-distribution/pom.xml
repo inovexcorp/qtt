@@ -3,7 +3,7 @@
     <parent>
         <groupId>com.inovexcorp.queryservice</groupId>
         <artifactId>query-service</artifactId>
-        <version>1.0.40-SNAPSHOT</version>
+        <version>1.0.40</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
