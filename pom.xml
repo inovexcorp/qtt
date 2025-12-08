@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.inovexcorp.queryservice</groupId>
     <artifactId>query-service</artifactId>
-    <version>1.0.39</version>
+    <version>1.0.40-SNAPSHOT</version>
 
     <name>QTT</name>
     <description>Query Templating Tool system for RDF-based SPARQL query templating and execution</description>
@@ -73,7 +73,7 @@
         <developerConnection>${developer.connection}</developerConnection>
         <url>https://github.com/inovexcorp/qtt</url>
         <connection>scm:git:git@github.com:inovexcorp/qtt.git</connection>
-        <tag>v1.0.39</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <dependencies>
