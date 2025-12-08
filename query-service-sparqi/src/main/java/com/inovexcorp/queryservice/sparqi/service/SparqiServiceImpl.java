@@ -836,7 +836,9 @@ public class SparqiServiceImpl implements SparqiService {
         prompt.append("You are an expert at generating realistic test data for SPARQL query templates.\n\n");
 
         prompt.append("**Your Task:**\n");
-        prompt.append("Generate a complete test request (JSON body + query parameters) for the given Freemarker template.\n\n");
+        prompt.append("Generate a complete test request (JSON body + query parameters) for the given Freemarker template.\n");
+        prompt.append("Try your best to populate values for each available variable in the template, without using null or '\"\"'");
+        prompt.append(" (empty string) values -- while having the resulting query return data.\n\n");
 
         prompt.append("**Template Content:**\n```freemarker\n");
         prompt.append(truncateForPrompt(request.getTemplateContent(), 2000));
@@ -942,7 +944,7 @@ public class SparqiServiceImpl implements SparqiService {
         // Conversation messages for follow-ups
         List<ChatMessage> conversationMessages = new ArrayList<>(initialMessages);
 
-        final int maxToolIterations = 8; // Higher limit for test generation
+        final int maxToolIterations = 10; // Higher limit for test generation
         int iteration = 0;
 
         while (aiMessage.hasToolExecutionRequests() && iteration < maxToolIterations) {
@@ -1079,7 +1081,7 @@ public class SparqiServiceImpl implements SparqiService {
                 bodyJson = mapper.convertValue(root.get("bodyJson"), Map.class);
             }
 
-            Map<String, String> queryParams = new LinkedHashMap<>();
+            Map<String, Object> queryParams = new LinkedHashMap<>();
             if (root.has("queryParams")) {
                 queryParams = mapper.convertValue(root.get("queryParams"), Map.class);
             }
