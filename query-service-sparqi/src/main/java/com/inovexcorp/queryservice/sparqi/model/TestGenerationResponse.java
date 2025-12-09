@@ -21,7 +21,7 @@ public class TestGenerationResponse {
     private Map<String, Object> bodyJson;
 
     @JsonProperty("queryParams")
-    private Map<String, String> queryParams;
+    private Map<String, Object> queryParams;
 
     @JsonProperty("reasoning")
     private String reasoning;
