@@ -93,6 +93,8 @@ public class SparqiServiceImpl implements SparqiService {
     private boolean enabled;
     private String welcomeMessageTemplate;
     private String systemPromptTemplate;
+    private String testGenerationSystemPromptTemplate;
+    private String testGenerationUserMessageTemplate;
     private int maxConversationHistory;
     private boolean metricsEnabled;
     private double inputTokenCostPer1M;
@@ -141,6 +143,8 @@ public class SparqiServiceImpl implements SparqiService {
         this.enabled = config.enableSparqi();
         this.welcomeMessageTemplate = config.welcomeMessageTemplate();
         this.systemPromptTemplate = config.systemPromptTemplate();
+        this.testGenerationSystemPromptTemplate = config.testGenerationSystemPromptTemplate();
+        this.testGenerationUserMessageTemplate = config.testGenerationUserMessageTemplate();
         this.maxConversationHistory = config.maxConversationHistory();
         this.metricsEnabled = config.metricsEnabled();
         this.inputTokenCostPer1M = config.inputTokenCostPer1M();
@@ -150,6 +154,8 @@ public class SparqiServiceImpl implements SparqiService {
         log.info("SPARQi configuration loaded:");
         log.info("  - Welcome template length: {} chars", welcomeMessageTemplate != null ? welcomeMessageTemplate.length() : 0);
         log.info("  - System prompt template length: {} chars", systemPromptTemplate != null ? systemPromptTemplate.length() : 0);
+        log.info("  - Test generation system prompt length: {} chars", testGenerationSystemPromptTemplate != null ? testGenerationSystemPromptTemplate.length() : 0);
+        log.info("  - Test generation user message length: {} chars", testGenerationUserMessageTemplate != null ? testGenerationUserMessageTemplate.length() : 0);
         log.info("  - Metrics enabled: {}", metricsEnabled);
         log.info("  - Input token cost: ${} per 1M", inputTokenCostPer1M);
         log.info("  - Output token cost: ${} per 1M", outputTokenCostPer1M);
@@ -826,84 +832,49 @@ public class SparqiServiceImpl implements SparqiService {
     }
 
     /**
-     * Builds the system prompt for test generation.
+     * Builds the system prompt for test generation using configured template.
      */
     private String buildTestGenerationSystemPrompt(
             TestGenerationRequest request,
             List<OntologyElement> ontologyElements) {
 
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("You are an expert at generating realistic test data for SPARQL query templates.\n\n");
+        // Prepare template values
+        Map<String, Object> values = new HashMap<>();
+        values.put("ontologyElementCount", ontologyElements.size());
+        values.put("ontologyElementsSummary", formatOntologyElementsSummary(ontologyElements, 20));
+        values.put("templateContent", truncateForPrompt(request.getTemplateContent(), 2000));
 
-        prompt.append("**Your Task:**\n");
-        prompt.append("Generate a complete test request (JSON body + query parameters) for the given Freemarker template.\n");
-        prompt.append("Try your best to populate values for each available variable in the template, without using null or '\"\"'");
-        prompt.append(" (empty string) values -- while having the resulting query return data.\n\n");
+        // Handle includeEdgeCases - add the edge cases instruction if enabled
+        String includeEdgeCasesText = request.isIncludeEdgeCases()
+            ? "6. **Include edge cases**: empty strings, special characters, boundary values, null-like values\n\n"
+            : "";
+        values.put("includeEdgeCases", includeEdgeCasesText);
 
-        prompt.append("**Template Content:**\n```freemarker\n");
-        prompt.append(truncateForPrompt(request.getTemplateContent(), 2000));
-        prompt.append("\n```\n\n");
-
-        prompt.append("**Available Ontology Elements (").append(ontologyElements.size()).append(" total):**\n");
-        prompt.append(formatOntologyElementsSummary(ontologyElements, 20));
-        prompt.append("\n\n");
-
-        prompt.append("**Tools Available:**\n");
-        prompt.append("1. **lookupOntologyElements** - Search for specific ontology elements by keywords\n");
-        prompt.append("2. **getAllClasses** - Get all OWL/RDFS classes from the ontology\n");
-        prompt.append("3. **getAllProperties** - Get all properties with domain/range information\n");
-        prompt.append("4. **executeGraphmartQuery** - Execute SPARQL queries to explore actual data\n");
-        prompt.append("5. **getSampleIndividuals** - Get example instances of a class with labels\n");
-        prompt.append("6. **getSamplePropertyValues** - Get example values for a property\n\n");
-
-        prompt.append("**Strategy:**\n");
-        prompt.append("1. Analyze what data the template needs (look for ${body.*} and ${headers.*} patterns)\n");
-        prompt.append("2. Use tools to explore the ontology and find relevant classes/properties\n");
-        prompt.append("3. Query the graphmart to find realistic example values\n");
-        prompt.append("4. Generate test values that are semantically correct and realistic\n");
-        prompt.append("5. Use actual URIs from the graphmart when possible\n");
-
-        if (request.isIncludeEdgeCases()) {
-            prompt.append("6. **Include edge cases**: empty strings, special characters, boundary values, null-like values\n");
-        }
-        prompt.append("\n");
-
-        if (request.getUserContext() != null && !request.getUserContext().trim().isEmpty()) {
-            prompt.append("**User Guidance:**\n");
-            prompt.append(request.getUserContext());
-            prompt.append("\n\n");
-        }
-
-        prompt.append("**Output Format (JSON only, no markdown):**\n");
-        prompt.append("{\n");
-        prompt.append("  \"bodyJson\": { ... nested structure for ${body.*} variables ... },\n");
-        prompt.append("  \"queryParams\": { \"param1\": \"value1\", ... for ${headers.*} variables ... },\n");
-        prompt.append("  \"reasoning\": \"Explanation of tool calls made and values chosen\",\n");
-        prompt.append("  \"confidence\": 0.85,\n");
-        prompt.append("  \"suggestions\": [\"Optional alternative values to try\"]\n");
-        prompt.append("}\n");
-
-        return prompt.toString();
+        // Apply template substitution
+        return StringSubstitutor.replace(testGenerationSystemPromptTemplate, values, "{{", "}}");
     }
 
     /**
-     * Builds the user message for test generation.
+     * Builds the user message for test generation using configured template.
      */
     private String buildTestGenerationUserMessage(TestGenerationRequest request) {
-        StringBuilder msg = new StringBuilder("Generate realistic test data for this Freemarker template.");
+        // Prepare template values
+        Map<String, Object> values = new HashMap<>();
 
-        if (request.getUserContext() != null && !request.getUserContext().trim().isEmpty()) {
-            msg.append("\n\nUser Context: ").append(request.getUserContext());
-        }
+        // Handle userContext - add it if present
+        String userContextText = (request.getUserContext() != null && !request.getUserContext().trim().isEmpty())
+            ? "\n\nUser Context: " + request.getUserContext()
+            : "";
+        values.put("userContext", userContextText);
 
-        if (request.isIncludeEdgeCases()) {
-            msg.append("\n\nInclude edge cases in the test data (empty values, special characters, boundaries).");
-        }
+        // Handle includeEdgeCases - add instruction if enabled
+        String includeEdgeCasesText = request.isIncludeEdgeCases()
+            ? "\n\nInclude edge cases in the test data (empty values, special characters, boundaries).\n"
+            : "";
+        values.put("includeEdgeCases", includeEdgeCasesText);
 
-        msg.append("\n\nUse the available tools to explore the ontology and data, then generate realistic test values.");
-        msg.append("\nReturn ONLY valid JSON matching the specified format.");
-
-        return msg.toString();
+        // Apply template substitution
+        return StringSubstitutor.replace(testGenerationUserMessageTemplate, values, "{{", "}}");
     }
 
     /**
