@@ -358,17 +358,19 @@ public class OntologyServiceImpl implements OntologyService {
                     String rangesStr = bindingSet.getValue("ranges") != null ? bindingSet.getValue("ranges").stringValue() : null;
                     List<String> ranges = parseMultiValueBinding(rangesStr);
 
-                    if (type == null) {
+                    // Determine element type - use local variable to avoid overwriting for subsequent iterations
+                    OntologyElementType elementType = type;
+                    if (elementType == null) {
                         String typeStr = bindingSet.getValue("type") != null ? bindingSet.getValue("type").stringValue() : "objectProperty";
                         // Handle if multiple types were found...
                         if (typeStr.contains("\n")) {
                             typeStr = typeStr.substring(0, typeStr.indexOf("\n"));
                         }
-                        type = OntologyElementType.fromValue(typeStr);
+                        elementType = OntologyElementType.fromValue(typeStr);
                     }
 
                     if (uri != null) {
-                        elements.add(new OntologyElement(uri, label, type, comment, domains, ranges));
+                        elements.add(new OntologyElement(uri, label, elementType, comment, domains, ranges));
                     }
                 }
             }

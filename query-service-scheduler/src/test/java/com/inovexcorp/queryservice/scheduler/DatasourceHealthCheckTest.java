@@ -40,6 +40,8 @@ class DatasourceHealthCheckTest {
     @BeforeEach
     void setUp() {
         config = mock(DatasourceHealthConfig.class);
+        // Default: health checks enabled
+        when(config.enabled()).thenReturn(true);
     }
 
     // ========================================
@@ -222,5 +224,85 @@ class DatasourceHealthCheckTest {
 
         // Then
         verify(healthChecker, times(2)).checkAllDatasources(3);
+    }
+
+    // ========================================
+    // enabled/disabled tests
+    // ========================================
+
+    @Test
+    @DisplayName("Should skip execution when health checks are disabled")
+    void shouldSkipExecutionWhenDisabled() {
+        // Given
+        when(config.enabled()).thenReturn(false);
+        when(config.consecutiveFailureThreshold()).thenReturn(3);
+
+        // When
+        datasourceHealthCheck.activate(config);
+        datasourceHealthCheck.execute(jobContext);
+
+        // Then
+        verify(healthChecker, times(0)).checkAllDatasources(anyInt());
+    }
+
+    @Test
+    @DisplayName("Should execute when health checks are enabled")
+    void shouldExecuteWhenEnabled() {
+        // Given
+        when(config.enabled()).thenReturn(true);
+        when(config.consecutiveFailureThreshold()).thenReturn(5);
+
+        // When
+        datasourceHealthCheck.activate(config);
+        datasourceHealthCheck.execute(jobContext);
+
+        // Then
+        verify(healthChecker).checkAllDatasources(5);
+    }
+
+    @Test
+    @DisplayName("Should return correct enabled status")
+    void shouldReturnCorrectEnabledStatus() {
+        // Given - enabled
+        when(config.enabled()).thenReturn(true);
+        when(config.consecutiveFailureThreshold()).thenReturn(3);
+        datasourceHealthCheck.activate(config);
+
+        // Then
+        assertThat(datasourceHealthCheck.isEnabled()).isTrue();
+
+        // Given - disabled
+        when(config.enabled()).thenReturn(false);
+        datasourceHealthCheck.activate(config);
+
+        // Then
+        assertThat(datasourceHealthCheck.isEnabled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Should toggle enabled state when config is modified")
+    void shouldToggleEnabledStateWhenModified() {
+        // Given - initially enabled
+        when(config.enabled()).thenReturn(true);
+        when(config.consecutiveFailureThreshold()).thenReturn(3);
+        datasourceHealthCheck.activate(config);
+
+        // When - first execution (enabled)
+        datasourceHealthCheck.execute(jobContext);
+
+        // Then
+        verify(healthChecker).checkAllDatasources(3);
+        assertThat(datasourceHealthCheck.isEnabled()).isTrue();
+
+        // Given - now disabled
+        when(config.enabled()).thenReturn(false);
+        datasourceHealthCheck.activate(config);
+
+        // When - second execution (disabled)
+        datasourceHealthCheck.execute(jobContext);
+
+        // Then - still only called once (from before disable)
+        verify(healthChecker, times(1)).checkAllDatasources(anyInt());
+        assertThat(datasourceHealthCheck.isEnabled()).isFalse();
     }
 }

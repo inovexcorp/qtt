@@ -16,6 +16,7 @@ import com.inovexcorp.queryservice.persistence.LayerService;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import com.inovexcorp.queryservice.routebuilder.CamelKarafComponent;
 import com.inovexcorp.queryservice.routebuilder.CamelRouteTemplateBuilder;
+import com.inovexcorp.queryservice.health.HealthCheckConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.osgi.service.component.annotations.Component;
@@ -81,6 +82,9 @@ public class DataSourcesController {
 
     @Reference
     private DatasourceHealthService datasourceHealthService;
+
+    @Reference(cardinality = ReferenceCardinality.OPTIONAL)
+    private volatile HealthCheckConfigService healthCheckConfigService;
 
     @Reference(cardinality = ReferenceCardinality.OPTIONAL)
     private volatile CacheService cacheService;
@@ -347,9 +351,26 @@ public class DataSourcesController {
         summary.put("down", downCount);
         summary.put("unknown", unknownCount);
         summary.put("disabled", disabledCount);
+        summary.put("healthCheckEnabled", healthCheckConfigService != null && healthCheckConfigService.isEnabled());
         summary.put("datasources", allDatasources);
 
         return Response.status(Response.Status.OK).entity(summary).type(MediaType.APPLICATION_JSON).build();
+    }
+
+    /**
+     * Returns the current health check configuration.
+     *
+     * @return A response with health check configuration details.
+     */
+    @GET
+    @Path("health/config")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getHealthCheckConfig() {
+        Map<String, Object> config = new HashMap<>();
+        config.put("enabled", healthCheckConfigService != null && healthCheckConfigService.isEnabled());
+        config.put("available", healthCheckConfigService != null);
+
+        return Response.status(Response.Status.OK).entity(config).type(MediaType.APPLICATION_JSON).build();
     }
 
     /**

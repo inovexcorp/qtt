@@ -6,7 +6,7 @@
     <parent>
         <artifactId>query-service</artifactId>
         <groupId>com.inovexcorp.queryservice</groupId>
-        <version>1.0.39-SNAPSHOT</version>
+        <version>1.0.47-SNAPSHOT</version>
     </parent>
     <artifactId>camel-anzo</artifactId>
     <name>QTT :: Anzo Camel Interface</name>

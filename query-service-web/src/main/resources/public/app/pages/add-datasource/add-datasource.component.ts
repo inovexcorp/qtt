@@ -25,6 +25,7 @@ export class AddDatasourceComponent implements OnInit {
   hide = true;
   testResponse: any;
   testResponseStatus: 'success' | 'error' | null = null;
+  healthCheckEnabled: boolean = true;
 
   get dataSourceId() {
     return this.createDatasource.get('dataSourceId')
@@ -62,6 +63,19 @@ export class AddDatasourceComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.checkHealthCheckStatus();
+  }
+
+  private checkHealthCheckStatus(): void {
+    this.datasourceService.getHealthCheckConfig().subscribe({
+      next: (config) => {
+        this.healthCheckEnabled = config.enabled && config.available;
+      },
+      error: (err) => {
+        console.error('Failed to fetch health check configuration:', err);
+        this.healthCheckEnabled = true;
+      }
+    });
   }
 
   add(): void {

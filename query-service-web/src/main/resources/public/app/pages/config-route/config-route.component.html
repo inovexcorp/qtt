@@ -4,6 +4,21 @@
       <mat-icon>arrow_back</mat-icon>
     </button>
     <h1 class="card-header">Config Route: {{routeId}}</h1>
+    <div class="header-actions">
+      <!-- Save/Cancel Buttons -->
+      <span class="template-buttons">
+        <button mat-raised-button type="button" class="cancel-btn" (click)="navigateBack()"><mat-icon>cancel</mat-icon> Cancel</button>
+        <button mat-raised-button type="submit" id="config-route-btn" color="primary" [disabled]="!configRoute.valid"
+                (click)="putRoute()"><mat-icon>save</mat-icon> Save</button>
+      </span>
+      <!-- SPARQL Assistant Button -->
+      <button mat-icon-button (click)="toggleChatPanel()"
+              matTooltip="Toggle AI Assistant"
+              class="sparql-assistant-btn"
+              *ngIf="isSparqiEnabled">
+        <mat-icon>{{isChatPanelOpen ? 'close' : 'smart_toy'}}</mat-icon>
+      </button>
+    </div>
   </div>
 
   <!-- Datasource Status Warning Banner -->
@@ -33,209 +48,489 @@
   </div>
 
   <form [formGroup]="configRoute" class="form-class">
-    <!-- Configuration Fields Section -->
-    <div class="config-fields-section" [class.hidden]="isFullscreen">
-      <h3>Route Details</h3>
-      <div class="input-row-one">
-        <span>
-          <mat-form-field appearance="outline" class="input-style-one">
-            <mat-label>HTTP Methods</mat-label>
-            <mat-select multiple formControlName="routeParams" disableOptionCentering panelClass="myPanelClass">
-              <mat-option value="GET">GET</mat-option>
-              <mat-option value="POST">POST</mat-option>
-              <mat-option value="PUT">PUT</mat-option>
-              <mat-option value="PATCH">PATCH</mat-option>
-              <mat-option value="DELETE">DELETE</mat-option>
-            </mat-select>
-            <mat-icon matSuffix>http</mat-icon>
-          </mat-form-field>
-        </span>
-        <span>
-          <mat-form-field appearance="outline" class="input-style-one">
-            <mat-label>Datasource</mat-label>
-            <mat-select disableOptionCentering panelClass="myPanelClass" #datasourceSelect
-              (valueChange)="getGraphMarts($event)" formControlName="datasourceValidator">
-              <mat-option *ngFor="let datasource of datasources"
-                value="{{datasource.dataSourceId}}">{{datasource.dataSourceId}}</mat-option>
-            </mat-select>
-            <mat-icon class="ds-icon" svgIcon="anzo-logo"></mat-icon>
-          </mat-form-field>
-        </span>
-      </div>
-      <div class="input-row-two">
-        <span>
-          <mat-form-field appearance="outline" class="input-style-two">
-            <mat-label>Route Description</mat-label>
-            <input type="text" matInput formControlName="routeDescription">
-            <mat-icon matSuffix>description</mat-icon>
-          </mat-form-field>
-        </span>
-      </div>
-      <div class="input-row-three">
-        <span>
-          <mat-form-field appearance="outline" class="input-style-two">
-            <mat-label>GraphMart</mat-label>
-            <input type="text" placeholder="Pick one" aria-label="Number" #graphMartUri
-              formControlName="graphMartUri" matInput [matAutocomplete]="graphmartAutocomplete">
-            <mat-autocomplete #graphmartAutocomplete="matAutocomplete"
-              (optionSelected)="getGraphMartLayers($event.option.value)">
-              <mat-option *ngFor="let option of filteredOptions | async" [value]="option.title">
-                {{option.title}}
-                <mat-icon class="started-icon"
-                  *ngIf="option.active=='true'; else stoppedBlock">check_circle</mat-icon>
-                <ng-template #stoppedBlock><mat-icon
-                    class="stopped-icon">stop_circle</mat-icon></ng-template>
-              </mat-option>
-            </mat-autocomplete>
-          </mat-form-field>
-        </span>
-      </div>
-      <div class="input-row-four">
-        <mat-form-field class="layer-list" appearance="fill">
-          <mat-label>GraphMart Layers</mat-label>
-          <mat-chip-grid #chipGrid aria-label="Layer selection">
-            <mat-chip-row *ngFor="let layer of layers" (removed)="remove(layer)">
-              <mat-icon class="started-icon-chip" *ngIf="chipStatus(layer)==true; else stoppedBlock">check_circle</mat-icon>
-              {{layer}}
-              <button matChipRemove [attr.aria-label]="'remove ' + layer">
-                <mat-icon>cancel</mat-icon>
-              </button>
-            </mat-chip-row>
-          </mat-chip-grid>
-          <input placeholder="{{layerPlaceholder}}" #layerElement formControlName="layersInput"
-            [matChipInputFor]="chipGrid" [matAutocomplete]="layerAutocomplete"
-            [matChipInputSeparatorKeyCodes]="separatorKeysCodes" (matChipInputTokenEnd)="add($event)" />
-          <mat-autocomplete #layerAutocomplete="matAutocomplete" (optionSelected)="selected($event)">
-            <mat-option *ngFor="let layer of filteredLayers | async" [value]="layer.title">
-              {{layer.title}}
-              <mat-icon class="started-icon"
-                *ngIf="layer.active=='true'; else stoppedBlock">check_circle</mat-icon>
-            </mat-option>
-          </mat-autocomplete>
-        </mat-form-field>
-      </div>
+    <!-- Tab Group -->
+    <mat-tab-group [(selectedIndex)]="selectedTabIndex" (selectedTabChange)="onTabChange($event)" class="route-tabs">
 
-      <!-- Cache Configuration Section -->
-      <div class="cache-config-section" *ngIf="cacheInfo && cacheInfo.enabled">
-        <h3>Cache Configuration</h3>
-        <div class="cache-toggle-row">
-          <mat-slide-toggle
-            [(ngModel)]="cacheEnabled"
-            [ngModelOptions]="{standalone: true}"
-            (change)="toggleCacheEnabled()"
-            color="primary">
-            Enable Caching for this Route
-          </mat-slide-toggle>
-          <mat-icon class="info-icon" matTooltip="When enabled, query results will be cached to improve performance">info</mat-icon>
-        </div>
-
-        <div class="cache-details" *ngIf="cacheEnabled" [@slideDown]>
-          <div class="cache-expand-header" (click)="toggleCacheExpanded()">
-            <span>Cache Settings</span>
-            <div class="cache-info-right" *ngIf="!cacheStatsLoading && routeCacheStats && cacheInfo">
-              <div class="cache-stat" matTooltip="Number of cached query results for this route">
-                <mat-icon class="stat-icon">storage</mat-icon>
-                <span class="stat-value">{{routeCacheStats.routeKeyCount}}</span>
-                <span class="stat-label">{{routeCacheStats.routeKeyCount === 1 ? 'entry' : 'entries'}}</span>
-              </div>
-              <div class="cache-stat" matTooltip="Global cache hit rate">
-                <mat-icon class="stat-icon">trending_up</mat-icon>
-                <span class="stat-value">{{getCacheHitRatio()}}%</span>
-                <span class="stat-label">hit rate</span>
-              </div>
-              <div class="cache-stat cache-stat-info" matTooltip="Redis host and port">
-                <mat-icon class="stat-icon">dns</mat-icon>
-                <span class="stat-value">{{cacheInfo.host}}:{{cacheInfo.port}}</span>
-              </div>
-              <div class="cache-stat cache-stat-info" matTooltip="Cache compression setting">
-                <mat-icon class="stat-icon">{{cacheInfo.compressionEnabled ? 'compress' : 'text_fields'}}</mat-icon>
-                <span class="stat-value">{{cacheInfo.compressionEnabled ? 'Compressed' : 'Uncompressed'}}</span>
-              </div>
-            </div>
-            <div class="cache-info-right" *ngIf="cacheStatsLoading">
-              <mat-spinner diameter="20"></mat-spinner>
-            </div>
-            <mat-icon>{{ cacheExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
-          </div>
-
-          <div class="cache-fields" *ngIf="cacheExpanded">
-            <div class="cache-input-row">
-              <mat-form-field appearance="outline" class="cache-input-field">
-                <mat-label>Cache TTL (seconds)</mat-label>
-                <input type="number" matInput formControlName="cacheTtlSeconds"
-                  [placeholder]="'Default: ' + (cacheInfo?.defaultTtlSeconds || 3600)">
-                <mat-icon matSuffix matTooltip="Time to live - how long cached results remain valid">schedule</mat-icon>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="cache-input-field">
-                <mat-label>Cache Key Strategy</mat-label>
-                <mat-select formControlName="cacheKeyStrategy" disableOptionCentering>
-                  <mat-option value="QUERY_HASH">Query Hash (Default)</mat-option>
-                  <mat-option value="ROUTE_PARAMS">Route Parameters</mat-option>
+      <!-- Tab 1: Route Details -->
+      <mat-tab label="Route Details">
+        <div class="tab-content">
+          <h3>Route Configuration</h3>
+          <div class="input-row-one">
+            <span>
+              <mat-form-field appearance="outline" class="input-style-one">
+                <mat-label>HTTP Methods</mat-label>
+                <mat-select multiple formControlName="routeParams" disableOptionCentering panelClass="myPanelClass">
+                  <mat-option value="GET">GET</mat-option>
+                  <mat-option value="POST">POST</mat-option>
+                  <mat-option value="PUT">PUT</mat-option>
+                  <mat-option value="PATCH">PATCH</mat-option>
+                  <mat-option value="DELETE">DELETE</mat-option>
                 </mat-select>
-                <mat-icon matSuffix matTooltip="How cache keys are generated for queries">key</mat-icon>
+                <mat-icon matSuffix>http</mat-icon>
               </mat-form-field>
-            </div>
-
-            <div class="cache-clear-section">
-              <button mat-raised-button
-                      color="warn"
-                      class="clear-cache-btn"
-                      (click)="clearRouteCache()"
-                      [disabled]="!cacheEnabled || clearingCache"
-                      matTooltip="Clear all cached query results for this route">
-                <mat-icon *ngIf="!clearingCache && !cacheJustCleared">delete_sweep</mat-icon>
-                <mat-spinner *ngIf="clearingCache" diameter="20" class="button-spinner"></mat-spinner>
-                <mat-icon *ngIf="cacheJustCleared" class="success-icon">check_circle</mat-icon>
-                <span>Clear Cache</span>
-              </button>
-            </div>
+            </span>
+            <span>
+              <mat-form-field appearance="outline" class="input-style-one">
+                <mat-label>Datasource</mat-label>
+                <mat-select disableOptionCentering panelClass="myPanelClass" #datasourceSelect
+                  (valueChange)="getGraphMarts($event)" formControlName="datasourceValidator">
+                  <mat-option *ngFor="let datasource of datasources"
+                    value="{{datasource.dataSourceId}}">{{datasource.dataSourceId}}</mat-option>
+                </mat-select>
+                <mat-icon class="ds-icon" svgIcon="anzo-logo"></mat-icon>
+              </mat-form-field>
+            </span>
+          </div>
+          <div class="input-row-two">
+            <span>
+              <mat-form-field appearance="outline" class="input-style-two">
+                <mat-label>Route Description</mat-label>
+                <input type="text" matInput formControlName="routeDescription">
+                <mat-icon matSuffix>description</mat-icon>
+              </mat-form-field>
+            </span>
+          </div>
+          <div class="input-row-three">
+            <span>
+              <mat-form-field appearance="outline" class="input-style-two">
+                <mat-label>GraphMart</mat-label>
+                <input type="text" placeholder="Pick one" aria-label="Number" #graphMartUri
+                  formControlName="graphMartUri" matInput [matAutocomplete]="graphmartAutocomplete">
+                <mat-autocomplete #graphmartAutocomplete="matAutocomplete"
+                  (optionSelected)="getGraphMartLayers($event.option.value)">
+                  <mat-option *ngFor="let option of filteredOptions | async" [value]="option.title">
+                    {{option.title}}
+                    <mat-icon class="started-icon"
+                      *ngIf="option.active=='true'; else stoppedBlock">check_circle</mat-icon>
+                    <ng-template #stoppedBlock><mat-icon
+                        class="stopped-icon">stop_circle</mat-icon></ng-template>
+                  </mat-option>
+                </mat-autocomplete>
+              </mat-form-field>
+            </span>
+          </div>
+          <div class="input-row-four">
+            <mat-form-field class="layer-list" appearance="fill">
+              <mat-label>GraphMart Layers</mat-label>
+              <mat-chip-grid #chipGrid aria-label="Layer selection">
+                <mat-chip-row *ngFor="let layer of layers" (removed)="remove(layer)">
+                  <mat-icon class="started-icon-chip" *ngIf="chipStatus(layer)==true; else stoppedBlock">check_circle</mat-icon>
+                  {{layer}}
+                  <button matChipRemove [attr.aria-label]="'remove ' + layer">
+                    <mat-icon>cancel</mat-icon>
+                  </button>
+                </mat-chip-row>
+              </mat-chip-grid>
+              <input placeholder="{{layerPlaceholder}}" #layerElement formControlName="layersInput"
+                [matChipInputFor]="chipGrid" [matAutocomplete]="layerAutocomplete"
+                [matChipInputSeparatorKeyCodes]="separatorKeysCodes" (matChipInputTokenEnd)="add($event)" />
+              <mat-autocomplete #layerAutocomplete="matAutocomplete" (optionSelected)="selected($event)">
+                <mat-option *ngFor="let layer of filteredLayers | async" [value]="layer.title">
+                  {{layer.title}}
+                  <mat-icon class="started-icon"
+                    *ngIf="layer.active=='true'; else stoppedBlock">check_circle</mat-icon>
+                </mat-option>
+              </mat-autocomplete>
+            </mat-form-field>
           </div>
         </div>
-      </div>
+      </mat-tab>
 
-      <div class="input-row-five">
-        <span>
-          <input type="file" class="file-input" (change)="onFileSelected($event)" #fileUpload>
-          <div class="file-upload">
+      <!-- Tab 2: Cache Configuration -->
+      <mat-tab label={{getCacheTabName()}}
+               [disabled]="!cacheInfo || !cacheInfo.enabled || !cacheInfo.connected"
+               matTooltipPosition="above">
+        <div class="tab-content">
+          <div class="cache-config-section" *ngIf="cacheInfo && cacheInfo.enabled">
+            <h3>Cache Settings</h3>
+            <div class="cache-toggle-row">
+              <mat-slide-toggle
+                [(ngModel)]="cacheEnabled"
+                [ngModelOptions]="{standalone: true}"
+                (change)="toggleCacheEnabled()"
+                color="primary">
+                Enable Caching for this Route
+              </mat-slide-toggle>
+              <mat-icon class="info-icon" matTooltip="When enabled, query results will be cached to improve performance">info</mat-icon>
+            </div>
+
+            <!-- Cache Metrics Cards -->
+            <div class="cache-metrics" *ngIf="cacheEnabled">
+              <h4>Cache Metrics</h4>
+
+              <!-- Loading State -->
+              <div *ngIf="cacheStatsLoading" class="metrics-loading">
+                <mat-spinner diameter="40"></mat-spinner>
+                <p>Loading cache statistics...</p>
+              </div>
+
+              <!-- Metrics Grid -->
+              <div *ngIf="!cacheStatsLoading && routeCacheStats && cacheInfo" class="cache-metrics-grid">
+                <!-- Cached Entries Card -->
+                <mat-card class="cache-metric-card">
+                  <mat-card-content>
+                    <div class="metric-icon">
+                      <mat-icon>storage</mat-icon>
+                    </div>
+                    <div class="metric-value">{{routeCacheStats.routeKeyCount}}</div>
+                    <div class="metric-label">Cached {{routeCacheStats.routeKeyCount === 1 ? 'Entry' : 'Entries'}}</div>
+                    <div class="metric-subtitle">For this route</div>
+                  </mat-card-content>
+                </mat-card>
+
+                <!-- Hit Rate Card -->
+                <mat-card class="cache-metric-card">
+                  <mat-card-content>
+                    <div class="metric-icon">
+                      <mat-icon>trending_up</mat-icon>
+                    </div>
+                    <div class="metric-value">{{getCacheHitRatio()}}%</div>
+                    <div class="metric-label">Hit Rate</div>
+                    <div class="metric-subtitle">Global cache performance</div>
+                  </mat-card-content>
+                </mat-card>
+
+                <!-- Redis Connection Card -->
+                <mat-card class="cache-metric-card cache-info-card">
+                  <mat-card-content>
+                    <div class="metric-icon">
+                      <mat-icon>dns</mat-icon>
+                    </div>
+                    <div class="metric-value small">{{cacheInfo.host}}:{{cacheInfo.port}}</div>
+                    <div class="metric-label">Redis Server</div>
+                    <div class="metric-subtitle">Cache backend</div>
+                  </mat-card-content>
+                </mat-card>
+
+                <!-- Compression Card -->
+                <mat-card class="cache-metric-card cache-info-card">
+                  <mat-card-content>
+                    <div class="metric-icon">
+                      <mat-icon>{{cacheInfo.compressionEnabled ? 'compress' : 'text_fields'}}</mat-icon>
+                    </div>
+                    <div class="metric-value small">{{cacheInfo.compressionEnabled ? 'Enabled' : 'Disabled'}}</div>
+                    <div class="metric-label">Compression</div>
+                    <div class="metric-subtitle">Gzip compression</div>
+                  </mat-card-content>
+                </mat-card>
+              </div>
+
+              <!-- Configuration Fields -->
+              <h4 class="config-section-title">Configuration</h4>
+              <div class="cache-config-fields">
+                <mat-form-field appearance="outline" class="cache-input-field">
+                  <mat-label>Cache TTL (seconds)</mat-label>
+                  <input type="number" matInput formControlName="cacheTtlSeconds"
+                    [placeholder]="'Default: ' + (cacheInfo.defaultTtlSeconds || 3600)">
+                  <mat-icon matSuffix matTooltip="Time to live - how long cached results remain valid">schedule</mat-icon>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="cache-input-field">
+                  <mat-label>Cache Key Strategy</mat-label>
+                  <mat-select formControlName="cacheKeyStrategy" disableOptionCentering>
+                    <mat-option value="QUERY_HASH">Query Hash (Default)</mat-option>
+                    <mat-option value="ROUTE_PARAMS">Route Parameters</mat-option>
+                  </mat-select>
+                  <mat-icon matSuffix matTooltip="How cache keys are generated for queries">key</mat-icon>
+                </mat-form-field>
+              </div>
+
+              <!-- Clear Cache Button -->
+              <div class="cache-actions">
+                <button mat-raised-button
+                        color="warn"
+                        class="clear-cache-btn"
+                        (click)="clearRouteCache()"
+                        [disabled]="!cacheEnabled || clearingCache"
+                        matTooltip="Clear all cached query results for this route">
+                  <mat-icon *ngIf="!clearingCache && !cacheJustCleared">delete_sweep</mat-icon>
+                  <mat-spinner *ngIf="clearingCache" diameter="20" class="button-spinner"></mat-spinner>
+                  <mat-icon *ngIf="cacheJustCleared" class="success-icon">check_circle</mat-icon>
+                  <span>Clear Route Cache</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="!cacheInfo || !cacheInfo.enabled" class="cache-disabled-message">
+            <mat-icon>info</mat-icon>
+            <p>Redis caching is not enabled globally. Enable Redis in the system configuration to use route caching.</p>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Tab 3: Template Editor -->
+      <mat-tab label="Template Editor">
+        <div class="tab-content editor-tab-content">
+          <div class="editor-section" [class.fullscreen]="isFullscreen" [class.with-chat]="isChatPanelOpen">
+            <div class="editor-header">
+              <h2 class="editor-title" *ngIf="!isFullscreen">Freemarker Template</h2>
+              <h2 class="editor-title" *ngIf="isFullscreen">Template Editor - {{routeId}}</h2>
+              <div class="editor-actions">
+                <!-- SPARQL Assistant Button (visible in fullscreen mode) -->
+                <button mat-icon-button (click)="toggleChatPanel()"
+                        matTooltip="Toggle AI Assistant"
+                        class="sparql-assistant-btn"
+                        *ngIf="isSparqiEnabled && isFullscreen">
+                  <mat-icon>{{isChatPanelOpen ? 'close' : 'smart_toy'}}</mat-icon>
+                </button>
+                <button mat-icon-button (click)="toggleFullscreen()"
+                  [matTooltip]="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'"
+                  class="fullscreen-btn">
+                  <mat-icon>{{isFullscreen ? 'fullscreen_exit' : 'fullscreen'}}</mat-icon>
+                </button>
+              </div>
+            </div>
+            <div class="editor-container">
+              <div #monacoEditorContainer class="template-editor-div"></div>
+            </div>
+          </div>
+          <div class="file-upload-section">
+            <input type="file" class="file-input" (change)="onFileSelected($event)" #fileUpload>
             <button mat-raised-button color="primary" class="upload-btn" (click)="fileUpload.click()">
               <mat-icon>upload_file</mat-icon>
               Upload Template
             </button>
-            <span class="file-name">{{fileName}}</span>
+            <span class="file-name" *ngIf="fileName">{{fileName}}</span>
           </div>
-        </span>
-      </div>
-      <div class="btn-sec">
-        <button mat-raised-button type="button" class="cancel-btn" (click)="navigateBack()">Cancel</button>
-        <button mat-raised-button type="submit" id="config-route-btn" color="primary" [disabled]="!configRoute.valid"
-          (click)="putRoute()">Save</button>
-      </div>
-    </div>
-
-    <!-- Monaco Editor Section -->
-    <div class="editor-section" [class.fullscreen]="isFullscreen" [class.with-chat]="isChatPanelOpen">
-      <div class="editor-header">
-        <h2 class="editor-title" *ngIf="!isFullscreen">Template Editor</h2>
-        <h2 class="editor-title" *ngIf="isFullscreen">Template Editor - {{routeId}}</h2>
-        <div class="editor-actions">
-          <button mat-icon-button (click)="toggleFullscreen()"
-            [matTooltip]="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'"
-            class="fullscreen-btn">
-            <mat-icon>{{isFullscreen ? 'fullscreen_exit' : 'fullscreen'}}</mat-icon>
-          </button>
-          <button mat-icon-button (click)="toggleChatPanel()"
-            matTooltip="Toggle AI Assistant"
-            class="chat-toggle-btn"
-            *ngIf="isSparqiEnabled">
-            <mat-icon>{{isChatPanelOpen ? 'close' : 'smart_toy'}}</mat-icon>
-          </button>
         </div>
-      </div>
-      <div class="editor-container">
-        <div #monacoEditorContainer class="template-editor-div"></div>
-      </div>
-    </div>
+      </mat-tab>
+
+      <!-- Tab 4: Test Route -->
+      <mat-tab label="Test Route">
+        <div class="tab-content test-tab-content">
+          <!-- Loading Spinner -->
+          <div class="test-loading-overlay" *ngIf="isLoadingVariables">
+            <mat-spinner diameter="50"></mat-spinner>
+            <p>Extracting template variables...</p>
+          </div>
+
+          <!-- Test Form -->
+          <div *ngIf="!isLoadingVariables" class="test-form-section">
+            <h3>Test Parameters</h3>
+            <p class="test-help-text">Configure request body and parameters to test your template:</p>
+
+            <!-- SPARQi Test Generation Section -->
+            <mat-expansion-panel [(expanded)]="sparqiPanelExpanded" class="sparqi-expansion-panel test-section-panel" *ngIf="isSparqiEnabled">
+              <mat-expansion-panel-header class="sparqi-panel-header">
+                <mat-panel-title>
+                  <mat-icon class="sparqi-icon">psychology</mat-icon>
+                  <span class="sparqi-title">SPARQi Test Generation</span>
+                </mat-panel-title>
+                <mat-panel-description>
+                  AI-powered intelligent test data generation
+                </mat-panel-description>
+              </mat-expansion-panel-header>
+
+              <div class="sparqi-panel-content">
+                <p class="sparqi-description">SPARQi will analyze your template, explore the ontology and data, then generate intelligent test values.</p>
+
+                <div class="sparqi-gen-controls">
+                  <!-- User Context Input -->
+                  <mat-form-field appearance="outline" class="user-context-field">
+                    <mat-label>Additional Context (Optional)</mat-label>
+                    <textarea matInput
+                              [(ngModel)]="testGenUserContext"
+                              [ngModelOptions]="{standalone: true}"
+                              [disabled]="isGeneratingRequest"
+                              placeholder="E.g., 'Use John Smith as the person name' or 'Test with a date in 2024'"
+                              rows="2"></textarea>
+                    <mat-hint>Provide guidance to help SPARQi generate better test data</mat-hint>
+                  </mat-form-field>
+
+                  <!-- Options Row -->
+                  <div class="sparqi-gen-options">
+                    <mat-checkbox [(ngModel)]="includeEdgeCases"
+                                  [ngModelOptions]="{standalone: true}"
+                                  [disabled]="isGeneratingRequest">
+                      Include edge cases (empty values, special chars, boundaries)
+                    </mat-checkbox>
+
+                    <button mat-raised-button
+                            color="accent"
+                            class="generate-btn"
+                            (click)="generateTestRequestWithSparqi()"
+                            [disabled]="isGeneratingRequest || isLoadingVariables">
+                      <mat-icon *ngIf="!isGeneratingRequest">auto_awesome</mat-icon>
+                      <mat-spinner *ngIf="isGeneratingRequest" diameter="20"></mat-spinner>
+                      <span>Generate Test Data</span>
+                    </button>
+                  </div>
+                </div>
+
+              <!-- Progress Indicator -->
+              <div class="sparqi-gen-progress" *ngIf="isGeneratingRequest" @slideDown>
+                <div class="progress-header">
+                  <mat-spinner diameter="24"></mat-spinner>
+                  <span class="progress-title">SPARQi is working...</span>
+                </div>
+                <div class="progress-stages">
+                  <div class="stage" [class.active]="generationStage === 'analyzing'">
+                    <mat-icon>search</mat-icon>
+                    <span>Analyzing template variables</span>
+                  </div>
+                  <div class="stage" [class.active]="generationStage === 'exploring'">
+                    <mat-icon>travel_explore</mat-icon>
+                    <span>Exploring ontology and data ({{toolCallsCount}} {{toolCallsCount === 1 ? 'query' : 'queries'}})</span>
+                  </div>
+                  <div class="stage" [class.active]="generationStage === 'generating'">
+                    <mat-icon>psychology</mat-icon>
+                    <span>Generating realistic test values</span>
+                  </div>
+                  <div class="stage" [class.active]="generationStage === 'applying'">
+                    <mat-icon>check_circle</mat-icon>
+                    <span>Applying generated data</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Success Banner -->
+              <div class="sparqi-gen-success" *ngIf="generationSuccess" @slideDown>
+                <mat-icon>check_circle</mat-icon>
+                <div class="success-content">
+                  <strong>Test data generated successfully!</strong>
+                  <p class="reasoning">{{generationReasoning}}</p>
+                  <div class="success-meta">
+                    <span class="confidence-badge" [class.high]="generationConfidence > 0.8">
+                      Confidence: {{(generationConfidence * 100).toFixed(0)}}%
+                    </span>
+                    <span class="tool-calls-badge" *ngIf="toolCallsCount > 0">
+                      {{toolCallsCount}} data {{toolCallsCount === 1 ? 'query' : 'queries'}} executed
+                    </span>
+                  </div>
+                  <button mat-stroked-button (click)="regenerateTestRequest()" class="regenerate-btn">
+                    <mat-icon>refresh</mat-icon> Generate Different Values
+                  </button>
+                </div>
+              </div>
+              </div>
+            </mat-expansion-panel>
+
+            <!-- Request Body JSON Editor -->
+            <mat-expansion-panel [(expanded)]="bodyJsonExpanded" class="test-section-panel">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon>code</mat-icon>
+                  Request Body (JSON)
+                </mat-panel-title>
+                <mat-panel-description *ngIf="sampleBodyJson">
+                  The body payload (typically JSON) to use with the test request
+                </mat-panel-description>
+              </mat-expansion-panel-header>
+              <div class="json-editor-container" [class.disabled-overlay]="isGeneratingRequest">
+                <div class="json-editor-help" *ngIf="sampleBodyJson">
+                  <mat-icon>info</mat-icon>
+                  <span>This JSON structure was detected from your template. Update the placeholder values with your test data.</span>
+                </div>
+                <ngx-monaco-editor
+                  class="test-json-editor"
+                  [(ngModel)]="bodyJsonContent"
+                  [ngModelOptions]="{standalone: true}"
+                  [options]="jsonEditorOptions">
+                </ngx-monaco-editor>
+                <div class="disabled-overlay-message" *ngIf="isGeneratingRequest">
+                  <mat-icon>lock</mat-icon>
+                  <span>Locked while SPARQi is generating test data</span>
+                </div>
+              </div>
+            </mat-expansion-panel>
+
+            <!-- Query Parameters -->
+            <mat-expansion-panel [(expanded)]="queryParamsExpanded" class="test-section-panel">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon>link</mat-icon>
+                  Query Parameters
+                </mat-panel-title>
+                <mat-panel-description>
+                  {{queryParams.length}} parameter{{queryParams.length === 1 ? '' : 's'}} to use with the test request
+                </mat-panel-description>
+              </mat-expansion-panel-header>
+              <div class="query-params-container">
+                <div *ngFor="let param of queryParams; let i = index" class="query-param-row">
+                  <mat-form-field appearance="outline" class="param-key-field">
+                    <mat-label>Parameter Name</mat-label>
+                    <input matInput [(ngModel)]="param.key" [ngModelOptions]="{standalone: true}" [disabled]="isGeneratingRequest">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="param-value-field">
+                    <mat-label>Value</mat-label>
+                    <input matInput [(ngModel)]="param.value" [ngModelOptions]="{standalone: true}" [disabled]="isGeneratingRequest">
+                  </mat-form-field>
+                  <button mat-icon-button color="warn" (click)="removeQueryParam(i)" matTooltip="Remove parameter" [disabled]="isGeneratingRequest">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </div>
+                <button mat-stroked-button color="primary" (click)="addQueryParam()" class="add-param-btn" [disabled]="isGeneratingRequest">
+                  <mat-icon>add</mat-icon>
+                  Add Parameter
+                </button>
+              </div>
+            </mat-expansion-panel>
+
+            <!-- No Body Variables -->
+            <div *ngIf="queryParams.length === 0 && !sampleBodyJson" class="no-variables-message">
+              <mat-icon>info</mat-icon>
+              <p>No template variables detected. You can still test with an empty request.</p>
+            </div>
+
+            <!-- Execute Button -->
+            <button mat-raised-button color="primary" class="execute-test-btn"
+                    (click)="executeTest()" [disabled]="isTestExecuting || isGeneratingRequest">
+              <mat-spinner *ngIf="isTestExecuting" diameter="20" class="button-spinner"></mat-spinner>
+              <mat-icon *ngIf="!isTestExecuting">play_arrow</mat-icon>
+              <span>Execute Test</span>
+            </button>
+          </div>
+
+          <!-- Test Results -->
+          <div *ngIf="testResults || generatedSparql || testError" class="test-results-section">
+            <!-- Generated SPARQL Panel -->
+            <mat-expansion-panel [(expanded)]="testSparqlExpanded" *ngIf="generatedSparql">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon>code</mat-icon>
+                  Generated SPARQL Query
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="sparql-result-container">
+                <pre class="sparql-code">{{generatedSparql}}</pre>
+              </div>
+            </mat-expansion-panel>
+
+            <!-- Query Results Panel -->
+            <mat-expansion-panel [(expanded)]="testResultsExpanded" *ngIf="testResults">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon>table_chart</mat-icon>
+                  Query Results
+                  <span class="execution-time" *ngIf="testExecutionTime">({{testExecutionTime}}ms)</span>
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="results-container">
+                <pre class="results-json">{{testResults | json}}</pre>
+              </div>
+            </mat-expansion-panel>
+
+            <!-- Error Panel -->
+            <mat-expansion-panel [(expanded)]="testErrorExpanded" *ngIf="testError" class="error-panel">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon color="warn">error</mat-icon>
+                  Test Error
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              <div class="error-container">
+                <div class="error-message">{{testError}}</div>
+                <div *ngIf="testStackTrace" class="stack-trace-section">
+                  <h4>Stack Trace:</h4>
+                  <pre class="stack-trace">{{testStackTrace}}</pre>
+                </div>
+              </div>
+            </mat-expansion-panel>
+          </div>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
 
     <!-- Chat Panel (slide out from right) -->
     <div class="chat-panel"

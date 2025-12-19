@@ -42,6 +42,7 @@ public class SimpleAnzoClient implements AnzoClient {
     private final String user;
     private final String password;
     private final HttpClient httpClient;
+    private final int requestTimeoutSeconds;
 
     public SimpleAnzoClient(String server, String user, String password,
                             int connectTimeoutSeconds) {
@@ -53,6 +54,8 @@ public class SimpleAnzoClient implements AnzoClient {
         this.server = server;
         this.user = user;
         this.password = password;
+        // Use same timeout for both connection and request for health checks
+        this.requestTimeoutSeconds = connectTimeoutSeconds;
         this.httpClient = createHttpClient(connectTimeoutSeconds, validateCertificate);
     }
 
@@ -159,7 +162,8 @@ public class SimpleAnzoClient implements AnzoClient {
         final long start = System.currentTimeMillis();
 
         try {
-            HttpResponse<InputStream> resp = makeLdsRequest(GRAPHMARTS_DS_CAT, GM_LOOKUP);
+            // Use configured request timeout instead of hard-coded 30 seconds
+            HttpResponse<InputStream> resp = makeLdsRequest(GRAPHMARTS_DS_CAT, GM_LOOKUP, requestTimeoutSeconds);
             long duration = System.currentTimeMillis() - start;
 
             if (resp.statusCode() == 200) {
@@ -214,8 +218,14 @@ public class SimpleAnzoClient implements AnzoClient {
 
     private HttpResponse<InputStream> makeLdsRequest(String dataset, String query)
             throws IOException, InterruptedException {
+        // Use default 30-second timeout for backward compatibility
+        return makeLdsRequest(dataset, query, 30);
+    }
+
+    private HttpResponse<InputStream> makeLdsRequest(String dataset, String query, int timeoutSeconds)
+            throws IOException, InterruptedException {
         return httpClient.send(
-                buildRequest(createLdsSparqlUri(dataset), query, RESPONSE_FORMAT.JSON, 30, false),
+                buildRequest(createLdsSparqlUri(dataset), query, RESPONSE_FORMAT.JSON, timeoutSeconds, false),
                 HttpResponse.BodyHandlers.ofInputStream());
     }
 

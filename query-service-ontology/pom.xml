@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.inovexcorp.queryservice</groupId>
         <artifactId>query-service</artifactId>
-        <version>1.0.39-SNAPSHOT</version>
+        <version>1.0.47-SNAPSHOT</version>
     </parent>
 
     <artifactId>query-service-ontology</artifactId>

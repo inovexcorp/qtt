@@ -1,9 +1,15 @@
 package com.inovexcorp.queryservice.sparqi.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.inovexcorp.queryservice.cache.CacheService;
+import com.inovexcorp.queryservice.camel.anzo.comm.AnzoClient;
 import com.inovexcorp.queryservice.ontology.OntologyService;
 import com.inovexcorp.queryservice.ontology.model.OntologyElement;
 import com.inovexcorp.queryservice.ontology.model.OntologyElementType;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
+import com.inovexcorp.queryservice.persistence.DataSourceService;
+import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.LayerService;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import com.inovexcorp.queryservice.persistence.SparqiMetricRecord;
@@ -13,17 +19,28 @@ import com.inovexcorp.queryservice.sparqi.SparqiService;
 import com.inovexcorp.queryservice.sparqi.SparqiServiceConfig;
 import com.inovexcorp.queryservice.sparqi.model.SparqiContext;
 import com.inovexcorp.queryservice.sparqi.model.SparqiMessage;
+import com.inovexcorp.queryservice.sparqi.model.TestGenerationRequest;
+import com.inovexcorp.queryservice.sparqi.model.TestGenerationResponse;
 import com.inovexcorp.queryservice.sparqi.session.SparqiSession;
 import com.inovexcorp.queryservice.sparqi.session.SparqiSessionManager;
+import com.inovexcorp.queryservice.sparqi.tools.GraphmartQueryTool;
 import com.inovexcorp.queryservice.sparqi.tools.OntologyElementLookupTool;
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
+import dev.langchain4j.agent.tool.ToolSpecification;
+import dev.langchain4j.agent.tool.ToolSpecifications;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.http.client.jdk.JdkHttpClient;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.output.TokenUsage;
+import dev.langchain4j.service.tool.DefaultToolExecutor;
+import dev.langchain4j.service.tool.ToolExecutionResult;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringSubstitutor;
 import org.osgi.service.component.annotations.Activate;
@@ -36,10 +53,13 @@ import org.osgi.service.metatype.annotations.Designate;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of SPARQi service using OpenAI-compatible endpoints.
@@ -62,11 +82,19 @@ public class SparqiServiceImpl implements SparqiService {
     @Reference
     private SparqiMetricService sparqiMetricService;
 
+    @Reference
+    private DataSourceService dataSourceService;
+
+    @Reference
+    private CacheService cacheService;
+
     private SparqiSessionManager sessionManager;
     private ChatModel chatModel;
     private boolean enabled;
     private String welcomeMessageTemplate;
     private String systemPromptTemplate;
+    private String testGenerationSystemPromptTemplate;
+    private String testGenerationUserMessageTemplate;
     private int maxConversationHistory;
     private boolean metricsEnabled;
     private double inputTokenCostPer1M;
@@ -115,6 +143,8 @@ public class SparqiServiceImpl implements SparqiService {
         this.enabled = config.enableSparqi();
         this.welcomeMessageTemplate = config.welcomeMessageTemplate();
         this.systemPromptTemplate = config.systemPromptTemplate();
+        this.testGenerationSystemPromptTemplate = config.testGenerationSystemPromptTemplate();
+        this.testGenerationUserMessageTemplate = config.testGenerationUserMessageTemplate();
         this.maxConversationHistory = config.maxConversationHistory();
         this.metricsEnabled = config.metricsEnabled();
         this.inputTokenCostPer1M = config.inputTokenCostPer1M();
@@ -124,6 +154,8 @@ public class SparqiServiceImpl implements SparqiService {
         log.info("SPARQi configuration loaded:");
         log.info("  - Welcome template length: {} chars", welcomeMessageTemplate != null ? welcomeMessageTemplate.length() : 0);
         log.info("  - System prompt template length: {} chars", systemPromptTemplate != null ? systemPromptTemplate.length() : 0);
+        log.info("  - Test generation system prompt length: {} chars", testGenerationSystemPromptTemplate != null ? testGenerationSystemPromptTemplate.length() : 0);
+        log.info("  - Test generation user message length: {} chars", testGenerationUserMessageTemplate != null ? testGenerationUserMessageTemplate.length() : 0);
         log.info("  - Metrics enabled: {}", metricsEnabled);
         log.info("  - Input token cost: ${} per 1M", inputTokenCostPer1M);
         log.info("  - Output token cost: ${} per 1M", outputTokenCostPer1M);
@@ -703,5 +735,389 @@ public class SparqiServiceImpl implements SparqiService {
                 toolCallCount,
                 totalCost
         );
+    }
+
+    /**
+     * Generates test request body and query parameters using SPARQi AI agent.
+     * The agent explores the ontology and graphmart data using tools to generate
+     * realistic, semantically correct test values.
+     *
+     * @param request Test generation request
+     * @return Generated test data with metadata
+     * @throws SparqiException if generation fails
+     */
+    @Override
+    public TestGenerationResponse generateTestRequest(TestGenerationRequest request) throws SparqiException {
+        if (!enabled) {
+            throw new SparqiException("SPARQi service is not enabled");
+        }
+
+        long startTime = System.currentTimeMillis();
+        log.info("Starting test generation for route: {}", request.getRouteId());
+
+        try {
+            // 1. Get ontology context (top 100 elements)
+            List<OntologyElement> ontologyElements = ontologyService.getOntologyElements(
+                    request.getRouteId(),
+                    OntologyElementType.ALL,
+                    null,
+                    100
+            );
+            log.debug("Retrieved {} ontology elements", ontologyElements.size());
+
+            // 2. Build specialized system prompt for test generation
+            String systemPrompt = buildTestGenerationSystemPrompt(request, ontologyElements);
+
+            // 3. Build user message
+            String userMessage = buildTestGenerationUserMessage(request);
+
+            // 4. Create tools (ontology + graphmart query)
+            OntologyElementLookupTool ontologyTool = new OntologyElementLookupTool(
+                    ontologyService,
+                    request.getRouteId()
+            );
+
+            GraphmartQueryTool queryTool = createGraphmartQueryTool(request);
+
+            // 5. Execute agent with tools
+            List<ChatMessage> messages = Arrays.asList(
+                    SystemMessage.from(systemPrompt),
+                    UserMessage.from(userMessage)
+            );
+
+            ModelResult result = converseWithToolsForTestGeneration(messages, ontologyTool, queryTool);
+
+            // 6. Parse AI response as structured JSON
+            TestGenerationResponse response = parseTestGenerationResponse(
+                    result.aiMessage.text(),
+                    result.tokenUsage,
+                    result.toolCallCount
+            );
+
+            long elapsed = System.currentTimeMillis() - startTime;
+            log.info("Test generation completed in {}ms with {} tool calls, confidence: {}",
+                    elapsed, result.toolCallCount, response.getConfidence());
+
+            return response;
+
+        } catch (Exception e) {
+            log.error("Failed to generate test request for route: {}", request.getRouteId(), e);
+            throw new SparqiException("Test generation failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Creates a GraphmartQueryTool for the given datasource and graphmart.
+     */
+    private GraphmartQueryTool createGraphmartQueryTool(TestGenerationRequest request) throws Exception {
+        // Get datasource to create AnzoClient
+        Datasources datasource = dataSourceService.getDataSource(request.getDataSourceId());
+
+        // Create AnzoClient (note: reusing existing logic would be better, but for now create inline)
+        // In production, consider caching AnzoClient instances
+        AnzoClient anzoClient = new com.inovexcorp.queryservice.camel.anzo.comm.SimpleAnzoClient(
+                datasource.getUrl(),
+                datasource.getUsername(),
+                datasource.getPassword(),
+                30, // connect timeout
+                false // validate certificate
+        );
+
+        return new GraphmartQueryTool(
+                anzoClient,
+                request.getGraphMartUri(),
+                request.getLayerUris(),
+                cacheService
+        );
+    }
+
+    /**
+     * Builds the system prompt for test generation using configured template.
+     */
+    private String buildTestGenerationSystemPrompt(
+            TestGenerationRequest request,
+            List<OntologyElement> ontologyElements) {
+
+        // Prepare template values
+        Map<String, Object> values = new HashMap<>();
+        values.put("ontologyElementCount", ontologyElements.size());
+        values.put("ontologyElementsSummary", formatOntologyElementsSummary(ontologyElements, 20));
+        values.put("templateContent", truncateForPrompt(request.getTemplateContent(), 2000));
+
+        // Handle includeEdgeCases - add the edge cases instruction if enabled
+        String includeEdgeCasesText = request.isIncludeEdgeCases()
+            ? "6. **Include edge cases**: empty strings, special characters, boundary values, null-like values\n\n"
+            : "";
+        values.put("includeEdgeCases", includeEdgeCasesText);
+
+        // Apply template substitution
+        return StringSubstitutor.replace(testGenerationSystemPromptTemplate, values, "{{", "}}");
+    }
+
+    /**
+     * Builds the user message for test generation using configured template.
+     */
+    private String buildTestGenerationUserMessage(TestGenerationRequest request) {
+        // Prepare template values
+        Map<String, Object> values = new HashMap<>();
+
+        // Handle userContext - add it if present
+        String userContextText = (request.getUserContext() != null && !request.getUserContext().trim().isEmpty())
+            ? "\n\nUser Context: " + request.getUserContext()
+            : "";
+        values.put("userContext", userContextText);
+
+        // Handle includeEdgeCases - add instruction if enabled
+        String includeEdgeCasesText = request.isIncludeEdgeCases()
+            ? "\n\nInclude edge cases in the test data (empty values, special characters, boundaries).\n"
+            : "";
+        values.put("includeEdgeCases", includeEdgeCasesText);
+
+        // Apply template substitution
+        return StringSubstitutor.replace(testGenerationUserMessageTemplate, values, "{{", "}}");
+    }
+
+    /**
+     * Executes the agent conversation with both ontology and graphmart query tools.
+     */
+    private ModelResult converseWithToolsForTestGeneration(
+            List<ChatMessage> initialMessages,
+            OntologyElementLookupTool ontologyTool,
+            GraphmartQueryTool queryTool) {
+
+        // Combine tool specifications from both tools
+        List<ToolSpecification> toolSpecs = new ArrayList<>();
+        toolSpecs.addAll(ToolSpecifications.toolSpecificationsFrom(ontologyTool));
+        toolSpecs.addAll(ToolSpecifications.toolSpecificationsFrom(queryTool));
+
+        // Track token usage across all LLM calls
+        int totalInputTokens = 0;
+        int totalOutputTokens = 0;
+        int totalTokens = 0;
+        int toolCallCount = 0;
+
+        // First model call
+        ChatRequest chatRequest = ChatRequest.builder()
+                .messages(initialMessages)
+                .toolSpecifications(toolSpecs)
+                .build();
+
+        ChatResponse response = chatModel.chat(chatRequest);
+        AiMessage aiMessage = response.aiMessage();
+
+        // Accumulate token usage
+        if (response.tokenUsage() != null) {
+            totalInputTokens += response.tokenUsage().inputTokenCount();
+            totalOutputTokens += response.tokenUsage().outputTokenCount();
+            totalTokens += response.tokenUsage().totalTokenCount();
+        }
+
+        // Conversation messages for follow-ups
+        List<ChatMessage> conversationMessages = new ArrayList<>(initialMessages);
+
+        final int maxToolIterations = 10; // Higher limit for test generation
+        int iteration = 0;
+
+        while (aiMessage.hasToolExecutionRequests() && iteration < maxToolIterations) {
+            iteration++;
+            int toolsInThisIteration = aiMessage.toolExecutionRequests().size();
+            toolCallCount += toolsInThisIteration;
+
+            log.info("Agent requested {} tool executions (iteration {})", toolsInThisIteration, iteration);
+
+            // Add AI's tool request message
+            conversationMessages.add(aiMessage);
+
+            // Execute each tool request
+            for (ToolExecutionRequest toolRequest : aiMessage.toolExecutionRequests()) {
+                ToolExecutionResultMessage resultMsg = executeToolRequestForGeneration(
+                        toolRequest,
+                        ontologyTool,
+                        queryTool
+                );
+                conversationMessages.add(resultMsg);
+            }
+
+            // Follow-up call
+            ChatRequest followUpRequest = ChatRequest.builder()
+                    .messages(conversationMessages)
+                    .toolSpecifications(toolSpecs)
+                    .build();
+
+            response = chatModel.chat(followUpRequest);
+            aiMessage = response.aiMessage();
+
+            // Accumulate token usage
+            if (response.tokenUsage() != null) {
+                totalInputTokens += response.tokenUsage().inputTokenCount();
+                totalOutputTokens += response.tokenUsage().outputTokenCount();
+                totalTokens += response.tokenUsage().totalTokenCount();
+            }
+        }
+
+        if (iteration >= maxToolIterations && aiMessage.hasToolExecutionRequests()) {
+            log.warn("Max tool iterations ({}) reached for test generation", maxToolIterations);
+        }
+
+        TokenUsage aggregatedUsage = new TokenUsage(totalInputTokens, totalOutputTokens, totalTokens);
+        return new ModelResult(aiMessage, aggregatedUsage, toolCallCount);
+    }
+
+    /**
+     * Executes a tool request, routing to the appropriate tool.
+     */
+    private ToolExecutionResultMessage executeToolRequestForGeneration(
+            ToolExecutionRequest toolRequest,
+            OntologyElementLookupTool ontologyTool,
+            GraphmartQueryTool queryTool) {
+
+        log.info("Executing tool: {} with arguments: {}", toolRequest.name(), toolRequest.arguments());
+
+        try {
+            // Determine which tool to use based on method name
+            Object toolInstance;
+            if (isOntologyToolMethod(toolRequest.name())) {
+                toolInstance = ontologyTool;
+            } else if (isGraphmartToolMethod(toolRequest.name())) {
+                toolInstance = queryTool;
+            } else {
+                return ToolExecutionResultMessage.from(
+                        toolRequest,
+                        "Unknown tool: " + toolRequest.name()
+                );
+            }
+
+            DefaultToolExecutor executor = new DefaultToolExecutor(toolInstance, toolRequest);
+            ToolExecutionResult executionResult = executor.executeWithContext(toolRequest, null);
+
+            return ToolExecutionResultMessage.from(toolRequest, executionResult.resultText());
+
+        } catch (Exception e) {
+            log.error("Failed to execute tool: {}", toolRequest.name(), e);
+            return ToolExecutionResultMessage.from(
+                    toolRequest,
+                    "Error executing tool: " + e.getMessage()
+            );
+        }
+    }
+
+    /**
+     * Checks if the tool method belongs to OntologyElementLookupTool.
+     */
+    private boolean isOntologyToolMethod(String methodName) {
+        return methodName.equals("lookupOntologyElements") ||
+               methodName.equals("getAllClasses") ||
+               methodName.equals("getAllProperties") ||
+               methodName.equals("getIndividuals") ||
+               methodName.equals("getPropertyDetails");
+    }
+
+    /**
+     * Checks if the tool method belongs to GraphmartQueryTool.
+     */
+    private boolean isGraphmartToolMethod(String methodName) {
+        return methodName.equals("executeGraphmartQuery") ||
+               methodName.equals("getSampleIndividuals") ||
+               methodName.equals("getSamplePropertyValues");
+    }
+
+    /**
+     * Parses the AI's response into a TestGenerationResponse.
+     */
+    private TestGenerationResponse parseTestGenerationResponse(
+            String aiResponseText,
+            TokenUsage tokenUsage,
+            int toolCallCount) throws SparqiException {
+
+        try {
+            // Remove markdown code blocks if present
+            String cleaned = aiResponseText.trim();
+            if (cleaned.startsWith("```json")) {
+                cleaned = cleaned.substring(7);
+            }
+            if (cleaned.startsWith("```")) {
+                cleaned = cleaned.substring(3);
+            }
+            if (cleaned.endsWith("```")) {
+                cleaned = cleaned.substring(0, cleaned.length() - 3);
+            }
+            cleaned = cleaned.trim();
+
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(cleaned);
+
+            // Extract fields
+            Map<String, Object> bodyJson = new LinkedHashMap<>();
+            if (root.has("bodyJson")) {
+                bodyJson = mapper.convertValue(root.get("bodyJson"), Map.class);
+            }
+
+            Map<String, Object> queryParams = new LinkedHashMap<>();
+            if (root.has("queryParams")) {
+                queryParams = mapper.convertValue(root.get("queryParams"), Map.class);
+            }
+
+            String reasoning = root.has("reasoning") ? root.get("reasoning").asText() : "Test data generated";
+            float confidence = root.has("confidence") ? (float) root.get("confidence").asDouble() : 0.75f;
+
+            List<String> suggestions = new ArrayList<>();
+            if (root.has("suggestions") && root.get("suggestions").isArray()) {
+                root.get("suggestions").forEach(node -> suggestions.add(node.asText()));
+            }
+
+            // Calculate cost
+            double inputCost = (tokenUsage.inputTokenCount() / 1_000_000.0) * inputTokenCostPer1M;
+            double outputCost = (tokenUsage.outputTokenCount() / 1_000_000.0) * outputTokenCostPer1M;
+            double totalCost = inputCost + outputCost;
+
+            // Build tool calls summary
+            List<String> toolCallsSummary = new ArrayList<>();
+            if (toolCallCount > 0) {
+                toolCallsSummary.add(toolCallCount + " tool call" + (toolCallCount == 1 ? "" : "s") + " executed");
+            }
+
+            return new TestGenerationResponse(
+                    bodyJson,
+                    queryParams,
+                    reasoning,
+                    confidence,
+                    toolCallsSummary,
+                    tokenUsage.totalTokenCount(),
+                    totalCost,
+                    suggestions
+            );
+
+        } catch (Exception e) {
+            log.error("Failed to parse AI response as test generation JSON", e);
+            throw new SparqiException("Failed to parse AI response: " + e.getMessage() +
+                    "\nResponse was: " + aiResponseText.substring(0, Math.min(200, aiResponseText.length())), e);
+        }
+    }
+
+    /**
+     * Formats ontology elements for inclusion in the prompt.
+     */
+    private String formatOntologyElementsSummary(List<OntologyElement> elements, int limit) {
+        StringBuilder summary = new StringBuilder();
+        int count = 0;
+        for (OntologyElement element : elements) {
+            if (count >= limit) {
+                summary.append("... and ").append(elements.size() - limit).append(" more\n");
+                break;
+            }
+            summary.append("- ").append(element.getLabel() != null ? element.getLabel() : element.getUri());
+            summary.append(" (").append(element.getType()).append(")\n");
+            count++;
+        }
+        return summary.toString();
+    }
+
+    /**
+     * Truncates text for prompts.
+     */
+    private String truncateForPrompt(String text, int maxLength) {
+        if (text == null) return "";
+        if (text.length() <= maxLength) return text;
+        return text.substring(0, maxLength) + "\n... (truncated)";
     }
 }

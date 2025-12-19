@@ -29,6 +29,7 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
   datasourceStatus?: string;
   isEnabling: boolean = false;
   isDisabling: boolean = false;
+  healthCheckEnabled: boolean = true;
 
   // Usage tab data
   routeMetrics: RouteMetric[] = [];
@@ -102,6 +103,21 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     });
     this.getDatasource();
     this.loadUsageMetrics();
+    this.checkHealthCheckStatus();
+  }
+
+  // Check if health checks are globally enabled
+  private checkHealthCheckStatus(): void {
+    this.datasourceService.getHealthCheckConfig().subscribe({
+      next: (config) => {
+        this.healthCheckEnabled = config.enabled && config.available;
+      },
+      error: (err) => {
+        console.error('Failed to fetch health check configuration:', err);
+        // Default to enabled if we can't fetch the config
+        this.healthCheckEnabled = true;
+      }
+    });
   }
 
   ngAfterViewInit(): void {

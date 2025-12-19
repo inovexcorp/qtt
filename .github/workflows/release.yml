@@ -1,0 +1,309 @@
+name: Maven Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Maven Release and Tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag_created: ${{ steps.check-snapshot.outputs.is_snapshot }}
+      release_tag: ${{ steps.release-version.outputs.tag }}
+      release_version: ${{ steps.release-version.outputs.version }}
+
+    steps:
+      - name: Checkout code with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup SSH for Git operations
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.RELEASE_SSH_KEY }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Configure Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version
+        id: current-version
+        run: |
+          CURRENT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Check if version is SNAPSHOT
+        id: check-snapshot
+        run: |
+          VERSION="${{ steps.current-version.outputs.version }}"
+          if [[ "$VERSION" == *"-SNAPSHOT" ]]; then
+            echo "is_snapshot=true" >> $GITHUB_OUTPUT
+            echo "Version $VERSION is a SNAPSHOT, proceeding with release"
+          else
+            echo "is_snapshot=false" >> $GITHUB_OUTPUT
+            echo "Version $VERSION is not a SNAPSHOT, skipping release"
+          fi
+
+      - name: Generate changelog
+        if: steps.check-snapshot.outputs.is_snapshot == 'true'
+        id: changelog
+        run: |
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No previous tags found, generating changelog from first commit"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Generating changelog since tag: $LATEST_TAG"
+            CHANGELOG=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # Save changelog to file
+          echo "## Changes" > CHANGELOG.tmp.md
+          echo "" >> CHANGELOG.tmp.md
+          if [ -z "$CHANGELOG" ]; then
+            echo "- No changes since last release" >> CHANGELOG.tmp.md
+          else
+            echo "$CHANGELOG" >> CHANGELOG.tmp.md
+          fi
+
+          cat CHANGELOG.tmp.md
+          echo "changelog_file=CHANGELOG.tmp.md" >> $GITHUB_OUTPUT
+
+      - name: Maven Release Prepare and Perform
+        if: steps.check-snapshot.outputs.is_snapshot == 'true'
+        run: |
+          mvn -B release:prepare release:perform \
+            -DskipTests \
+            -Darguments="-DskipTests -Dmaven.deploy.skip=true"
+
+      - name: Get release version
+        if: steps.check-snapshot.outputs.is_snapshot == 'true'
+        id: release-version
+        run: |
+          # The release plugin creates a tag, get the latest one
+          RELEASE_TAG=$(git describe --tags --abbrev=0)
+          RELEASE_VERSION=${RELEASE_TAG#v}
+          echo "tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+          echo "version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
+          echo "Release tag: $RELEASE_TAG"
+          echo "Release version: $RELEASE_VERSION"
+
+      - name: Find release artifacts
+        if: steps.check-snapshot.outputs.is_snapshot == 'true'
+        id: artifacts
+        run: |
+          # Find the distribution tar.gz and zip files
+          DIST_TAR=$(find query-service-distribution/target -name "*.tar.gz" -type f | head -n 1)
+          DIST_ZIP=$(find query-service-distribution/target -name "*.zip" -type f | head -n 1)
+
+          echo "tar_file=$DIST_TAR" >> $GITHUB_OUTPUT
+          echo "zip_file=$DIST_ZIP" >> $GITHUB_OUTPUT
+
+          if [ -n "$DIST_TAR" ]; then
+            echo "Found tar.gz: $DIST_TAR"
+          fi
+          if [ -n "$DIST_ZIP" ]; then
+            echo "Found zip: $DIST_ZIP"
+          fi
+
+      - name: Create GitHub Release
+        if: steps.check-snapshot.outputs.is_snapshot == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="${{ steps.release-version.outputs.tag }}"
+          CHANGELOG_FILE="${{ steps.changelog.outputs.changelog_file }}"
+          TAR_FILE="${{ steps.artifacts.outputs.tar_file }}"
+          ZIP_FILE="${{ steps.artifacts.outputs.zip_file }}"
+
+          # Prepare artifact list
+          ARTIFACTS=()
+          if [ -n "$TAR_FILE" ] && [ -f "$TAR_FILE" ]; then
+            echo "Will upload: $TAR_FILE"
+            ARTIFACTS+=("$TAR_FILE")
+          fi
+          if [ -n "$ZIP_FILE" ] && [ -f "$ZIP_FILE" ]; then
+            echo "Will upload: $ZIP_FILE"
+            ARTIFACTS+=("$ZIP_FILE")
+          fi
+
+          # Create release with all artifacts in a single command
+          gh release create "$RELEASE_TAG" \
+            --title "Release $RELEASE_TAG" \
+            --notes-file "$CHANGELOG_FILE" \
+            "${ARTIFACTS[@]}"
+
+      - name: Release Summary
+        if: always()
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check-snapshot.outputs.is_snapshot }}" == "true" ]; then
+            echo "- **Status**: Release completed successfully" >> $GITHUB_STEP_SUMMARY
+            echo "- **Original Version**: ${{ steps.current-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Release Tag**: ${{ steps.release-version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Release Version**: ${{ steps.release-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "- The main branch has been updated with the next SNAPSHOT version" >> $GITHUB_STEP_SUMMARY
+            echo "- GitHub Release has been created with artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "- Docker image build will start automatically" >> $GITHUB_STEP_SUMMARY
+            echo "- View the release at: https://github.com/${{ github.repository }}/releases/tag/${{ steps.release-version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: Skipped (version is not a SNAPSHOT)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Current Version**: ${{ steps.current-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Why was this skipped?" >> $GITHUB_STEP_SUMMARY
+            echo "The release process only runs when the version ends with -SNAPSHOT." >> $GITHUB_STEP_SUMMARY
+            echo "To create a release, ensure the version in pom.xml ends with -SNAPSHOT." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  docker-build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: release
+    if: needs.release.outputs.tag_created == 'true'
+
+    steps:
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.release_tag }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${{ needs.release.outputs.release_tag }}"
+          # Remove 'v' prefix to get version number (e.g., v1.0.39 -> 1.0.39)
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build Maven project
+        run: |
+          echo "Building project version ${{ steps.version.outputs.version }}"
+          mvn clean install -DskipTests
+
+      - name: Verify Dockerfile exists
+        run: |
+          DOCKERFILE="query-service-distribution/target/assembly/Dockerfile"
+          if [ -f "$DOCKERFILE" ]; then
+            echo "Dockerfile found at: $DOCKERFILE"
+            echo "Dockerfile contents:"
+            cat "$DOCKERFILE"
+          else
+            echo "ERROR: Dockerfile not found at $DOCKERFILE"
+            exit 1
+          fi
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image with fabric8 plugin
+        run: |
+          echo "Building Docker image: docker.io/inovexis/qtt:${{ steps.version.outputs.version }}"
+          mvn -pl query-service-distribution docker:build
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag and push Docker images
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # The fabric8 plugin already built the image with both tags
+          # Now we need to push them
+          echo "Pushing version tag: docker.io/inovexis/qtt:$VERSION"
+          docker push docker.io/inovexis/qtt:$VERSION
+
+          echo "Pushing latest tag: docker.io/inovexis/qtt:latest"
+          docker push docker.io/inovexis/qtt:latest
+
+      - name: Verify pushed images
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          echo "Verifying images were pushed successfully..."
+          docker pull docker.io/inovexis/qtt:$VERSION
+          docker pull docker.io/inovexis/qtt:latest
+
+          echo "Images pulled successfully!"
+          docker images | grep inovexis/qtt
+
+      - name: Docker Build Summary
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ needs.release.outputs.release_tag }}"
+
+          echo "## Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Tag**: $TAG" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: $VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: docker.io" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: inovexis/qtt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Published Tags" >> $GITHUB_STEP_SUMMARY
+          echo "- \`docker.io/inovexis/qtt:$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`docker.io/inovexis/qtt:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pull Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# Pull specific version" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull docker.io/inovexis/qtt:$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Pull latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull docker.io/inovexis/qtt:latest" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Run Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d --name qtt -p 8443:8443 -p 8888:8888 docker.io/inovexis/qtt:$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
