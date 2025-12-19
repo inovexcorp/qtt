@@ -359,7 +359,8 @@ class SimpleHealthCheckerTest {
             simpleHealthChecker.checkAllDatasources();
 
             // Then
-            verify(dataSourceService, times(3)).getDataSource(anyString());
+            // Called twice per datasource: once in checkDatasourceHealth(), once in checkAllDatasources()
+            verify(dataSourceService, times(6)).getDataSource(anyString());
             verify(datasourceHealthService, times(3)).updateDatasourceHealth(
                     anyString(),
                     eq(DatasourceStatus.UP),
