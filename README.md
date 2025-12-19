@@ -945,6 +945,16 @@ Configuration for Redis-backed query result caching to improve performance and r
 
 *Required if `REDIS_ENABLED=true`
 
+#### Health Check Configuration
+
+Configuration for automatic datasource health checks and auto-stopping unhealthy routes.
+
+| Variable                          | Default           | Description                                      | Required |
+|-----------------------------------|-------------------|--------------------------------------------------|----------|
+| `HEALTH_CHECK_ENABLED`            | `true`            | Enable/disable health checks globally            | Optional |
+| `HEALTH_CHECK_INTERVAL_CRON`      | `0 0/2 * * * ?`   | Cron expression for health check interval        | Optional |
+| `HEALTH_CHECK_FAILURE_THRESHOLD`  | `-1`              | Consecutive failures before auto-stopping routes | Optional |
+
 **Important Notes:**
 
 - **Redis is Optional**: Routes work without Redis using `NoOpCacheService` as a fallback. Enable only if you have Redis infrastructure.
@@ -1014,11 +1024,15 @@ minutesToLive=30
 
 **`com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.cfg`** - Schedule for datasource health checks
 ```properties
-# Check datasource health every 60 seconds
-scheduler.expression=0/60 * * * * ?
+# Enable/disable health checks globally
+enabled=$[env:HEALTH_CHECK_ENABLED;default=true]
+
+# Cron expression for health check interval (default: every 2 hours)
+scheduler.expression=$[env:HEALTH_CHECK_INTERVAL_CRON;default=0 0/2 * * * ?]
 scheduler.concurrent=false
+
 # Auto-stop routes after N consecutive failures (-1 = disabled)
-consecutiveFailureThreshold=-1
+consecutiveFailureThreshold=$[env:HEALTH_CHECK_FAILURE_THRESHOLD;default=-1]
 ```
 
 **`com.inovexcorp.queryservice.scheduler.CleanHealthRecords.cfg`** - Schedule for health record cleanup
@@ -3230,8 +3244,10 @@ curl "http://localhost:8080/queryrest/api/routes/cache/info" -k
 #### DataSource Health Checks
 
 **Automatic Checks:**
-- Default interval: Every 60 seconds
+- Default interval: Every 2 hours (configurable via `HEALTH_CHECK_INTERVAL_CRON`)
+- Enabled by default (controllable via `HEALTH_CHECK_ENABLED`)
 - Configured in: `com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.cfg`
+- Auto-stop routes after N consecutive failures (configured via `HEALTH_CHECK_FAILURE_THRESHOLD`)
 
 **Health States:**
 - **UP**: Connection successful
@@ -4975,6 +4991,9 @@ Cons:
 | `CACHE_FAIL_OPEN` | `true` | Boolean | Continue on cache errors (vs fail closed) | Cache |
 | `CACHE_STATS_ENABLED` | `true` | Boolean | Track cache hit/miss statistics | Cache |
 | `CACHE_STATS_TTL` | `5` | Integer | Cache statistics refresh interval (seconds) | Cache |
+| `HEALTH_CHECK_ENABLED` | `true` | Boolean | Enable/disable health checks globally | Health Check |
+| `HEALTH_CHECK_INTERVAL_CRON` | `0 0/2 * * * ?` | String | Cron expression for health check interval | Health Check |
+| `HEALTH_CHECK_FAILURE_THRESHOLD` | `-1` | Integer | Consecutive failures before auto-stopping routes | Health Check |
 | `KEYSTORE` | None | String | Custom SSL keystore path | Security |
 | `PASSWORD` | None | String | SSL keystore password | Security |
 
@@ -4984,7 +5003,7 @@ Cons:
 |-----------|-------------------|-------------|--------------|
 | Query Metrics | `0 0/1 * * * ?` | Every 1 minute | Yes |
 | Clean Metrics | `0 0/1 * * * ?` | Every 1 minute | Yes |
-| Datasource Health Check | `0/60 * * * * ?` | Every 60 seconds | Yes |
+| Datasource Health Check | `0 0/2 * * * ?` | Every 2 hours (configurable) | Yes |
 | Clean Health Records | `0 0 0 * * ?` | Daily at midnight | Yes |
 
 **Cron Format:** `second minute hour day month weekday`

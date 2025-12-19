@@ -1,5 +1,14 @@
 <ng-container *ngIf="router.isActive('/datasources', true)">
   <div class="container-fluid">
+    <!-- Global Health Checks Disabled Banner -->
+    <div class="global-health-disabled-banner" *ngIf="!healthCheckEnabled">
+      <mat-icon>warning</mat-icon>
+      <div class="banner-content">
+        <strong>Automated health checks are disabled.</strong>
+        <span>Datasource health statuses are not being monitored automatically.</span>
+      </div>
+    </div>
+
     <mat-toolbar class="datasource-toolbar">
       <h2>QtT DataSources</h2>
       <span class="flexExpand"></span>

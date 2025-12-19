@@ -7,6 +7,42 @@
   padding-top: 1.5rem;
 }
 
+// Health Checks Disabled Info Banner
+.health-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 1rem 1.5rem;
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  border-radius: 4px;
+
+  mat-icon {
+    color: #2196f3;
+    font-size: 24px;
+    height: 24px;
+    width: 24px;
+  }
+
+  .banner-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+
+    strong {
+      color: #1976d2;
+      font-size: 0.95rem;
+    }
+
+    span {
+      color: #555;
+      font-size: 0.875rem;
+    }
+  }
+}
+
 .add-datasource-form-field {
   margin-left: 1.5rem;
   width: 95%;
