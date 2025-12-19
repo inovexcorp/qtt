@@ -63,4 +63,9 @@ export class DatasourceService {
   enableDatasource(dataSourceId: string): Observable<any> {
     return this.http.put(`${this.datasourcesUrl}${dataSourceId}/enable`, {});
   }
+
+  /** GET health check configuration (enabled/disabled status) */
+  getHealthCheckConfig(): Observable<{enabled: boolean, available: boolean}> {
+    return this.http.get<{enabled: boolean, available: boolean}>(`${this.datasourcesUrl}health/config`);
+  }
 }

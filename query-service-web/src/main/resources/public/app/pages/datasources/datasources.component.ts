@@ -16,6 +16,7 @@ import { filter } from 'rxjs';
 export class DatasourcesComponent implements OnInit {
 
   datasources: Datasources[] = [];
+  healthCheckEnabled: boolean = true;
 
   constructor(
     private matIconRegistry: MatIconRegistry,
@@ -37,6 +38,19 @@ export class DatasourcesComponent implements OnInit {
       }
     });
     this.getDatasources();
+    this.checkHealthCheckStatus();
+  }
+
+  private checkHealthCheckStatus(): void {
+    this.datasourceService.getHealthCheckConfig().subscribe({
+      next: (config) => {
+        this.healthCheckEnabled = config.enabled && config.available;
+      },
+      error: (err) => {
+        console.error('Failed to fetch health check configuration:', err);
+        this.healthCheckEnabled = true;
+      }
+    });
   }
 
   getDatasources(): void {
@@ -76,6 +90,9 @@ export class DatasourcesComponent implements OnInit {
     }
     if (datasource.consecutiveFailures && datasource.consecutiveFailures > 0) {
       tooltip += `\nConsecutive failures: ${datasource.consecutiveFailures}`;
+    }
+    if (!this.healthCheckEnabled) {
+      tooltip += `\n\nNote: Automated health checks are disabled`;
     }
     return tooltip;
   }

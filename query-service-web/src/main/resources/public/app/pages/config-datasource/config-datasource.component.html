@@ -11,6 +11,15 @@
 
       <!-- Health Status Section -->
       <div class="health-status-section">
+        <!-- Health Checks Disabled Banner -->
+        <div class="health-disabled-banner" *ngIf="!healthCheckEnabled">
+          <mat-icon>info</mat-icon>
+          <div class="banner-content">
+            <strong>Automated health checks are globally disabled.</strong>
+            <span>Health status may be stale. Use the "Test" button for manual verification.</span>
+          </div>
+        </div>
+
         <div class="status-display">
           <span class="status-label">Health Status:</span>
           <div class="status-badge-large"
@@ -40,7 +49,8 @@
 
           <button mat-raised-button
                   color="accent"
-                  [disabled]="datasourceStatus === 'DISABLED' || datasourceStatus === 'CHECKING'"
+                  [disabled]="datasourceStatus === 'DISABLED' || datasourceStatus === 'CHECKING' || !healthCheckEnabled"
+                  [matTooltip]="!healthCheckEnabled ? 'Automated health checks are globally disabled' : ''"
                   (click)="triggerHealthCheck()">
             <mat-icon>refresh</mat-icon>
             Check Now
