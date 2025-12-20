@@ -1,6 +1,7 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
 import com.inovexcorp.queryservice.persistence.Datasources;
+import com.inovexcorp.queryservice.persistence.util.PasswordEncryptionService;
 import org.apache.aries.jpa.template.EmConsumer;
 import org.apache.aries.jpa.template.EmFunction;
 import org.apache.aries.jpa.template.JpaTemplate;
@@ -26,13 +27,14 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for DataSourceServiceImpl.
- * Tests CRUD operations, URL generation, and JPA interactions using mocked JpaTemplate.
+ * Tests CRUD operations, URL generation, and JPA interactions using mocked JpaTemplate and PasswordEncryptionService.
  */
 @RunWith(MockitoJUnitRunner.class)
 public class DataSourceServiceImplTest {
@@ -43,6 +45,9 @@ public class DataSourceServiceImplTest {
     @Mock
     private EntityManager entityManager;
 
+    @Mock
+    private PasswordEncryptionService encryptionService;
+
     @InjectMocks
     private DataSourceServiceImpl dataSourceService;
 
@@ -52,6 +57,11 @@ public class DataSourceServiceImplTest {
     public void setUp() {
         testDatasource = new Datasources(
                 "test-datasource", "30", "10000", "testuser", "testpass", "http://localhost:8080");
+
+        // Setup mock encryption service to pass-through (no encryption) for testing
+        lenient().when(encryptionService.encrypt(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(encryptionService.decrypt(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(encryptionService.isEncryptionEnabled()).thenReturn(false);
     }
 
     @Test

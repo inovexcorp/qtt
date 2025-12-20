@@ -133,7 +133,7 @@ Stores Anzo backend connection configuration used to generate `anzo://` Camel co
 | `timeOutSeconds`       | String  | -              | Query timeout in seconds          |
 | `maxQueryHeaderLength` | String  | -              | Max SPARQL query size for headers |
 | `username`             | String  | -              | Anzo username (stored plaintext)  |
-| `password`             | String  | -              | Anzo password (stored plaintext)  |
+| `password`             | String  | -              | Anzo password (encrypted with AES-256-GCM if encryption enabled) |
 | `url`                  | String  | -              | Anzo server URL                   |
 | `validateCertificate`  | boolean | Default: false | Enable SSL cert validation        |
 
@@ -173,7 +173,13 @@ String camelUrl = ds.generateCamelUrl(
 //         &layerUris=http://layer1,http://layer2
 ```
 
-**Security Note**: Credentials are stored in plaintext in the database but Base64-encoded when generating Camel URLs. Use database encryption for production deployments.
+**Security Note**:
+- **Passwords are encrypted at rest** using AES-256-GCM when environment variables are configured
+- Encryption uses PBKDF2 key derivation with configurable secret and salt
+- Passwords are automatically encrypted on save and decrypted on retrieval
+- If encryption is not configured, passwords are stored in plaintext (not recommended for production)
+- Passwords are Base64-encoded when generating Camel URLs for HTTP Basic Authentication
+- See [Password Encryption Configuration](#password-encryption-configuration) for setup instructions
 
 ---
 
@@ -1003,6 +1009,163 @@ karaf@root()> service:list | grep -E "(RouteService|DataSourceService|LayerServi
 ---
 
 ## Configuration
+
+### Password Encryption Configuration
+
+The persistence module supports **AES-256-GCM encryption** for datasource passwords to prevent credential leakage if the database is compromised.
+
+#### How It Works
+
+1. **Encryption Algorithm**: AES-256-GCM (Galois/Counter Mode) with authentication
+2. **Key Derivation**: PBKDF2-HMAC-SHA256 with 65,536 iterations
+3. **Secret & Salt**: Configured via environment variables
+4. **Storage**: Encrypted passwords stored as Base64 strings with prepended initialization vector (IV)
+5. **Automatic Processing**:
+   - Passwords encrypted automatically when saving datasources
+   - Passwords decrypted automatically when retrieving datasources
+   - No application code changes required
+
+#### Environment Variables
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `PASSWORD_ENCRYPTION_KEY` | Yes | Base secret key for encryption (32+ characters recommended) | `my-super-secret-encryption-key-2024` |
+| `PASSWORD_ENCRYPTION_SALT` | Yes | Salt for key derivation (16+ characters recommended) | `random-salt-value-xyz` |
+
+**⚠️ Security Requirements**:
+- Both variables **must** be set to enable encryption
+- Use strong, random values (recommended: 32+ characters for key, 16+ for salt)
+- **Never commit these values to version control**
+- Store securely using secrets management (Kubernetes secrets, AWS Secrets Manager, etc.)
+- If either variable is missing, encryption is **disabled** and passwords are stored in plaintext
+
+#### Setup Instructions
+
+**Development**:
+```bash
+# Set environment variables before starting Karaf
+export PASSWORD_ENCRYPTION_KEY="my-dev-encryption-key-change-in-production"
+export PASSWORD_ENCRYPTION_SALT="my-dev-salt-change-in-production"
+
+# Start Karaf
+./query-service-distribution/target/apache-karaf-*/bin/karaf
+```
+
+**Production** (Docker/Kubernetes):
+```yaml
+# docker-compose.yml
+services:
+  qtt:
+    image: qtt:latest
+    environment:
+      - PASSWORD_ENCRYPTION_KEY=${PASSWORD_ENCRYPTION_KEY}
+      - PASSWORD_ENCRYPTION_SALT=${PASSWORD_ENCRYPTION_SALT}
+    env_file:
+      - .env.secrets  # Never commit this file!
+```
+
+```yaml
+# Kubernetes secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: qtt-encryption-secrets
+type: Opaque
+stringData:
+  PASSWORD_ENCRYPTION_KEY: "production-key-from-secrets-manager"
+  PASSWORD_ENCRYPTION_SALT: "production-salt-from-secrets-manager"
+---
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    spec:
+      containers:
+      - name: qtt
+        envFrom:
+        - secretRef:
+            name: qtt-encryption-secrets
+```
+
+**Systemd Service**:
+```ini
+# /etc/systemd/system/qtt.service
+[Service]
+Environment="PASSWORD_ENCRYPTION_KEY=production-key"
+Environment="PASSWORD_ENCRYPTION_SALT=production-salt"
+ExecStart=/opt/qtt/bin/karaf server
+```
+
+#### Verification
+
+Check the logs on startup to confirm encryption status:
+
+```bash
+# Encryption ENABLED (both env vars set)
+INFO  DataSourceService activated with password encryption ENABLED
+
+# Encryption DISABLED (env vars missing)
+WARN  Password encryption is DISABLED. Environment variables PASSWORD_ENCRYPTION_KEY
+      and/or PASSWORD_ENCRYPTION_SALT are not set. Passwords will be stored in PLAIN TEXT.
+```
+
+#### Migration from Plain Text to Encrypted Passwords
+
+If you have existing datasources with plain text passwords:
+
+1. **Set environment variables** with encryption key and salt
+2. **Restart the application** - encryption service activates on startup
+3. **Re-save each datasource** - this will encrypt the passwords:
+   ```bash
+   # Via REST API
+   PUT /queryrest/api/datasources/{id}
+
+   # Or via Karaf console
+   karaf@root()> datasource:update <datasourceId>
+   ```
+4. **Verify encryption** - check database to confirm passwords are now Base64-encoded encrypted values
+
+**Backward Compatibility**: The decryption service gracefully handles plain text passwords during migration. If decryption fails (e.g., value is plain text), it returns the value as-is and logs a warning.
+
+#### Security Best Practices
+
+✅ **DO**:
+- Use strong random values for `PASSWORD_ENCRYPTION_KEY` (32+ characters)
+- Use different keys for each environment (dev, staging, production)
+- Rotate encryption keys periodically (requires re-encrypting all passwords)
+- Store encryption keys in secure secrets management systems
+- Enable encryption in **all production deployments**
+- Use HTTPS/TLS for all network communication
+
+❌ **DON'T**:
+- Hardcode encryption keys in configuration files
+- Commit `.env` files with secrets to version control
+- Reuse the same key/salt across environments
+- Disable encryption in production
+- Share encryption keys via insecure channels (email, Slack, etc.)
+
+#### Implementation Details
+
+**Encryption Service**: `com.inovexcorp.queryservice.persistence.util.PasswordEncryptionService`
+
+**Service Integration**: `DataSourceServiceImpl` automatically encrypts passwords in:
+- `add(Datasources datasources)` - encrypts before saving
+- `update(Datasources datasources)` - encrypts before updating
+
+**Service Integration**: `DataSourceServiceImpl` automatically decrypts passwords in:
+- `getDataSource(String dataSourceId)` - decrypts after loading
+- `getAll()` - decrypts all passwords in result list
+- `getUnhealthyDatasources()` - decrypts passwords in result list
+- `generateCamelUrl(String dataSourceId)` - decrypts before generating URL
+
+**Algorithm Details**:
+- **Cipher**: AES/GCM/NoPadding
+- **Key Size**: 256 bits
+- **GCM Tag Length**: 128 bits
+- **Initialization Vector (IV)**: 12 bytes (randomly generated per encryption)
+- **Key Derivation**: PBKDF2WithHmacSHA256, 65,536 iterations
+
+---
 
 ### JPA Configuration
 

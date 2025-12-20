@@ -3,9 +3,11 @@ package com.inovexcorp.queryservice.persistence.impl;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
 import com.inovexcorp.queryservice.persistence.Datasources;
+import com.inovexcorp.queryservice.persistence.util.PasswordEncryptionService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.aries.jpa.template.JpaTemplate;
 import org.apache.aries.jpa.template.TransactionType;
+import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 
@@ -21,6 +23,15 @@ public class DataSourceServiceImpl implements DataSourceService {
     @Reference(target = "(osgi.unit.name=qtt-pu)")
     private JpaTemplate jpa;
 
+    @Reference
+    private PasswordEncryptionService encryptionService;
+
+    @Activate
+    public void activate() {
+        log.info("DataSourceService activated with password encryption {}",
+                encryptionService.isEncryptionEnabled() ? "ENABLED" : "DISABLED");
+    }
+
     /**
      * Method to add a data source to the DataSource DB.
      *
@@ -29,6 +40,11 @@ public class DataSourceServiceImpl implements DataSourceService {
     @Override
     public void add(Datasources datasources) {
         jpa.tx(TransactionType.Required, em -> {
+            // Encrypt password before saving
+            if (datasources.getPassword() != null && !datasources.getPassword().isEmpty()) {
+                String encryptedPassword = encryptionService.encrypt(datasources.getPassword());
+                datasources.setPassword(encryptedPassword);
+            }
             em.merge(datasources);
             em.flush();
         });
@@ -41,7 +57,13 @@ public class DataSourceServiceImpl implements DataSourceService {
             ds.setTimeOutSeconds(datasources.getTimeOutSeconds());
             ds.setMaxQueryHeaderLength(datasources.getMaxQueryHeaderLength());
             ds.setUsername(datasources.getUsername());
-            ds.setPassword(datasources.getPassword());
+
+            // Encrypt password before saving
+            if (datasources.getPassword() != null && !datasources.getPassword().isEmpty()) {
+                String encryptedPassword = encryptionService.encrypt(datasources.getPassword());
+                ds.setPassword(encryptedPassword);
+            }
+
             ds.setUrl(datasources.getUrl());
             ds.setValidateCertificate(datasources.isValidateCertificate());
             em.merge(ds);
@@ -59,8 +81,12 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public List<Datasources> getAll() {
-        return jpa.txExpr(TransactionType.Supports, em ->
+        List<Datasources> datasources = jpa.txExpr(TransactionType.Supports, em ->
                 em.createQuery("select d from Datasources d", Datasources.class).getResultList());
+
+        // Decrypt passwords for each datasource
+        datasources.forEach(this::decryptPassword);
+        return datasources;
     }
 
     @Override
@@ -120,14 +146,26 @@ public class DataSourceServiceImpl implements DataSourceService {
     public String generateCamelUrl(String dataSourceId) {
         AtomicReference<Datasources> datasource = new AtomicReference<>(new Datasources());
         jpa.tx(TransactionType.Supports, em -> datasource.set(em.find(Datasources.class, dataSourceId)));
-        return datasource.get().generateCamelUrl("http://graphmart", "http://layer1,http://layer2");
+
+        // Decrypt password before generating URL
+        Datasources ds = datasource.get();
+        if (ds != null) {
+            decryptPassword(ds);
+        }
+        return ds.generateCamelUrl("http://graphmart", "http://layer1,http://layer2");
     }
 
     @Override
     public Datasources getDataSource(String dataSourceId) {
         AtomicReference<Datasources> datasource = new AtomicReference<>(new Datasources());
         jpa.tx(TransactionType.Supports, em -> datasource.set(em.find(Datasources.class, dataSourceId)));
-        return datasource.get();
+
+        // Decrypt password before returning
+        Datasources ds = datasource.get();
+        if (ds != null) {
+            decryptPassword(ds);
+        }
+        return ds;
     }
 
 
@@ -163,9 +201,23 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public List<Datasources> getUnhealthyDatasources() {
-        return jpa.txExpr(TransactionType.Supports, em ->
+        List<Datasources> datasources = jpa.txExpr(TransactionType.Supports, em ->
                 em.createQuery("select d from Datasources d where d.status = :status", Datasources.class)
                     .setParameter("status", DatasourceStatus.DOWN)
                     .getResultList());
+
+        // Decrypt passwords for each datasource
+        datasources.forEach(this::decryptPassword);
+        return datasources;
+    }
+
+    /**
+     * Helper method to decrypt password in a Datasources object.
+     */
+    private void decryptPassword(Datasources datasource) {
+        if (datasource != null && datasource.getPassword() != null && !datasource.getPassword().isEmpty()) {
+            String decryptedPassword = encryptionService.decrypt(datasource.getPassword());
+            datasource.setPassword(decryptedPassword);
+        }
     }
 }
