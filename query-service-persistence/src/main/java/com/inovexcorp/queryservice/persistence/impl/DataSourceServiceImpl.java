@@ -23,11 +23,11 @@ public class DataSourceServiceImpl implements DataSourceService {
     @Reference(target = "(osgi.unit.name=qtt-pu)")
     private JpaTemplate jpa;
 
+    @Reference
     private PasswordEncryptionService encryptionService;
 
     @Activate
     public void activate() {
-        this.encryptionService = new PasswordEncryptionService();
         log.info("DataSourceService activated with password encryption {}",
                 encryptionService.isEncryptionEnabled() ? "ENABLED" : "DISABLED");
     }

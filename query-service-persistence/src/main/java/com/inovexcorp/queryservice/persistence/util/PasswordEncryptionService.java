@@ -1,6 +1,11 @@
 package com.inovexcorp.queryservice.persistence.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.osgi.service.component.annotations.Activate;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.ConfigurationPolicy;
+import org.osgi.service.component.annotations.Modified;
+import org.osgi.service.metatype.annotations.Designate;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
@@ -17,47 +22,75 @@ import java.security.spec.KeySpec;
 import java.util.Base64;
 
 /**
- * Service for encrypting and decrypting passwords using AES-256-GCM.
- * Uses PBKDF2 for key derivation from a secret and salt configured via environment variables.
+ * OSGi service for encrypting and decrypting passwords using AES-256-GCM.
+ * Uses PBKDF2 for key derivation from a secret and salt configured via cfg file.
  *
- * Environment Variables:
- * - PASSWORD_ENCRYPTION_KEY: The base secret key (recommended: 32+ characters)
- * - PASSWORD_ENCRYPTION_SALT: The salt for key derivation (recommended: 16+ characters)
+ * Configuration is loaded from: com.inovexcorp.queryservice.persistence.encryption.cfg
  *
- * If environment variables are not set, encryption is disabled and passwords are stored in plain text.
+ * If encryption is disabled, passwords are stored in plain text.
  */
 @Slf4j
+@Component(
+        service = PasswordEncryptionService.class,
+        immediate = true,
+        configurationPolicy = ConfigurationPolicy.REQUIRE,
+        configurationPid = "com.inovexcorp.queryservice.persistence.encryption"
+)
+@Designate(ocd = PasswordEncryptionConfig.class)
 public class PasswordEncryptionService {
 
-    private static final String ALGORITHM = "AES/GCM/NoPadding";
-    private static final int GCM_TAG_LENGTH = 128; // bits
-    private static final int GCM_IV_LENGTH = 12; // bytes
-    private static final int PBKDF2_ITERATIONS = 65536;
-    private static final int KEY_LENGTH = 256; // bits
+    private String algorithm;
+    private int gcmTagLength;
+    private int gcmIvLength;
+    private int pbkdf2Iterations;
+    private int keyLength;
+    private boolean failOnError;
 
-    private static final String ENV_ENCRYPTION_KEY = "PASSWORD_ENCRYPTION_KEY";
-    private static final String ENV_ENCRYPTION_SALT = "PASSWORD_ENCRYPTION_SALT";
+    private SecretKey secretKey;
+    private boolean encryptionEnabled;
+    private SecureRandom secureRandom;
 
-    private final SecretKey secretKey;
-    private final boolean encryptionEnabled;
-    private final SecureRandom secureRandom;
+    @Activate
+    public void activate(PasswordEncryptionConfig config) {
+        configure(config);
+        log.info("PasswordEncryptionService activated with encryption {}",
+                encryptionEnabled ? "ENABLED" : "DISABLED");
+    }
 
-    public PasswordEncryptionService() {
+    @Modified
+    public void modified(PasswordEncryptionConfig config) {
+        configure(config);
+        log.info("PasswordEncryptionService configuration updated with encryption {}",
+                encryptionEnabled ? "ENABLED" : "DISABLED");
+    }
+
+    private void configure(PasswordEncryptionConfig config) {
         this.secureRandom = new SecureRandom();
-        String encryptionKey = System.getenv(ENV_ENCRYPTION_KEY);
-        String encryptionSalt = System.getenv(ENV_ENCRYPTION_SALT);
+        this.algorithm = config.algorithm();
+        this.gcmTagLength = config.gcm_tag_length();
+        this.gcmIvLength = config.gcm_iv_length();
+        this.pbkdf2Iterations = config.pbkdf2_iterations();
+        this.keyLength = config.key_length();
+        this.failOnError = config.fail_on_error();
+        this.encryptionEnabled = config.encryption_enabled();
 
-        if (encryptionKey == null || encryptionKey.isEmpty() ||
-            encryptionSalt == null || encryptionSalt.isEmpty()) {
-            log.warn("Password encryption is DISABLED. Environment variables {} and/or {} are not set. " +
-                    "Passwords will be stored in PLAIN TEXT.", ENV_ENCRYPTION_KEY, ENV_ENCRYPTION_SALT);
+        String encryptionKey = config.encryption_key();
+        String encryptionSalt = config.encryption_salt();
+
+        if (!encryptionEnabled) {
+            log.warn("Password encryption is DISABLED via configuration. " +
+                    "Passwords will be stored in PLAIN TEXT.");
+            this.secretKey = null;
+        } else if (encryptionKey == null || encryptionKey.isEmpty() ||
+                   encryptionSalt == null || encryptionSalt.isEmpty()) {
+            log.error("Password encryption is ENABLED but encryption_key and/or encryption_salt are not set. " +
+                    "This is a configuration error. Disabling encryption.");
             this.secretKey = null;
             this.encryptionEnabled = false;
         } else {
             try {
                 this.secretKey = deriveKey(encryptionKey, encryptionSalt);
-                this.encryptionEnabled = true;
-                log.info("Password encryption is ENABLED using AES-256-GCM");
+                log.info("Password encryption is ENABLED using {}", algorithm);
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to initialize password encryption service", e);
             }
@@ -72,8 +105,8 @@ public class PasswordEncryptionService {
         KeySpec spec = new PBEKeySpec(
             password.toCharArray(),
             salt.getBytes(StandardCharsets.UTF_8),
-            PBKDF2_ITERATIONS,
-            KEY_LENGTH
+            pbkdf2Iterations,
+            keyLength
         );
         SecretKey tmp = factory.generateSecret(spec);
         return new SecretKeySpec(tmp.getEncoded(), "AES");
@@ -93,12 +126,12 @@ public class PasswordEncryptionService {
 
         try {
             // Generate random IV
-            byte[] iv = new byte[GCM_IV_LENGTH];
+            byte[] iv = new byte[gcmIvLength];
             secureRandom.nextBytes(iv);
 
             // Initialize cipher
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
-            GCMParameterSpec parameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
+            Cipher cipher = Cipher.getInstance(algorithm);
+            GCMParameterSpec parameterSpec = new GCMParameterSpec(gcmTagLength, iv);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec);
 
             // Encrypt
@@ -113,7 +146,10 @@ public class PasswordEncryptionService {
             return Base64.getEncoder().encodeToString(byteBuffer.array());
         } catch (Exception e) {
             log.error("Failed to encrypt password", e);
-            throw new RuntimeException("Password encryption failed", e);
+            if (failOnError) {
+                throw new RuntimeException("Password encryption failed", e);
+            }
+            return plainPassword;
         }
     }
 
@@ -123,7 +159,7 @@ public class PasswordEncryptionService {
      *
      * @param encryptedPassword The Base64-encoded encrypted password
      * @return The decrypted password
-     * @throws RuntimeException if decryption fails
+     * @throws RuntimeException if decryption fails and failOnError is true
      */
     public String decrypt(String encryptedPassword) {
         if (!encryptionEnabled || encryptedPassword == null || encryptedPassword.isEmpty()) {
@@ -136,14 +172,14 @@ public class PasswordEncryptionService {
 
             // Extract IV and ciphertext
             ByteBuffer byteBuffer = ByteBuffer.wrap(decodedBytes);
-            byte[] iv = new byte[GCM_IV_LENGTH];
+            byte[] iv = new byte[gcmIvLength];
             byteBuffer.get(iv);
             byte[] cipherText = new byte[byteBuffer.remaining()];
             byteBuffer.get(cipherText);
 
             // Initialize cipher
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
-            GCMParameterSpec parameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
+            Cipher cipher = Cipher.getInstance(algorithm);
+            GCMParameterSpec parameterSpec = new GCMParameterSpec(gcmTagLength, iv);
             cipher.init(Cipher.DECRYPT_MODE, secretKey, parameterSpec);
 
             // Decrypt
@@ -153,6 +189,9 @@ public class PasswordEncryptionService {
             // If decryption fails, the value might be plain text (backward compatibility)
             log.warn("Failed to decrypt password - might be plain text. Consider re-saving this datasource. Error: {}",
                     e.getMessage());
+            if (failOnError) {
+                throw new RuntimeException("Password decryption failed", e);
+            }
             return encryptedPassword;
         }
     }

@@ -955,6 +955,37 @@ Configuration for automatic datasource health checks and auto-stopping unhealthy
 | `HEALTH_CHECK_INTERVAL_CRON`      | `0 0/2 * * * ?`   | Cron expression for health check interval        | Optional |
 | `HEALTH_CHECK_FAILURE_THRESHOLD`  | `-1`              | Consecutive failures before auto-stopping routes | Optional |
 
+#### Password Encryption Configuration
+
+Configuration for AES-256-GCM encryption of datasource passwords stored in the database.
+
+| Variable                          | Default                | Description                                      | Required     |
+|-----------------------------------|------------------------|--------------------------------------------------|--------------|
+| `PASSWORD_ENCRYPTION_ENABLED`     | `false`                | Enable/disable password encryption globally      | Optional     |
+| `PASSWORD_ENCRYPTION_KEY`         | (empty)                | Base encryption key (32+ characters recommended) | Conditional* |
+| `PASSWORD_ENCRYPTION_SALT`        | (empty)                | Salt for key derivation (16+ characters)         | Conditional* |
+| `ENCRYPTION_PBKDF2_ITERATIONS`    | `65536`                | PBKDF2 iteration count for key derivation        | Optional     |
+| `ENCRYPTION_ALGORITHM`            | `AES/GCM/NoPadding`    | Cipher algorithm specification                   | Optional     |
+| `ENCRYPTION_KEY_LENGTH`           | `256`                  | Key length in bits (128, 192, or 256)            | Optional     |
+| `ENCRYPTION_GCM_TAG_LENGTH`       | `128`                  | GCM authentication tag length in bits            | Optional     |
+| `ENCRYPTION_GCM_IV_LENGTH`        | `12`                   | GCM IV length in bytes                           | Optional     |
+| `ENCRYPTION_FAIL_ON_ERROR`        | `false`                | Fail operations on encryption/decryption errors  | Optional     |
+
+*Required if `PASSWORD_ENCRYPTION_ENABLED=true`
+
+**Security Recommendations:**
+
+- **Generate Strong Keys**: Use cryptographically secure random data for key and salt:
+  ```bash
+  export PASSWORD_ENCRYPTION_KEY=$(openssl rand -base64 32)
+  export PASSWORD_ENCRYPTION_SALT=$(openssl rand -base64 16)
+  ```
+- **Environment Variables Only**: Never commit encryption keys to version control. Always use environment variables or secrets management.
+- **Key Rotation**: Periodically rotate encryption keys. Note that this requires re-encrypting all stored passwords.
+- **Backward Compatibility**: The decryption function gracefully handles plaintext passwords for migration scenarios.
+- **Fail-Open Mode**: Default behavior (fail_on_error=false) ensures availability. Encryption errors are logged but don't break datasource operations.
+- **Advanced Parameters**: Only modify PBKDF2 iterations, algorithm, or key lengths if you have specific security requirements. Changing these values makes existing encrypted passwords unreadable.
+
 **Important Notes:**
 
 - **Redis is Optional**: Routes work without Redis using `NoOpCacheService` as a fallback. Enable only if you have Redis infrastructure.
@@ -1133,6 +1164,89 @@ cache.statsEnabled=$[env:CACHE_STATS_ENABLED;default=true]
 # Cache statistics TTL in seconds (prevents Redis stampedes on stats endpoint)
 cache.statsTtlSeconds=$[env:CACHE_STATS_TTL;default=5]
 ```
+
+#### Password Encryption Configuration
+
+Configuration for AES-256-GCM encryption of datasource passwords stored in the database. This OSGi service encrypts passwords before storage and decrypts them when datasources are accessed.
+
+**`com.inovexcorp.queryservice.persistence.encryption.cfg`**
+```properties
+# Enable/Disable Password Encryption
+# If disabled, passwords are stored in PLAIN TEXT in the database.
+# RECOMMENDATION: Enable this in production environments with proper key management.
+encryption.enabled=$[env:PASSWORD_ENCRYPTION_ENABLED;default=false]
+
+# Encryption Key and Salt (REQUIRED if encryption is enabled)
+# These values are used for PBKDF2 key derivation.
+#
+# SECURITY RECOMMENDATIONS:
+# - Use environment variables in production (PASSWORD_ENCRYPTION_KEY, PASSWORD_ENCRYPTION_SALT)
+# - Key should be at least 32 characters of random data
+# - Salt should be at least 16 characters of random data
+# - Never commit real keys to version control
+# - Rotate keys periodically (requires re-encrypting all passwords)
+#
+# Example generation (Linux/Mac):
+#   export PASSWORD_ENCRYPTION_KEY=$(openssl rand -base64 32)
+#   export PASSWORD_ENCRYPTION_SALT=$(openssl rand -base64 16)
+encryption.key=$[env:PASSWORD_ENCRYPTION_KEY;default=]
+encryption.salt=$[env:PASSWORD_ENCRYPTION_SALT;default=]
+
+# Advanced Encryption Parameters
+# WARNING: Only modify these if you understand the cryptographic implications.
+# Changing these values will make existing encrypted passwords unreadable.
+
+# PBKDF2 iteration count for key derivation
+# Higher values increase security but decrease performance
+# Current OWASP recommendation: 600,000+ iterations for PBKDF2-HMAC-SHA256
+# Default: 65536 (backward compatible with existing deployments)
+pbkdf2.iterations=$[env:ENCRYPTION_PBKDF2_ITERATIONS;default=65536]
+
+# Cipher algorithm specification
+# Must be a valid Java Cipher transformation
+# Default: AES/GCM/NoPadding (recommended for authenticated encryption)
+algorithm=$[env:ENCRYPTION_ALGORITHM;default=AES/GCM/NoPadding]
+
+# AES key length in bits
+# Valid values: 128, 192, 256
+# Default: 256 (maximum security, requires unlimited strength JCE)
+key.length=$[env:ENCRYPTION_KEY_LENGTH;default=256]
+
+# GCM authentication tag length in bits
+# Valid values: 96, 104, 112, 120, 128
+# Default: 128 (recommended)
+gcm.tag.length=$[env:ENCRYPTION_GCM_TAG_LENGTH;default=128]
+
+# GCM initialization vector (IV) length in bytes
+# Must be 12 bytes for optimal GCM performance
+# Default: 12 (NIST recommendation)
+gcm.iv.length=$[env:ENCRYPTION_GCM_IV_LENGTH;default=12]
+
+# Error Handling Behavior
+# If true, encryption/decryption errors will cause operations to fail.
+# If false (default), errors are logged and operations continue:
+#   - Encryption failure: returns plaintext (logged as error)
+#   - Decryption failure: returns ciphertext as-is (backward compatibility)
+# RECOMMENDATION: Set to false for graceful degradation and backward compatibility.
+fail.on.error=$[env:ENCRYPTION_FAIL_ON_ERROR;default=false]
+```
+
+**Migration from Plaintext Passwords:**
+
+If you have existing datasources with plaintext passwords and want to enable encryption:
+
+1. Enable encryption in the configuration:
+   ```bash
+   export PASSWORD_ENCRYPTION_ENABLED=true
+   export PASSWORD_ENCRYPTION_KEY=$(openssl rand -base64 32)
+   export PASSWORD_ENCRYPTION_SALT=$(openssl rand -base64 16)
+   ```
+
+2. Restart the QTT service to load the new configuration.
+
+3. Update each datasource through the UI or API. The service will automatically encrypt passwords on save.
+
+4. The decryption function gracefully handles both encrypted and plaintext passwords during the migration period.
 
 #### JSON-LD Serialization
 Simple properties that control how the JSON-LD serialization will be performed.
