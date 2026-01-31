@@ -135,10 +135,10 @@ class RequestCoalescingServiceTest {
         RegistrationResult follower2 = coalescingService.registerRequest(cacheKey);
         RegistrationResult follower3 = coalescingService.registerRequest(cacheKey);
 
-        // Assert
+        // Assert - all followers share the leader's future
+        assertSame(leader.future(), follower1.future(), "Followers should share the leader's future");
         assertSame(follower1.future(), follower2.future(), "All followers should share the same future");
         assertSame(follower2.future(), follower3.future(), "All followers should share the same future");
-        assertNotSame(leader.future(), follower1.future(), "Leader and follower futures should be different");
     }
 
     // ========== Complete Request Tests ==========
@@ -618,10 +618,11 @@ class RequestCoalescingServiceTest {
     // ========== Edge Cases ==========
 
     @Test
-    void registerRequest_WithNullKey_DoesNotThrow() {
-        // Note: Null keys may cause issues in ConcurrentHashMap, but we test behavior
-        // This tests that the service handles edge cases gracefully
-        assertDoesNotThrow(() -> coalescingService.registerRequest(null));
+    void registerRequest_WithNullKey_ThrowsNullPointerException() {
+        // ConcurrentHashMap does not allow null keys, so NPE is expected
+        assertThrows(NullPointerException.class,
+                () -> coalescingService.registerRequest(null),
+                "Null key should throw NullPointerException");
     }
 
     @Test
