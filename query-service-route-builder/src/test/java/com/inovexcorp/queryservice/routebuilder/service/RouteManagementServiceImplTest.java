@@ -124,7 +124,7 @@ public class RouteManagementServiceImplTest {
 
         // Act
         CamelRouteTemplate result = routeManagementService.createRoute(
-                routeId, routeParams, dataSourceId, description, graphMartUri, freemarker, layers, null, null, null);
+                routeId, routeParams, dataSourceId, description, graphMartUri, freemarker, layers, null, null, null, null);
 
         // Assert
         assertNotNull(result);
@@ -150,7 +150,7 @@ public class RouteManagementServiceImplTest {
 
         // Act
         CamelRouteTemplate result = routeManagementService.createRoute(
-                routeId, routeParams, dataSourceId, description, graphMartUri, freemarker, layers, null, null, null);
+                routeId, routeParams, dataSourceId, description, graphMartUri, freemarker, layers, null, null, null, null);
 
         // Assert
         assertNotNull(result);
@@ -170,7 +170,7 @@ public class RouteManagementServiceImplTest {
 
         // Act
         CamelRouteTemplate result = routeManagementService.createRoute(
-                routeId, "?param={param}", "test-ds", "desc", "http://test", "template", layers, null, null, null);
+                routeId, "?param={param}", "test-ds", "desc", "http://test", "template", layers, null, null, null, null);
 
         // Assert
         assertNotNull(result);
@@ -189,7 +189,7 @@ public class RouteManagementServiceImplTest {
 
         // Act
         CamelRouteTemplate result = routeManagementService.createRoute(
-                routeId, "?param={param}", "test-ds", "desc", "http://test", "template", layers, null, null, null);
+                routeId, "?param={param}", "test-ds", "desc", "http://test", "template", layers, null, null, null, null);
 
         // Assert
         assertNotNull(result);
@@ -213,7 +213,7 @@ public class RouteManagementServiceImplTest {
 
         // Act
         CamelRouteTemplate result = routeManagementService.modifyRoute(
-                routeId, newParams, "test-ds", newDescription, "http://test", "new template", "layer1", null, null, null);
+                routeId, newParams, "test-ds", newDescription, "http://test", "new template", "layer1", null, null, null, null);
 
         // Assert
         assertNotNull(result);
@@ -231,7 +231,7 @@ public class RouteManagementServiceImplTest {
 
         // Act
         routeManagementService.modifyRoute(
-                routeId, "?new={new}", "new-ds", "New Desc", "http://new", "new template", "new-layer", null, null, null);
+                routeId, "?new={new}", "new-ds", "New Desc", "http://new", "new template", "new-layer", null, null, null, null);
 
         // Assert
         ArgumentCaptor<CamelRouteTemplate> templateCaptor = ArgumentCaptor.forClass(CamelRouteTemplate.class);
@@ -524,7 +524,7 @@ public class RouteManagementServiceImplTest {
 
         // Act
         routeManagementService.createRoute(
-                "testRoute", "?param={param}", "test-ds", "desc", "http://test", "template", "layer1", null, null, null);
+                "testRoute", "?param={param}", "test-ds", "desc", "http://test", "template", "layer1", null, null, null, null);
 
         // Assert - Exception expected
     }
@@ -553,7 +553,7 @@ public class RouteManagementServiceImplTest {
 
         // Act
         routeManagementService.modifyRoute(
-                routeId, "?new={new}", "test-ds", "desc", "http://test", "template", "layer1", null, null, null);
+                routeId, "?new={new}", "test-ds", "desc", "http://test", "template", "layer1", null, null, null, null);
 
         // Assert
         verify(routeService).delete(routeId);
