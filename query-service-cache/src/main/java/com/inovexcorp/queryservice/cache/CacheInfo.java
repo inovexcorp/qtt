@@ -20,4 +20,8 @@ public class CacheInfo {
     boolean compressionEnabled;
     boolean failOpen;
     String errorMessage;
+
+    // Request coalescing configuration
+    boolean coalescingEnabled;
+    long coalescingTimeoutMs;
 }

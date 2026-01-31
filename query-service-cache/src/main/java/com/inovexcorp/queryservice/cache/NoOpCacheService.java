@@ -11,6 +11,9 @@ import java.util.Optional;
 @Slf4j
 public class NoOpCacheService implements CacheService {
 
+    // Disabled coalescing service for no-op mode
+    private final RequestCoalescingService coalescingService = RequestCoalescingService.builder().build();
+
     @Override
     public Optional<String> get(String key) {
         log.trace("NoOp cache get for key: {}", key);
@@ -56,6 +59,12 @@ public class NoOpCacheService implements CacheService {
                 .evictions(0)
                 .keyCount(0)
                 .memoryUsageBytes(0)
+                .coalescedRequests(0)
+                .coalescingLeaders(0)
+                .coalescingTimeouts(0)
+                .coalescingFailures(0)
+                .coalescingInFlight(0)
+                .coalescingEnabled(false)
                 .build();
     }
 
@@ -78,6 +87,13 @@ public class NoOpCacheService implements CacheService {
                 .compressionEnabled(false)
                 .failOpen(true)
                 .errorMessage(null)
+                .coalescingEnabled(false)
+                .coalescingTimeoutMs(0)
                 .build();
+    }
+
+    @Override
+    public RequestCoalescingService getCoalescingService() {
+        return coalescingService;
     }
 }

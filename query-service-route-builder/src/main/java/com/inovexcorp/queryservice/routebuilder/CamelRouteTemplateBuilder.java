@@ -6,6 +6,7 @@ import com.inovexcorp.queryservice.camel.anzo.auth.BearerTokenAuthService;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.routebuilder.auth.BearerTokenAuthProcessor;
 import com.inovexcorp.queryservice.routebuilder.cache.CacheCheckProcessor;
+import com.inovexcorp.queryservice.routebuilder.cache.CacheCoalescingCleanupProcessor;
 import com.inovexcorp.queryservice.routebuilder.cache.CacheStoreProcessor;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -46,9 +47,13 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
     //Template for creating routes in a format of from->template->to
     @Override
     public void configure() throws Exception {
+        // Create cleanup processor for coalescing state on exceptions
+        CacheCoalescingCleanupProcessor cleanupProcessor = new CacheCoalescingCleanupProcessor(cacheService);
+
         // Error handler for query exceptions (HTTP errors from Anzo)
         onException(com.inovexcorp.queryservice.camel.anzo.comm.QueryException.class)
                 .handled(true)
+                .process(cleanupProcessor) // Clean up coalescing state first
                 .choice()
                     // Check if it's a 400 Bad Request (query syntax error)
                     .when(simple("${exception.message} contains 'HTTP 400'"))
@@ -111,6 +116,7 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
         // Generic error handler for connectivity issues (IOException, etc.)
         onException(Exception.class)
                 .handled(true)
+                .process(cleanupProcessor) // Clean up coalescing state first
                 .log(LoggingLevel.ERROR, "Route ${routeId} failed - datasource may be unavailable: ${exception.message}")
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(503))
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
