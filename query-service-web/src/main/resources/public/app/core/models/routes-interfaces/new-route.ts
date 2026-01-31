@@ -11,4 +11,6 @@ export interface NewRoute{
     cacheEnabled?: boolean;
     cacheTtlSeconds?: number;
     cacheKeyStrategy?: string;
+    // Authentication configuration
+    bearerAuthEnabled?: boolean;
 }

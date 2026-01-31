@@ -133,6 +133,25 @@
               </mat-autocomplete>
             </mat-form-field>
           </div>
+
+          <!-- Authentication Section -->
+          <h3 class="section-header">Authentication</h3>
+          <div class="auth-config-section">
+            <div class="auth-toggle-row">
+              <mat-slide-toggle
+                [(ngModel)]="bearerAuthEnabled"
+                [ngModelOptions]="{standalone: true}"
+                (change)="toggleBearerAuthEnabled()"
+                color="primary">
+                Enable Bearer Token Authentication
+              </mat-slide-toggle>
+              <mat-icon class="info-icon" matTooltip="When enabled, clients must provide a valid Anzo bearer token in the Authorization header. Tokens are verified against the datasource's Anzo server and cached for performance.">info</mat-icon>
+            </div>
+            <div class="auth-info-text" *ngIf="bearerAuthEnabled">
+              <mat-icon>security</mat-icon>
+              <span>Clients must include <code>Authorization: Bearer &lt;token&gt;</code> header. Invalid or missing tokens will receive a 401 response.</span>
+            </div>
+          </div>
         </div>
       </mat-tab>
 

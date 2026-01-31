@@ -147,6 +147,9 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   clearingCache: boolean = false;
   cacheJustCleared: boolean = false;
 
+  // Bearer token authentication
+  bearerAuthEnabled: boolean = false;
+
   // Tab management
   selectedTabIndex: number = 0;
 
@@ -208,8 +211,9 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     // Cache fields
     cacheEnabled: new FormControl(false),
     cacheTtlSeconds: new FormControl<number | null>(null),
-    cacheKeyStrategy: new FormControl('QUERY_HASH')
-
+    cacheKeyStrategy: new FormControl('QUERY_HASH'),
+    // Authentication fields
+    bearerAuthEnabled: new FormControl(false)
   })
   get template() { return this.configRoute.get('template') }
   get routeParameters() { return this.configRoute.get('routeParameters'); }
@@ -220,6 +224,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   get cacheEnabledControl() { return this.configRoute.get('cacheEnabled') }
   get cacheTtlSecondsControl() { return this.configRoute.get('cacheTtlSeconds') }
   get cacheKeyStrategyControl() { return this.configRoute.get('cacheKeyStrategy') }
+  get bearerAuthEnabledControl() { return this.configRoute.get('bearerAuthEnabled') }
 
 
 
@@ -426,9 +431,12 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     let cacheTtlSeconds = this.configRoute.value['cacheTtlSeconds'] as number | null;
     let cacheKeyStrategy = this.configRoute.value['cacheKeyStrategy'] as string;
 
+    // Authentication parameters
+    let bearerAuthEnabled = this.configRoute.value['bearerAuthEnabled'] as boolean;
+
     if (!httpMethods || httpMethods.length === 0 || !routeDescription || !graphMartUri || !templateBody || !dataSourceId) { return; }
 
-    this.configRouteService.configRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy } as NewRoute)
+    this.configRouteService.configRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, bearerAuthEnabled } as NewRoute)
       .subscribe(() => {
         this.navigateBack();
       });
@@ -503,6 +511,11 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   toggleCacheEnabled(): void {
     // Note: ngModel already updated cacheEnabled, so don't toggle it again
     this.configRoute.controls['cacheEnabled'].setValue(this.cacheEnabled);
+  }
+
+  toggleBearerAuthEnabled(): void {
+    // Note: ngModel already updated bearerAuthEnabled, so don't toggle it again
+    this.configRoute.controls['bearerAuthEnabled'].setValue(this.bearerAuthEnabled);
   }
 
   clearRouteCache(): void {
@@ -899,6 +912,12 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
           }
           if (this.routeData.cacheKeyStrategy) {
             this.configRoute.controls['cacheKeyStrategy'].setValue(this.routeData.cacheKeyStrategy);
+          }
+
+          // Load bearer auth configuration
+          if (this.routeData.bearerAuthEnabled !== undefined) {
+            this.bearerAuthEnabled = this.routeData.bearerAuthEnabled;
+            this.configRoute.controls['bearerAuthEnabled'].setValue(this.routeData.bearerAuthEnabled);
           }
 
           // Load cache info for displaying defaults

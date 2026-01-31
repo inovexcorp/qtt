@@ -89,6 +89,9 @@ export class AddRouteComponent implements OnInit {
   cacheEnabled: boolean = false;
   cacheExpanded: boolean = false;
 
+  // Bearer token authentication
+  bearerAuthEnabled: boolean = false;
+
   @ViewChild('layerElement') layerElement!: ElementRef<HTMLInputElement>;
 
   createRoute = new FormGroup({
@@ -102,7 +105,9 @@ export class AddRouteComponent implements OnInit {
     // Cache fields
     cacheEnabled: new FormControl(false),
     cacheTtlSeconds: new FormControl<number | null>(null),
-    cacheKeyStrategy: new FormControl('QUERY_HASH')
+    cacheKeyStrategy: new FormControl('QUERY_HASH'),
+    // Authentication fields
+    bearerAuthEnabled: new FormControl(false)
   })
   get routeId() { return this.createRoute.get('routeId') }
   get routeParameters() { return this.createRoute.get('routeParameters'); }
@@ -114,6 +119,7 @@ export class AddRouteComponent implements OnInit {
   get cacheEnabledControl() { return this.createRoute.get('cacheEnabled') }
   get cacheTtlSecondsControl() { return this.createRoute.get('cacheTtlSeconds') }
   get cacheKeyStrategyControl() { return this.createRoute.get('cacheKeyStrategy') }
+  get bearerAuthEnabledControl() { return this.createRoute.get('bearerAuthEnabled') }
 
 
 
@@ -161,6 +167,11 @@ export class AddRouteComponent implements OnInit {
 
   toggleCacheExpanded(): void {
     this.cacheExpanded = !this.cacheExpanded;
+  }
+
+  toggleBearerAuthEnabled(): void {
+    // Note: ngModel already updated bearerAuthEnabled, so don't toggle it again
+    this.createRoute.controls['bearerAuthEnabled'].setValue(this.bearerAuthEnabled);
   }
 
   // Method to get and filter graphmarts based on selected DS
@@ -351,6 +362,9 @@ export class AddRouteComponent implements OnInit {
     let cacheTtlSeconds = this.createRoute.value['cacheTtlSeconds'] as number | null;
     let cacheKeyStrategy = this.createRoute.value['cacheKeyStrategy'] as string;
 
+    // Authentication parameters
+    let bearerAuthEnabled = this.createRoute.value['bearerAuthEnabled'] as boolean;
+
     // Validate required fields (template is now optional)
     if (!routeId || !httpMethods || httpMethods.length === 0 || !routeDescription || !graphMartUri || !dataSourceId) { return; }
 
@@ -362,7 +376,7 @@ export class AddRouteComponent implements OnInit {
       this.ontologyAutocompleteProvider.setRouteId(routeId);
     }
 
-    this.routeService.postRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, status, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy } as NewRoute)
+    this.routeService.postRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, status, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, bearerAuthEnabled } as NewRoute)
       .subscribe(() => {
         this.router.navigate(['../../routes']);
         location.reload();

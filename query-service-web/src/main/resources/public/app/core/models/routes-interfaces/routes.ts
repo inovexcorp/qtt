@@ -12,4 +12,6 @@ export interface Routes {
     cacheEnabled?: boolean;
     cacheTtlSeconds?: number;
     cacheKeyStrategy?: string;
+    // Authentication configuration
+    bearerAuthEnabled?: boolean;
   }
