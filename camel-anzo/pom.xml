@@ -134,7 +134,8 @@
                         <Bundle-Version>${project.version}</Bundle-Version>
                         <Export-Package>
                             com.inovexcorp.queryservice.camel.anzo,
-                            com.inovexcorp.queryservice.camel.anzo.comm
+                            com.inovexcorp.queryservice.camel.anzo.comm,
+                            com.inovexcorp.queryservice.camel.anzo.auth
                         </Export-Package>
                         <Service-Component>*</Service-Component>
                         <build>${maven.build.timestamp}</build>
