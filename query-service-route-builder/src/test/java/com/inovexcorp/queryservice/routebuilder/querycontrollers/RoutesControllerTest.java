@@ -159,7 +159,7 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.createEndpoint(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
@@ -167,7 +167,7 @@ public class RoutesControllerTest {
         assertEquals(expectedJson, response.getEntity());
         verify(routeManagementService).createRoute(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, TEST_LAYERS, null, null, null);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, TEST_LAYERS, null, null, null, null);
     }
 
     @Test
@@ -175,13 +175,13 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.createEndpoint(
                 null, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertTrue(response.getEntity().toString().contains("Require non-null parameters"));
         verify(routeManagementService, never()).createRoute(anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyString(), anyString(), any(), any(), any());
+                anyString(), anyString(), anyString(), anyString(), any(), any(), any(), any());
     }
 
     @Test
@@ -189,7 +189,7 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.createEndpoint(
                 TEST_ROUTE_ID, null, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -201,7 +201,7 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.createEndpoint(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, null,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -213,7 +213,7 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.createEndpoint(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                null, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+                null, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -225,7 +225,7 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.createEndpoint(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+                TEST_DESCRIPTION, null, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -237,7 +237,7 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.createEndpoint(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_LAYERS);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, null, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -249,7 +249,7 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.createEndpoint(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, null);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, null);
 
         // Assert
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -264,13 +264,13 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.createEndpoint(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
         assertTrue(response.getEntity().toString().contains("does not exist"));
         verify(routeManagementService, never()).createRoute(anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyString(), anyString(), any(), any(), any());
+                anyString(), anyString(), anyString(), anyString(), any(), any(), any(), any());
     }
 
     @Test
@@ -282,13 +282,13 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.createEndpoint(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, emptyLayers);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, emptyLayers);
 
         // Assert
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
         verify(routeManagementService).createRoute(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, emptyLayers, null, null, null);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, emptyLayers, null, null, null, null);
     }
 
     // ========================================
@@ -331,13 +331,13 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.modifyEndpoint(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         verify(routeManagementService).modifyRoute(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, TEST_LAYERS, null, null, null);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, TEST_LAYERS, null, null, null, null);
     }
 
     @Test
@@ -347,13 +347,13 @@ public class RoutesControllerTest {
 
         // Act - Only freemarker parameter provided
         Response response = routesController.modifyEndpoint(
-                TEST_ROUTE_ID, null, null, null, null, null, null, null, TEST_FREEMARKER, null);
+                TEST_ROUTE_ID, null, null, null, null, null, null, null, null, TEST_FREEMARKER, null);
 
         // Assert
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         verify(routeManagementService).modifyRouteTemplate(TEST_ROUTE_ID, TEST_FREEMARKER);
         verify(routeManagementService, never()).modifyRoute(anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyString(), anyString(), any(), any(), any());
+                anyString(), anyString(), anyString(), anyString(), any(), any(), any(), any());
     }
 
     @Test
@@ -364,7 +364,7 @@ public class RoutesControllerTest {
         // Act
         Response response = routesController.modifyEndpoint(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
@@ -379,7 +379,7 @@ public class RoutesControllerTest {
         // Act - Missing routeParams but providing other fields
         Response response = routesController.modifyEndpoint(
                 TEST_ROUTE_ID, null, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
 
         // Assert
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
