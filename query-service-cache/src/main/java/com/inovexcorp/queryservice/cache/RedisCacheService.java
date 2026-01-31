@@ -55,6 +55,9 @@ public class RedisCacheService implements CacheService {
     // Caffeine cache for stats results to prevent Redis stampedes
     private Cache<String, CacheStats> statsCache;
 
+    // Request coalescing service
+    private RequestCoalescingService coalescingService;
+
     private boolean enabled;
     private boolean connected;
     private String lastError;
@@ -70,6 +73,14 @@ public class RedisCacheService implements CacheService {
                 .maximumSize(1) // Only cache a single stats result
                 .build();
         log.info("Initialized stats cache with TTL of {}s", config.cache_statsTtlSeconds());
+
+        // Initialize request coalescing service
+        this.coalescingService = new RequestCoalescingService(
+                config.cache_coalescingEnabled(),
+                config.cache_coalescingTimeoutMs()
+        );
+        log.info("Initialized request coalescing: enabled={}, timeoutMs={}",
+                config.cache_coalescingEnabled(), config.cache_coalescingTimeoutMs());
 
         if (!enabled) {
             log.info("Redis caching is disabled in configuration");
@@ -306,6 +317,12 @@ public class RedisCacheService implements CacheService {
                     .evictions(0)
                     .keyCount(0)
                     .memoryUsageBytes(0)
+                    .coalescedRequests(0)
+                    .coalescingLeaders(0)
+                    .coalescingTimeouts(0)
+                    .coalescingFailures(0)
+                    .coalescingInFlight(0)
+                    .coalescingEnabled(false)
                     .build();
         }
 
@@ -321,6 +338,12 @@ public class RedisCacheService implements CacheService {
                     .evictions(redisStats.evictionCount)
                     .keyCount(redisStats.keyCount)
                     .memoryUsageBytes(0) // Memory stats removed to minimize Redis calls
+                    .coalescedRequests(coalescingService != null ? coalescingService.getCoalescedCount() : 0)
+                    .coalescingLeaders(coalescingService != null ? coalescingService.getLeaderCount() : 0)
+                    .coalescingTimeouts(coalescingService != null ? coalescingService.getTimeoutCount() : 0)
+                    .coalescingFailures(coalescingService != null ? coalescingService.getFailureCount() : 0)
+                    .coalescingInFlight(coalescingService != null ? coalescingService.getInFlightCount() : 0)
+                    .coalescingEnabled(coalescingService != null && coalescingService.isEnabled())
                     .build();
         });
     }
@@ -345,7 +368,14 @@ public class RedisCacheService implements CacheService {
                 .compressionEnabled(config != null && config.cache_compressionEnabled())
                 .failOpen(config != null && config.cache_failOpen())
                 .errorMessage(lastError)
+                .coalescingEnabled(coalescingService != null && coalescingService.isEnabled())
+                .coalescingTimeoutMs(coalescingService != null ? coalescingService.getDefaultTimeoutMs() : 0)
                 .build();
+    }
+
+    @Override
+    public RequestCoalescingService getCoalescingService() {
+        return coalescingService;
     }
 
     /**
