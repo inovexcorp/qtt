@@ -41,6 +41,8 @@ public class SimpleAnzoClient implements AnzoClient {
     private final String server;
     private final String user;
     private final String password;
+    private final String bearerToken;
+    private final boolean useBearerAuth;
     private final HttpClient httpClient;
     private final int requestTimeoutSeconds;
 
@@ -54,9 +56,38 @@ public class SimpleAnzoClient implements AnzoClient {
         this.server = server;
         this.user = user;
         this.password = password;
+        this.bearerToken = null;
+        this.useBearerAuth = false;
         // Use same timeout for both connection and request for health checks
         this.requestTimeoutSeconds = connectTimeoutSeconds;
         this.httpClient = createHttpClient(connectTimeoutSeconds, validateCertificate);
+    }
+
+    /**
+     * Creates a SimpleAnzoClient that uses bearer token authentication.
+     *
+     * @param server              The Anzo server URL
+     * @param bearerToken         The bearer token to use for authentication
+     * @param connectTimeoutSeconds The connection timeout in seconds
+     * @param validateCertificate Whether to validate SSL certificates
+     */
+    public SimpleAnzoClient(String server, String bearerToken,
+                            int connectTimeoutSeconds, boolean validateCertificate) {
+        this.server = server;
+        this.user = null;
+        this.password = null;
+        this.bearerToken = bearerToken;
+        this.useBearerAuth = true;
+        this.requestTimeoutSeconds = connectTimeoutSeconds;
+        this.httpClient = createHttpClient(connectTimeoutSeconds, validateCertificate);
+    }
+
+    /**
+     * Factory method to create a bearer token authenticated client.
+     */
+    public static SimpleAnzoClient withBearerToken(String server, String bearerToken,
+                                                    int connectTimeoutSeconds, boolean validateCertificate) {
+        return new SimpleAnzoClient(server, bearerToken, connectTimeoutSeconds, validateCertificate);
     }
 
     private HttpClient createHttpClient(int connectTimeoutSeconds, boolean validateCertificate) {
@@ -244,9 +275,7 @@ public class SimpleAnzoClient implements AnzoClient {
                 .uri(createLegacySparqlUri())
                 .POST(HttpRequest.BodyPublishers.ofString(buildFormMultipartQueryBody(query,
                         responseFormat, skipCache, datasource, LDS)))
-                .header("Authorization", String.format("Basic %s",
-                        Base64.getEncoder().encodeToString(String.format("%s:%s", this.user,
-                                this.password).getBytes(StandardCharsets.UTF_8))))
+                .header("Authorization", buildAuthorizationHeader())
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 // Set timeout.
                 .timeout(Duration.of(timeoutSeconds, ChronoUnit.SECONDS))
@@ -271,15 +300,28 @@ public class SimpleAnzoClient implements AnzoClient {
                 // Do POST.
                 .POST(HttpRequest.BodyPublishers.ofString(buildFormMultipartQueryBody(query,
                         responseFormat, skipCache)))
-                // Add basic auth.
-                .header("Authorization", String.format("Basic %s",
-                        Base64.getEncoder().encodeToString(String.format("%s:%s", this.user,
-                                this.password).getBytes(StandardCharsets.UTF_8))))
+                // Add auth header (bearer or basic).
+                .header("Authorization", buildAuthorizationHeader())
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 // Set timeout.
                 .timeout(Duration.of(timeoutSeconds, ChronoUnit.SECONDS))
                 // Build the request.
                 .build();
+    }
+
+    /**
+     * Builds the appropriate Authorization header based on auth mode.
+     *
+     * @return The Authorization header value
+     */
+    private String buildAuthorizationHeader() {
+        if (useBearerAuth && bearerToken != null) {
+            return "Bearer " + bearerToken;
+        } else {
+            return String.format("Basic %s",
+                    Base64.getEncoder().encodeToString(String.format("%s:%s", this.user,
+                            this.password).getBytes(StandardCharsets.UTF_8)));
+        }
     }
 
     /**

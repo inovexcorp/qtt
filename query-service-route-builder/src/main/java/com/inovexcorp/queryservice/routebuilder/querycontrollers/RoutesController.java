@@ -154,6 +154,7 @@ public class RoutesController {
                                    @QueryParam("cacheEnabled") Boolean cacheEnabled,
                                    @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
                                    @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
+                                   @QueryParam("bearerAuthEnabled") Boolean bearerAuthEnabled,
                                    @FormParam("freemarker") String freemarker,
                                    @FormParam("layers") String layers) throws Exception {
         // If the incoming request was invalid (allow empty freemarker template)
@@ -192,7 +193,8 @@ public class RoutesController {
             }
 
             routeManagementService.createRoute(routeId, routeParams, dataSourceId, description,
-                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy);
+                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy,
+                    bearerAuthEnabled);
             final String res = String.format("{ \"endpointUrl\": \"%s/%s\" }", baseUrl, routeId);
             return Response.status(Response.Status.CREATED).entity(res).type(MediaType.APPLICATION_JSON).build();
         }
@@ -247,6 +249,7 @@ public class RoutesController {
                                    @QueryParam("cacheEnabled") Boolean cacheEnabled,
                                    @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
                                    @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
+                                   @QueryParam("bearerAuthEnabled") Boolean bearerAuthEnabled,
                                    @FormParam("freemarker") String freemarker,
                                    @FormParam("layers") String layers) throws Exception {
         // Check if route exists
@@ -277,7 +280,8 @@ public class RoutesController {
         // else all the fields are present, so mutate the entity in the database and generate the camel route.
         else {
             routeManagementService.modifyRoute(routeId, routeParams, dataSourceId, description,
-                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy);
+                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy,
+                    bearerAuthEnabled);
             return Response.ok().build();
         }
     }

@@ -12,27 +12,32 @@ import java.nio.charset.StandardCharsets;
 public class AnzoProducer extends DefaultProducer {
 
     private final AnzoEndpoint endpoint;
-    private final AnzoClient anzoClient;
+    private final AnzoClient defaultClient;
 
     public AnzoProducer(AnzoEndpoint endpoint) {
         super(endpoint);
         this.endpoint = endpoint;
         log.info("Anzo producer created for endpoint: {}", endpoint.toString());
-        this.anzoClient = this.endpoint.getClient();
+        // Create default client with basic auth for non-bearer requests
+        this.defaultClient = this.endpoint.getClient();
     }
 
     public void process(Exchange exchange) throws Exception {
         log.trace("Processing production request for exchange: {}", exchange.getExchangeId());
         final String query = getQuery(exchange);
         final long start = System.currentTimeMillis();
+
+        // Determine which client to use - bearer token or default basic auth
+        AnzoClient client = resolveClient(exchange);
+
         // Use the AnzoClient implementation to query the graphmart.
         QueryResponse response;
         // If optional layers specified in header, utilize them over pre-set layers during route creation to utilize anzoclient to query graphmart
         if (exchange.getIn().getHeader("qtt-layers") != null) {
-            response = anzoClient.queryGraphmart(query, endpoint.getGraphmartUri(), exchange.getIn().getHeader("qtt-layers").toString(),
+            response = client.queryGraphmart(query, endpoint.getGraphmartUri(), exchange.getIn().getHeader("qtt-layers").toString(),
                     AnzoClient.RESPONSE_FORMAT.RDFXML, endpoint.getTimeoutSeconds(), endpoint.isSkipCache());
         } else {
-            response = anzoClient.queryGraphmart(query, endpoint.getGraphmartUri(), endpoint.getLayerUris(),
+            response = client.queryGraphmart(query, endpoint.getGraphmartUri(), endpoint.getLayerUris(),
                     AnzoClient.RESPONSE_FORMAT.RDFXML, endpoint.getTimeoutSeconds(), endpoint.isSkipCache());
         }
         // Log the response data.
@@ -53,6 +58,25 @@ public class AnzoProducer extends DefaultProducer {
     private String getQuery(Exchange exchange) {
         //TODO - is this supposed to be configurable?
         return exchange.getIn().getBody(String.class);
+    }
+
+    /**
+     * Resolves the appropriate AnzoClient based on bearer token presence.
+     * If bearer auth is enabled and a token is present in the exchange headers,
+     * creates a new client with bearer token auth. Otherwise, uses the default client.
+     */
+    private AnzoClient resolveClient(Exchange exchange) {
+        // Check if bearer token is present in the exchange headers
+        String bearerToken = exchange.getIn().getHeader(AnzoEndpoint.BEARER_TOKEN_HEADER, String.class);
+
+        if (bearerToken != null && !bearerToken.isBlank()) {
+            log.debug("Using bearer token authentication for exchange: {}", exchange.getExchangeId());
+            return endpoint.getClientWithBearerToken(bearerToken);
+        }
+
+        // Fall back to default client with basic auth
+        log.trace("Using default basic auth client for exchange: {}", exchange.getExchangeId());
+        return defaultClient;
     }
 
     private void attachQueryToOutHeaders(String query, Exchange exchange) {

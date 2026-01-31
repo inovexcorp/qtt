@@ -4,6 +4,7 @@ import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.RdfResultsJsonifier;
 import com.inovexcorp.queryservice.cache.CacheService;
 import com.inovexcorp.queryservice.cache.NoOpCacheService;
+import com.inovexcorp.queryservice.camel.anzo.auth.BearerTokenAuthService;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.LayerService;
 import com.inovexcorp.queryservice.persistence.RouteService;
@@ -53,6 +54,9 @@ public class CamelKarafComponent {
     @Getter
     private int cacheDefaultTtlSeconds = 3600;
 
+    @Getter
+    private BearerTokenAuthService bearerTokenAuthService;
+
 
     @Activate
     public void start(ComponentContext context, final RouteBuilderConfig config) throws Exception {
@@ -82,6 +86,20 @@ public class CamelKarafComponent {
             log.info("Using CacheService: {}", cacheService.getInfo().getType());
         }
 
+        // Initialize bearer token auth service
+        // Use configuration values if available, otherwise use defaults
+        int bearerTokenCacheTtlSeconds = config.bearerTokenCacheTtlSeconds() > 0
+                ? config.bearerTokenCacheTtlSeconds() : 300;
+        int bearerTokenVerificationTimeoutSeconds = config.bearerTokenVerificationTimeoutSeconds() > 0
+                ? config.bearerTokenVerificationTimeoutSeconds() : 10;
+        this.bearerTokenAuthService = new BearerTokenAuthService(
+                bearerTokenCacheTtlSeconds,
+                bearerTokenVerificationTimeoutSeconds,
+                true // default to validating certificates
+        );
+        log.info("BearerTokenAuthService initialized with cacheTtl={}s, verificationTimeout={}s",
+                bearerTokenCacheTtlSeconds, bearerTokenVerificationTimeoutSeconds);
+
         //Load and initialize camel routes in DataSource
         List<CamelRouteTemplate> camelRouteTemplates = routeService.getAll();
         for (CamelRouteTemplate camelRouteTemplate : camelRouteTemplates) {
@@ -97,6 +115,7 @@ public class CamelKarafComponent {
                     .cacheService(effectiveCacheService)
                     .cacheKeyPrefix(cacheKeyPrefix)
                     .cacheDefaultTtlSeconds(cacheDefaultTtlSeconds)
+                    .bearerTokenAuthService(bearerTokenAuthService)
                     .build());
             //If the stored status is stopped, shut down the route when loading it into the context
             if (camelRouteTemplate.getStatus().equals("Stopped")) {
@@ -110,6 +129,9 @@ public class CamelKarafComponent {
         clearRoutes(camelContext);
         camelContext.stop();
         serviceRegistration.unregister();
+        if (bearerTokenAuthService != null) {
+            bearerTokenAuthService.shutdown();
+        }
         log.info("Cleared and stopped CamelKarafComponent");
     }
 

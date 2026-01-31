@@ -45,6 +45,11 @@ public class CamelRouteTemplate {
     @Column(name = "cacheKeyStrategy")
     private String cacheKeyStrategy = "QUERY_HASH";
 
+    // Bearer token authentication - when enabled, requires client to pass bearer token
+    // which is verified and passed through to Anzo instead of datasource basic auth
+    @Column(name = "bearerAuthEnabled")
+    private Boolean bearerAuthEnabled = false;
+
     @ManyToOne(cascade = {javax.persistence.CascadeType.MERGE})
     @JoinColumn(name = "datasources", referencedColumnName = "dataSourceId")
     private Datasources datasources;
@@ -71,5 +76,10 @@ public class CamelRouteTemplate {
         this.cacheEnabled = false;
         this.cacheTtlSeconds = null;
         this.cacheKeyStrategy = "QUERY_HASH";
+        this.bearerAuthEnabled = false;
+    }
+
+    public boolean isBearerAuthEnabled() {
+        return bearerAuthEnabled != null && bearerAuthEnabled;
     }
 }

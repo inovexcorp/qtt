@@ -58,7 +58,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
     public CamelRouteTemplate createRoute(String routeId, String routeParams, String dataSourceId,
                                           String description, String graphMartUri, String freemarker,
                                           String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
-                                          String cacheKeyStrategy) throws Exception {
+                                          String cacheKeyStrategy, Boolean bearerAuthEnabled) throws Exception {
         log.debug("Creating route with ID: {}", routeId);
 
         final CamelContext camelContext = contextManager.getDefaultContext();
@@ -79,14 +79,20 @@ public class RouteManagementServiceImpl implements RouteManagementService {
             template.setCacheKeyStrategy(cacheKeyStrategy);
         }
 
+        // Set bearer auth configuration
+        if (bearerAuthEnabled != null) {
+            template.setBearerAuthEnabled(bearerAuthEnabled);
+        }
+
         // If template is empty, set status to Stopped; otherwise Started
         if (freemarker == null || freemarker.trim().isEmpty()) {
             template.setStatus("Stopped");
             log.info("Empty template provided for route {}, setting status to Stopped", routeId);
         }
 
-        log.debug("Route {} cache settings: enabled={}, ttl={}, strategy={}",
-                routeId, template.getCacheEnabled(), template.getCacheTtlSeconds(), template.getCacheKeyStrategy());
+        log.debug("Route {} settings: cacheEnabled={}, cacheTtl={}, cacheStrategy={}, bearerAuth={}",
+                routeId, template.getCacheEnabled(), template.getCacheTtlSeconds(),
+                template.getCacheKeyStrategy(), template.isBearerAuthEnabled());
 
         // Add route to Camel context
         camelContext.addRoutes(CamelRouteTemplateBuilder.builder()
@@ -96,6 +102,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
                 .cacheService(getEffectiveCacheService())
                 .cacheKeyPrefix(camelKarafComponent.getCacheKeyPrefix())
                 .cacheDefaultTtlSeconds(camelKarafComponent.getCacheDefaultTtlSeconds())
+                .bearerTokenAuthService(camelKarafComponent.getBearerTokenAuthService())
                 .build());
 
         // If the route exists in memory, delete it then re-create it
@@ -104,7 +111,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
             routeService.delete(routeId);
             // Recursive call to recreate
             return createRoute(routeId, routeParams, dataSourceId, description, graphMartUri, freemarker, layers,
-                    cacheEnabled, cacheTtlSeconds, cacheKeyStrategy);
+                    cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, bearerAuthEnabled);
         } else {
             // Persist the route
             routeService.add(template);
@@ -129,7 +136,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
     public CamelRouteTemplate modifyRoute(String routeId, String routeParams, String dataSourceId,
                                           String description, String graphMartUri, String freemarker,
                                           String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
-                                          String cacheKeyStrategy) throws Exception {
+                                          String cacheKeyStrategy, Boolean bearerAuthEnabled) throws Exception {
         log.debug("Modifying route with ID: {}", routeId);
 
         // Delete route in memory to then recreate it
@@ -138,7 +145,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
         // Recreate the route with new parameters
         CamelRouteTemplate modified = createRoute(routeId, routeParams, dataSourceId, description,
                                                   graphMartUri, freemarker, layers, cacheEnabled,
-                                                  cacheTtlSeconds, cacheKeyStrategy);
+                                                  cacheTtlSeconds, cacheKeyStrategy, bearerAuthEnabled);
 
         log.info("Successfully modified route: {}", routeId);
         return modified;
@@ -159,7 +166,8 @@ public class RouteManagementServiceImpl implements RouteManagementService {
                                                   template.getDatasources().getDataSourceId(),
                                                   template.getDescription(), template.getGraphMartUri(),
                                                   freemarker, layers, template.getCacheEnabled(),
-                                                  template.getCacheTtlSeconds(), template.getCacheKeyStrategy());
+                                                  template.getCacheTtlSeconds(), template.getCacheKeyStrategy(),
+                                                  template.getBearerAuthEnabled());
 
         log.info("Successfully modified template for route: {}", routeId);
         return modified;
@@ -234,7 +242,8 @@ public class RouteManagementServiceImpl implements RouteManagementService {
         CamelRouteTemplate cloned = createRoute(newRouteId, sourceRoute.getRouteParams(),
                 sourceRoute.getDatasources().getDataSourceId(), sourceRoute.getDescription(),
                 sourceRoute.getGraphMartUri(), fileContent, layers, sourceRoute.getCacheEnabled(),
-                sourceRoute.getCacheTtlSeconds(), sourceRoute.getCacheKeyStrategy());
+                sourceRoute.getCacheTtlSeconds(), sourceRoute.getCacheKeyStrategy(),
+                sourceRoute.getBearerAuthEnabled());
 
         log.info("Successfully cloned route {} to {}", sourceRouteId, newRouteId);
         return cloned;

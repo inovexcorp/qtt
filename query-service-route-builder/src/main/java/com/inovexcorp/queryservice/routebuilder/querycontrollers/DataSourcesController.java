@@ -194,6 +194,7 @@ public class DataSourcesController {
                                 .cacheService(getEffectiveCacheService())
                                 .cacheKeyPrefix(camelKarafComponent.getCacheKeyPrefix())
                                 .cacheDefaultTtlSeconds(camelKarafComponent.getCacheDefaultTtlSeconds())
+                                .bearerTokenAuthService(camelKarafComponent.getBearerTokenAuthService())
                                 .build());
                         routeService.add(currentRoute);
                     } catch (Exception e) {

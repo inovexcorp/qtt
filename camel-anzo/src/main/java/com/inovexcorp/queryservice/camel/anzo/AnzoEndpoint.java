@@ -96,6 +96,16 @@ public class AnzoEndpoint extends DefaultEndpoint {
     @Metadata(description = "The query the component will execute.")
     private String queryLocation = "${body}";
 
+    @UriParam(name = "bearerAuthEnabled",
+            description = "When true, expects bearer token in exchange header instead of using basic auth",
+            defaultValue = "false")
+    private boolean bearerAuthEnabled = false;
+
+    /**
+     * Header name for passing bearer token through the exchange.
+     */
+    public static final String BEARER_TOKEN_HEADER = "qtt-bearer-token";
+
     public AnzoEndpoint(String uri, AnzoComponent component, String server) {
         super(uri, component);
         this.server = server;
@@ -111,9 +121,27 @@ public class AnzoEndpoint extends DefaultEndpoint {
 
     /**
      * @return An {@link AnzoClient} implementation built using the configuration from this endpoint.
+     *         Uses basic auth with configured user/password.
      */
     public AnzoClient getClient() {
         return new SimpleAnzoClient(getServer(), decode(getUser()), decode(getPassword()), getTimeoutSeconds(), isValidateCert());
+    }
+
+    /**
+     * Creates an AnzoClient that uses bearer token authentication.
+     *
+     * @param bearerToken The bearer token to use for authentication
+     * @return An AnzoClient configured for bearer token auth
+     */
+    public AnzoClient getClientWithBearerToken(String bearerToken) {
+        return SimpleAnzoClient.withBearerToken(getServer(), bearerToken, getTimeoutSeconds(), isValidateCert());
+    }
+
+    /**
+     * Checks if bearer token authentication is enabled for this endpoint.
+     */
+    public boolean isBearerAuthEnabled() {
+        return bearerAuthEnabled;
     }
 
     private static String decode(String value) {

@@ -2,7 +2,9 @@ package com.inovexcorp.queryservice.routebuilder;
 
 import com.inovexcorp.queryservice.RdfResultsJsonifier;
 import com.inovexcorp.queryservice.cache.CacheService;
+import com.inovexcorp.queryservice.camel.anzo.auth.BearerTokenAuthService;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
+import com.inovexcorp.queryservice.routebuilder.auth.BearerTokenAuthProcessor;
 import com.inovexcorp.queryservice.routebuilder.cache.CacheCheckProcessor;
 import com.inovexcorp.queryservice.routebuilder.cache.CacheStoreProcessor;
 import lombok.AccessLevel;
@@ -39,6 +41,7 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
     private final CacheService cacheService;
     private final String cacheKeyPrefix;
     private final int cacheDefaultTtlSeconds;
+    private final BearerTokenAuthService bearerTokenAuthService;
 
     //Template for creating routes in a format of from->template->to
     @Override
@@ -132,6 +135,8 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
                         exchange.setRouteStop(true);
                     }
                 })
+                // Bearer token authentication (if enabled for this route)
+                .process(createBearerAuthProcessor())
                 // Use a String for the body -- JSON
             .convertBodyTo(String.class)
                 // Use freemarker template.
@@ -152,6 +157,28 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
                     // Store result in cache
                     .process(new CacheStoreProcessor(cacheService, camelRouteTemplate, cacheDefaultTtlSeconds))
             .end();
+    }
+
+    /**
+     * Creates a bearer token authentication processor if bearer auth is enabled for the route.
+     * Returns a no-op processor if bearer auth is not enabled or no auth service is available.
+     */
+    private org.apache.camel.Processor createBearerAuthProcessor() {
+        if (bearerTokenAuthService == null || !camelRouteTemplate.isBearerAuthEnabled()) {
+            // No-op processor when bearer auth is not configured
+            return exchange -> {};
+        }
+
+        String anzoServerUrl = camelRouteTemplate.getDatasources().getUrl();
+        boolean validateCert = camelRouteTemplate.getDatasources().isValidateCertificate();
+
+        log.info("Bearer token authentication enabled for route: {}", camelRouteTemplate.getRouteId());
+        return new BearerTokenAuthProcessor(
+                bearerTokenAuthService,
+                camelRouteTemplate,
+                anzoServerUrl,
+                validateCert
+        );
     }
 
     /**

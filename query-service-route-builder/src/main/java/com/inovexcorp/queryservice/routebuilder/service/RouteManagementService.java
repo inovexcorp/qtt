@@ -12,44 +12,46 @@ public interface RouteManagementService {
     /**
      * Creates a new Camel route endpoint with associated template and layer bindings.
      *
-     * @param routeId           The unique identifier for the route
-     * @param routeParams       The route parameters (query string format)
-     * @param dataSourceId      The ID of the datasource to query
-     * @param description       The route description
-     * @param graphMartUri      The GraphMart URI for the query
-     * @param freemarker        The Freemarker template content
-     * @param layers            Comma-separated list of layer URIs
-     * @param cacheEnabled      Whether caching is enabled for this route
-     * @param cacheTtlSeconds   Cache TTL in seconds (null = use global default)
-     * @param cacheKeyStrategy  Cache key generation strategy
+     * @param routeId            The unique identifier for the route
+     * @param routeParams        The route parameters (query string format)
+     * @param dataSourceId       The ID of the datasource to query
+     * @param description        The route description
+     * @param graphMartUri       The GraphMart URI for the query
+     * @param freemarker         The Freemarker template content
+     * @param layers             Comma-separated list of layer URIs
+     * @param cacheEnabled       Whether caching is enabled for this route
+     * @param cacheTtlSeconds    Cache TTL in seconds (null = use global default)
+     * @param cacheKeyStrategy   Cache key generation strategy
+     * @param bearerAuthEnabled  Whether bearer token authentication is enabled for this route
      * @return The created CamelRouteTemplate
      * @throws Exception if route creation fails
      */
     CamelRouteTemplate createRoute(String routeId, String routeParams, String dataSourceId,
                                    String description, String graphMartUri, String freemarker,
                                    String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
-                                   String cacheKeyStrategy) throws Exception;
+                                   String cacheKeyStrategy, Boolean bearerAuthEnabled) throws Exception;
 
     /**
      * Modifies an existing Camel route endpoint.
      *
-     * @param routeId           The unique identifier for the route
-     * @param routeParams       The route parameters (query string format)
-     * @param dataSourceId      The ID of the datasource to query
-     * @param description       The route description
-     * @param graphMartUri      The GraphMart URI for the query
-     * @param freemarker        The Freemarker template content
-     * @param layers            Comma-separated list of layer URIs
-     * @param cacheEnabled      Whether caching is enabled for this route
-     * @param cacheTtlSeconds   Cache TTL in seconds (null = use global default)
-     * @param cacheKeyStrategy  Cache key generation strategy
+     * @param routeId            The unique identifier for the route
+     * @param routeParams        The route parameters (query string format)
+     * @param dataSourceId       The ID of the datasource to query
+     * @param description        The route description
+     * @param graphMartUri       The GraphMart URI for the query
+     * @param freemarker         The Freemarker template content
+     * @param layers             Comma-separated list of layer URIs
+     * @param cacheEnabled       Whether caching is enabled for this route
+     * @param cacheTtlSeconds    Cache TTL in seconds (null = use global default)
+     * @param cacheKeyStrategy   Cache key generation strategy
+     * @param bearerAuthEnabled  Whether bearer token authentication is enabled for this route
      * @return The modified CamelRouteTemplate
      * @throws Exception if route modification fails
      */
     CamelRouteTemplate modifyRoute(String routeId, String routeParams, String dataSourceId,
                                    String description, String graphMartUri, String freemarker,
                                    String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
-                                   String cacheKeyStrategy) throws Exception;
+                                   String cacheKeyStrategy, Boolean bearerAuthEnabled) throws Exception;
 
     /**
      * Modifies only the Freemarker template of an existing route.
