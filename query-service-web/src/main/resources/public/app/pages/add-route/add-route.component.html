@@ -132,6 +132,25 @@
                 </div>
             </div>
 
+            <!-- Authentication Configuration Section -->
+            <div class="auth-config-section">
+                <h3>Authentication</h3>
+                <div class="auth-toggle-row">
+                    <mat-slide-toggle
+                        [(ngModel)]="bearerAuthEnabled"
+                        [ngModelOptions]="{standalone: true}"
+                        (change)="toggleBearerAuthEnabled()"
+                        color="primary">
+                        Enable Bearer Token Authentication
+                    </mat-slide-toggle>
+                    <mat-icon class="info-icon" matTooltip="When enabled, clients must provide a valid Anzo bearer token in the Authorization header. Tokens are verified against the datasource's Anzo server and cached for performance.">info</mat-icon>
+                </div>
+                <div class="auth-info-text" *ngIf="bearerAuthEnabled">
+                    <mat-icon>security</mat-icon>
+                    <span>Clients must include <code>Authorization: Bearer &lt;token&gt;</code> header. Invalid or missing tokens will receive a 401 response.</span>
+                </div>
+            </div>
+
             <div class="input-row-six">
                 <span>
                     <input type="file" class="file-input" (change)="onFileSelected($event)" #fileUpload>

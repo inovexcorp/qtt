@@ -30,6 +30,11 @@ export class AddRouteService {
       params = params.append('cacheKeyStrategy', route.cacheKeyStrategy);
     }
 
+    // Add bearer auth parameter if provided
+    if (route.bearerAuthEnabled !== undefined) {
+      params = params.append('bearerAuthEnabled', route.bearerAuthEnabled.toString());
+    }
+
     let formData = new FormData();
     formData.set('freemarker', new Blob([route.templateBody], { type: 'multipart/form-data' }));
     formData.set('layers', new Blob([route.layers], { type: 'multipart/form-data' }));
