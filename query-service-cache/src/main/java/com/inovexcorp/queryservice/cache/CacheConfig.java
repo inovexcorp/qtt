@@ -101,4 +101,16 @@ public @interface CacheConfig {
             description = "Cache statistics TTL in seconds (prevents Redis stampedes on stats endpoint)"
     )
     int cache_statsTtlSeconds() default 5;
+
+    @AttributeDefinition(
+            name = "Request Coalescing Enabled",
+            description = "Enable request coalescing to prevent duplicate backend calls for the same cache key"
+    )
+    boolean cache_coalescingEnabled() default true;
+
+    @AttributeDefinition(
+            name = "Request Coalescing Timeout",
+            description = "Timeout in milliseconds for waiting on coalesced requests"
+    )
+    long cache_coalescingTimeoutMs() default 30000;
 }

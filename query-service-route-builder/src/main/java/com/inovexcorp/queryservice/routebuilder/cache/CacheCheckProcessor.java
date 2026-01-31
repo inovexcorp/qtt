@@ -2,6 +2,9 @@ package com.inovexcorp.queryservice.routebuilder.cache;
 
 import com.inovexcorp.queryservice.cache.CacheKey;
 import com.inovexcorp.queryservice.cache.CacheService;
+import com.inovexcorp.queryservice.cache.RequestCoalescingService;
+import com.inovexcorp.queryservice.cache.RequestCoalescingService.CoalescedResult;
+import com.inovexcorp.queryservice.cache.RequestCoalescingService.RegistrationResult;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +19,11 @@ import java.util.Optional;
  * <p>
  * This processor is inserted after the Freemarker template processing
  * (which generates the SPARQL query) and before the Anzo producer.
+ * <p>
+ * Request coalescing: When a cache miss occurs, this processor registers
+ * with the coalescing service. If another request for the same key is
+ * already in-flight, this request waits for that result instead of
+ * making a duplicate backend call.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -24,6 +32,8 @@ public class CacheCheckProcessor implements Processor {
     public static final String CACHE_HIT_PROPERTY = "cacheHit";
     public static final String CACHE_KEY_PROPERTY = "cacheKey";
     public static final String CACHE_CHECK_START_TIME = "cacheCheckStartTime";
+    public static final String COALESCING_LEADER_PROPERTY = "coalescingLeader";
+    public static final String COALESCED_HIT_PROPERTY = "coalescedHit";
 
     private final CacheService cacheService;
     private final CamelRouteTemplate routeTemplate;
@@ -39,6 +49,7 @@ public class CacheCheckProcessor implements Processor {
         if (routeTemplate.getCacheEnabled() == null || !routeTemplate.getCacheEnabled()) {
             log.trace("Cache disabled for route: {}", routeTemplate.getRouteId());
             exchange.setProperty(CACHE_HIT_PROPERTY, false);
+            exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
             return;
         }
 
@@ -46,6 +57,7 @@ public class CacheCheckProcessor implements Processor {
         if (!cacheService.isAvailable()) {
             log.debug("Cache service not available for route: {}", routeTemplate.getRouteId());
             exchange.setProperty(CACHE_HIT_PROPERTY, false);
+            exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
             return;
         }
 
@@ -72,6 +84,7 @@ public class CacheCheckProcessor implements Processor {
                 // Cache hit! Set the cached result as the exchange body
                 exchange.getIn().setBody(cachedResult.get());
                 exchange.setProperty(CACHE_HIT_PROPERTY, true);
+                exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
 
                 long duration = System.currentTimeMillis() - startTime;
                 log.info("Cache HIT for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
@@ -79,14 +92,77 @@ public class CacheCheckProcessor implements Processor {
                 // Set a flag to skip the Anzo producer and RDF jsonifier
                 exchange.setProperty(Exchange.ROUTE_STOP, true);
             } else {
-                // Cache miss - continue to Anzo
-                exchange.setProperty(CACHE_HIT_PROPERTY, false);
-                long duration = System.currentTimeMillis() - startTime;
-                log.debug("Cache MISS for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
+                // Cache miss - check for request coalescing
+                RequestCoalescingService coalescingService = cacheService.getCoalescingService();
+
+                if (coalescingService != null && coalescingService.isEnabled()) {
+                    RegistrationResult registration = coalescingService.registerRequest(key);
+
+                    if (registration.shouldProceed()) {
+                        // This request is the leader - proceed to Anzo
+                        exchange.setProperty(CACHE_HIT_PROPERTY, false);
+                        exchange.setProperty(COALESCING_LEADER_PROPERTY, true);
+                        long duration = System.currentTimeMillis() - startTime;
+                        log.debug("Cache MISS for route '{}' - leader request proceeding to backend ({}ms)",
+                                routeTemplate.getRouteId(), duration);
+                    } else {
+                        // This request is a follower - wait for the leader
+                        log.debug("Coalescing request for route '{}' - waiting for leader", routeTemplate.getRouteId());
+
+                        Optional<CoalescedResult> coalescedResult = coalescingService.awaitResult(registration);
+
+                        if (coalescedResult.isPresent() && coalescedResult.get().success()) {
+                            // Got result from leader
+                            exchange.getIn().setBody(coalescedResult.get().value());
+                            exchange.setProperty(CACHE_HIT_PROPERTY, true);
+                            exchange.setProperty(COALESCED_HIT_PROPERTY, true);
+                            exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
+
+                            long duration = System.currentTimeMillis() - startTime;
+                            log.info("Coalesced HIT for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
+
+                            // Stop the route - we have the result
+                            exchange.setProperty(Exchange.ROUTE_STOP, true);
+                        } else {
+                            // Leader failed or timed out - check cache again before proceeding
+                            // The original leader may have succeeded and stored in cache after our timeout
+                            Optional<String> retryCachedResult = cacheService.get(key);
+                            if (retryCachedResult.isPresent()) {
+                                // Cache hit on retry! Use the cached result
+                                exchange.getIn().setBody(retryCachedResult.get());
+                                exchange.setProperty(CACHE_HIT_PROPERTY, true);
+                                exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
+
+                                long duration = System.currentTimeMillis() - startTime;
+                                log.info("Cache HIT on retry for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
+
+                                exchange.setProperty(Exchange.ROUTE_STOP, true);
+                            } else {
+                                // Still a cache miss - force leadership takeover
+                                // This atomically removes any stale in-flight request and registers us as leader
+                                RegistrationResult retryRegistration = coalescingService.forceLeadership(key);
+                                exchange.setProperty(CACHE_HIT_PROPERTY, false);
+                                // forceLeadership always returns true for shouldProceed
+                                exchange.setProperty(COALESCING_LEADER_PROPERTY, true);
+
+                                long duration = System.currentTimeMillis() - startTime;
+                                log.warn("Coalesced request failed/timed out for route '{}' - forced leadership takeover, proceeding to backend ({}ms)",
+                                        routeTemplate.getRouteId(), duration);
+                            }
+                        }
+                    }
+                } else {
+                    // Coalescing disabled - proceed normally
+                    exchange.setProperty(CACHE_HIT_PROPERTY, false);
+                    exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
+                    long duration = System.currentTimeMillis() - startTime;
+                    log.debug("Cache MISS for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
+                }
             }
         } catch (Exception e) {
             log.error("Error checking cache for route '{}': {}", routeTemplate.getRouteId(), e.getMessage(), e);
             exchange.setProperty(CACHE_HIT_PROPERTY, false);
+            exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
             // Continue processing (fail-open behavior)
         }
     }
