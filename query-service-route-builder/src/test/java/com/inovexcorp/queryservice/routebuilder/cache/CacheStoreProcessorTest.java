@@ -54,6 +54,11 @@ class CacheStoreProcessorTest {
         // Arrange
         when(routeTemplate.getCacheEnabled()).thenReturn(false);
         when(routeTemplate.getRouteId()).thenReturn(ROUTE_ID);
+        // Properties are read before the cache enabled check
+        when(exchange.getProperty(CacheCheckProcessor.CACHE_KEY_PROPERTY, String.class))
+                .thenReturn(CACHE_KEY);
+        when(exchange.getProperty(CacheCheckProcessor.COALESCING_LEADER_PROPERTY, Boolean.class))
+                .thenReturn(false);
 
         // Act
         processor.process(exchange);
@@ -68,6 +73,11 @@ class CacheStoreProcessorTest {
         // Arrange
         when(routeTemplate.getCacheEnabled()).thenReturn(null);
         when(routeTemplate.getRouteId()).thenReturn(ROUTE_ID);
+        // Properties are read before the cache enabled check
+        when(exchange.getProperty(CacheCheckProcessor.CACHE_KEY_PROPERTY, String.class))
+                .thenReturn(CACHE_KEY);
+        when(exchange.getProperty(CacheCheckProcessor.COALESCING_LEADER_PROPERTY, Boolean.class))
+                .thenReturn(false);
 
         // Act
         processor.process(exchange);
@@ -83,6 +93,11 @@ class CacheStoreProcessorTest {
         // Arrange
         when(routeTemplate.getCacheEnabled()).thenReturn(true);
         when(routeTemplate.getRouteId()).thenReturn(ROUTE_ID);
+        // Properties are read before the cache hit check
+        when(exchange.getProperty(CacheCheckProcessor.CACHE_KEY_PROPERTY, String.class))
+                .thenReturn(CACHE_KEY);
+        when(exchange.getProperty(CacheCheckProcessor.COALESCING_LEADER_PROPERTY, Boolean.class))
+                .thenReturn(false);
         when(exchange.getProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, Boolean.class))
                 .thenReturn(true);
 
@@ -266,10 +281,12 @@ class CacheStoreProcessorTest {
         // Arrange
         when(routeTemplate.getCacheEnabled()).thenReturn(true);
         when(routeTemplate.getRouteId()).thenReturn(ROUTE_ID);
-        when(exchange.getProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, Boolean.class))
-                .thenReturn(false);
         when(exchange.getProperty(CacheCheckProcessor.CACHE_KEY_PROPERTY, String.class))
                 .thenReturn(null);
+        when(exchange.getProperty(CacheCheckProcessor.COALESCING_LEADER_PROPERTY, Boolean.class))
+                .thenReturn(false);
+        when(exchange.getProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, Boolean.class))
+                .thenReturn(false);
         when(cacheService.isAvailable()).thenReturn(true);
 
         // Act

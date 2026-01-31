@@ -12,7 +12,7 @@ import java.util.Optional;
 public class NoOpCacheService implements CacheService {
 
     // Disabled coalescing service for no-op mode
-    private final RequestCoalescingService coalescingService = new RequestCoalescingService(false, 30000);
+    private final RequestCoalescingService coalescingService = RequestCoalescingService.builder().build();
 
     @Override
     public Optional<String> get(String key) {

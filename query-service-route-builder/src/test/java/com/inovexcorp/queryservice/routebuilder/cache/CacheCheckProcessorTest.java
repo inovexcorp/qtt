@@ -169,9 +169,42 @@ class CacheCheckProcessorTest {
     }
 
     @Test
-    void process_WhenCoalescingTimesOut_ProceedsToBackend() throws Exception {
+    void process_WhenCoalescingTimesOut_RechecksCache() throws Exception {
+        // Arrange
+        String cachedResult = "{\"data\": \"cached after timeout\"}";
+        setupCacheEnabled();
+        // First cache check - miss
+        // Second cache check - hit (leader completed after our timeout)
+        when(cacheService.get(anyString()))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(cachedResult));
+        when(cacheService.getCoalescingService()).thenReturn(coalescingService);
+        when(coalescingService.isEnabled()).thenReturn(true);
+
+        // First call - follower
+        CompletableFuture<CoalescedResult> followerFuture = new CompletableFuture<>();
+        RegistrationResult followerResult = new RegistrationResult(false, followerFuture);
+
+        when(coalescingService.registerRequest(anyString())).thenReturn(followerResult);
+        when(coalescingService.awaitResult(any(RegistrationResult.class)))
+                .thenReturn(Optional.empty()); // Timeout
+
+        // Act
+        processor.process(exchange);
+
+        // Assert - should use cached result from retry check
+        verify(message).setBody(cachedResult);
+        verify(exchange).setProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, true);
+        verify(exchange).setProperty(Exchange.ROUTE_STOP, true);
+        // Should NOT force leadership since cache hit on retry
+        verify(coalescingService, never()).forceLeadership(anyString());
+    }
+
+    @Test
+    void process_WhenCoalescingTimesOutAndCacheMiss_ForcesLeadership() throws Exception {
         // Arrange
         setupCacheEnabled();
+        // Both cache checks return empty
         when(cacheService.get(anyString())).thenReturn(Optional.empty());
         when(cacheService.getCoalescingService()).thenReturn(coalescingService);
         when(coalescingService.isEnabled()).thenReturn(true);
@@ -179,13 +212,12 @@ class CacheCheckProcessorTest {
         // First call - follower
         CompletableFuture<CoalescedResult> followerFuture = new CompletableFuture<>();
         RegistrationResult followerResult = new RegistrationResult(false, followerFuture);
-        // Second call - becomes leader after timeout
+        // Force leadership call - becomes leader
         CompletableFuture<CoalescedResult> leaderFuture = new CompletableFuture<>();
         RegistrationResult leaderResult = new RegistrationResult(true, leaderFuture);
 
-        when(coalescingService.registerRequest(anyString()))
-                .thenReturn(followerResult)
-                .thenReturn(leaderResult);
+        when(coalescingService.registerRequest(anyString())).thenReturn(followerResult);
+        when(coalescingService.forceLeadership(anyString())).thenReturn(leaderResult);
         when(coalescingService.awaitResult(any(RegistrationResult.class)))
                 .thenReturn(Optional.empty()); // Timeout
 
@@ -194,14 +226,47 @@ class CacheCheckProcessorTest {
 
         // Assert
         verify(exchange).setProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, false);
-        // Should have tried to register twice
-        verify(coalescingService, times(2)).registerRequest(anyString());
+        verify(exchange).setProperty(CacheCheckProcessor.COALESCING_LEADER_PROPERTY, true);
+        // Should use forceLeadership, not registerRequest for retry
+        verify(coalescingService).forceLeadership(anyString());
+        verify(coalescingService, times(1)).registerRequest(anyString()); // Only initial registration
     }
 
     @Test
-    void process_WhenCoalescingFails_ProceedsToBackend() throws Exception {
+    void process_WhenCoalescingFails_RechecksCache() throws Exception {
+        // Arrange
+        String cachedResult = "{\"data\": \"cached after failure\"}";
+        setupCacheEnabled();
+        // First cache check - miss
+        // Second cache check - hit
+        when(cacheService.get(anyString()))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(cachedResult));
+        when(cacheService.getCoalescingService()).thenReturn(coalescingService);
+        when(coalescingService.isEnabled()).thenReturn(true);
+
+        // First call - follower
+        CompletableFuture<CoalescedResult> followerFuture = new CompletableFuture<>();
+        RegistrationResult followerResult = new RegistrationResult(false, followerFuture);
+
+        when(coalescingService.registerRequest(anyString())).thenReturn(followerResult);
+        when(coalescingService.awaitResult(any(RegistrationResult.class)))
+                .thenReturn(Optional.of(CoalescedResult.failure("Leader failed")));
+
+        // Act
+        processor.process(exchange);
+
+        // Assert - should use cached result from retry check
+        verify(message).setBody(cachedResult);
+        verify(exchange).setProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, true);
+        verify(exchange).setProperty(Exchange.ROUTE_STOP, true);
+    }
+
+    @Test
+    void process_WhenCoalescingFailsAndCacheMiss_ForcesLeadership() throws Exception {
         // Arrange
         setupCacheEnabled();
+        // Both cache checks return empty
         when(cacheService.get(anyString())).thenReturn(Optional.empty());
         when(cacheService.getCoalescingService()).thenReturn(coalescingService);
         when(coalescingService.isEnabled()).thenReturn(true);
@@ -209,13 +274,12 @@ class CacheCheckProcessorTest {
         // First call - follower
         CompletableFuture<CoalescedResult> followerFuture = new CompletableFuture<>();
         RegistrationResult followerResult = new RegistrationResult(false, followerFuture);
-        // Second call - becomes leader after failure
+        // Force leadership call
         CompletableFuture<CoalescedResult> leaderFuture = new CompletableFuture<>();
         RegistrationResult leaderResult = new RegistrationResult(true, leaderFuture);
 
-        when(coalescingService.registerRequest(anyString()))
-                .thenReturn(followerResult)
-                .thenReturn(leaderResult);
+        when(coalescingService.registerRequest(anyString())).thenReturn(followerResult);
+        when(coalescingService.forceLeadership(anyString())).thenReturn(leaderResult);
         when(coalescingService.awaitResult(any(RegistrationResult.class)))
                 .thenReturn(Optional.of(CoalescedResult.failure("Leader failed")));
 
@@ -224,7 +288,8 @@ class CacheCheckProcessorTest {
 
         // Assert
         verify(exchange).setProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, false);
-        verify(coalescingService, times(2)).registerRequest(anyString());
+        verify(exchange).setProperty(CacheCheckProcessor.COALESCING_LEADER_PROPERTY, true);
+        verify(coalescingService).forceLeadership(anyString());
     }
 
     // ========== Coalescing Disabled Tests ==========

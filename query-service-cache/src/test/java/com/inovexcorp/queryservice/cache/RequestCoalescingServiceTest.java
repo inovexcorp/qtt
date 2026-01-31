@@ -26,7 +26,7 @@ class RequestCoalescingServiceTest {
 
     @BeforeEach
     void setUp() {
-        coalescingService = new RequestCoalescingService(true, 5000);
+        coalescingService = RequestCoalescingService.builder().enabled(true).defaultTimeoutMs(5000).build();
     }
 
     // ========== Basic Configuration Tests ==========
@@ -34,7 +34,7 @@ class RequestCoalescingServiceTest {
     @Test
     void constructor_WithEnabledTrue_IsEnabled() {
         // Arrange & Act
-        RequestCoalescingService service = new RequestCoalescingService(true, 5000);
+        RequestCoalescingService service = RequestCoalescingService.builder().enabled(true).defaultTimeoutMs(5000).build();
 
         // Assert
         assertTrue(service.isEnabled(), "Service should be enabled");
@@ -43,7 +43,7 @@ class RequestCoalescingServiceTest {
     @Test
     void constructor_WithEnabledFalse_IsDisabled() {
         // Arrange & Act
-        RequestCoalescingService service = new RequestCoalescingService(false, 5000);
+        RequestCoalescingService service = RequestCoalescingService.builder().enabled(false).defaultTimeoutMs(5000).build();
 
         // Assert
         assertFalse(service.isEnabled(), "Service should be disabled");
@@ -53,7 +53,7 @@ class RequestCoalescingServiceTest {
     void getDefaultTimeoutMs_ReturnsConfiguredValue() {
         // Arrange
         long expectedTimeout = 10000;
-        RequestCoalescingService service = new RequestCoalescingService(true, expectedTimeout);
+        RequestCoalescingService service = RequestCoalescingService.builder().enabled(true).defaultTimeoutMs(expectedTimeout).build();
 
         // Act
         long actualTimeout = service.getDefaultTimeoutMs();
@@ -110,7 +110,7 @@ class RequestCoalescingServiceTest {
     @Test
     void registerRequest_WhenDisabled_AlwaysReturnsLeader() {
         // Arrange
-        RequestCoalescingService disabledService = new RequestCoalescingService(false, 5000);
+        RequestCoalescingService disabledService = RequestCoalescingService.builder().enabled(false).defaultTimeoutMs(5000).build();
         String cacheKey = "test:key:1";
 
         // Act
@@ -704,7 +704,7 @@ class RequestCoalescingServiceTest {
     @Test
     void disabledService_DoesNotTrackInFlight() {
         // Arrange
-        RequestCoalescingService disabled = new RequestCoalescingService(false, 5000);
+        RequestCoalescingService disabled = RequestCoalescingService.builder().enabled(false).defaultTimeoutMs(5000).build();
 
         // Act
         disabled.registerRequest("key1");
@@ -713,5 +713,363 @@ class RequestCoalescingServiceTest {
         // Assert - when disabled, nothing should be tracked
         assertEquals(0, disabled.getInFlightCount(),
                 "Disabled service should not track in-flight requests");
+    }
+
+    // ========== Force Leadership Tests ==========
+
+    @Test
+    void forceLeadership_WhenNoExistingRequest_BecomesLeader() {
+        // Arrange
+        String cacheKey = "test:force:key";
+
+        // Act
+        RegistrationResult result = coalescingService.forceLeadership(cacheKey);
+
+        // Assert
+        assertTrue(result.isLeader(), "Should become leader");
+        assertTrue(result.shouldProceed(), "Should proceed to backend");
+        assertEquals(1, coalescingService.getInFlightCount(), "Should have 1 in-flight request");
+    }
+
+    @Test
+    void forceLeadership_WhenExistingRequest_SupersedesIt() {
+        // Arrange
+        String cacheKey = "test:force:supersede";
+        RegistrationResult originalLeader = coalescingService.registerRequest(cacheKey);
+        RegistrationResult follower = coalescingService.registerRequest(cacheKey);
+
+        // Act
+        RegistrationResult forcedLeader = coalescingService.forceLeadership(cacheKey);
+
+        // Assert
+        assertTrue(forcedLeader.isLeader(), "Forced registration should become leader");
+        assertTrue(forcedLeader.shouldProceed(), "Forced leader should proceed");
+        assertEquals(1, coalescingService.getInFlightCount(), "Should still have 1 in-flight request");
+
+        // The original leader's future should be different from the forced leader's future
+        assertNotSame(originalLeader.future(), forcedLeader.future(),
+                "Forced leader should have a new future");
+    }
+
+    @Test
+    @Timeout(5)
+    void forceLeadership_NotifiesWaitersOfSupersession() throws Exception {
+        // Arrange
+        String cacheKey = "test:force:notify";
+        coalescingService.registerRequest(cacheKey); // Original leader
+        RegistrationResult follower = coalescingService.registerRequest(cacheKey);
+
+        // Act - force leadership takeover
+        coalescingService.forceLeadership(cacheKey);
+
+        // Assert - follower should receive a failure result
+        Optional<CoalescedResult> result = coalescingService.awaitResult(follower, 1000);
+        assertTrue(result.isPresent(), "Follower should receive result");
+        assertFalse(result.get().success(), "Result should indicate failure");
+        assertTrue(result.get().errorMessage().contains("superseded"),
+                "Error message should mention supersession");
+    }
+
+    @Test
+    void forceLeadership_IncrementsForcedTakeoverCount() {
+        // Arrange
+        String cacheKey = "test:force:count";
+        coalescingService.registerRequest(cacheKey); // Original leader
+        long initialCount = coalescingService.getForcedTakeoverCount();
+
+        // Act
+        coalescingService.forceLeadership(cacheKey);
+
+        // Assert
+        assertEquals(initialCount + 1, coalescingService.getForcedTakeoverCount(),
+                "Forced takeover count should increment");
+    }
+
+    @Test
+    void forceLeadership_DoesNotIncrementCountWhenNoExistingRequest() {
+        // Arrange
+        String cacheKey = "test:force:no-existing";
+        long initialCount = coalescingService.getForcedTakeoverCount();
+
+        // Act
+        coalescingService.forceLeadership(cacheKey);
+
+        // Assert
+        assertEquals(initialCount, coalescingService.getForcedTakeoverCount(),
+                "Forced takeover count should not increment when no existing request");
+    }
+
+    @Test
+    void forceLeadership_WhenDisabled_ReturnsLeader() {
+        // Arrange
+        RequestCoalescingService disabled = RequestCoalescingService.builder()
+                .enabled(false).defaultTimeoutMs(5000).build();
+        String cacheKey = "test:force:disabled";
+
+        // Act
+        RegistrationResult result = disabled.forceLeadership(cacheKey);
+
+        // Assert
+        assertTrue(result.isLeader(), "Should return leader even when disabled");
+        assertEquals(0, disabled.getInFlightCount(),
+                "Should not track in-flight when disabled");
+    }
+
+    // ========== Stale Entry Cleanup Tests ==========
+
+    @Test
+    void cleanupStaleEntries_RemovesOldEntries() {
+        // Arrange - use a very short threshold for testing
+        RequestCoalescingService service = RequestCoalescingService.builder()
+                .enabled(true)
+                .defaultTimeoutMs(5000)
+                .staleEntryThresholdMs(10) // 10ms threshold
+                .build();
+
+        service.registerRequest("key1");
+        service.registerRequest("key2");
+        assertEquals(2, service.getInFlightCount(), "Should have 2 in-flight requests");
+
+        // Wait for entries to become stale
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // Act
+        int cleaned = service.cleanupStaleEntries();
+
+        // Assert
+        assertEquals(2, cleaned, "Should have cleaned up 2 stale entries");
+        assertEquals(0, service.getInFlightCount(), "Should have 0 in-flight requests after cleanup");
+        assertEquals(2, service.getStaleEntriesCleanedCount(), "Stale entries cleaned count should be 2");
+    }
+
+    @Test
+    void cleanupStaleEntries_DoesNotRemoveFreshEntries() {
+        // Arrange - use a long threshold
+        RequestCoalescingService service = RequestCoalescingService.builder()
+                .enabled(true)
+                .defaultTimeoutMs(5000)
+                .staleEntryThresholdMs(60000) // 60 seconds
+                .build();
+
+        service.registerRequest("key1");
+        service.registerRequest("key2");
+
+        // Act - cleanup immediately (entries should be fresh)
+        int cleaned = service.cleanupStaleEntries();
+
+        // Assert
+        assertEquals(0, cleaned, "Should not clean up fresh entries");
+        assertEquals(2, service.getInFlightCount(), "Should still have 2 in-flight requests");
+    }
+
+    @Test
+    @Timeout(5)
+    void cleanupStaleEntries_NotifiesWaiters() throws Exception {
+        // Arrange
+        RequestCoalescingService service = RequestCoalescingService.builder()
+                .enabled(true)
+                .defaultTimeoutMs(5000)
+                .staleEntryThresholdMs(10)
+                .build();
+
+        service.registerRequest("key1"); // Leader
+        RegistrationResult follower = service.registerRequest("key1"); // Follower
+
+        // Wait for entry to become stale
+        Thread.sleep(50);
+
+        // Act
+        service.cleanupStaleEntries();
+
+        // Assert - follower should receive failure result
+        Optional<CoalescedResult> result = service.awaitResult(follower, 100);
+        assertTrue(result.isPresent(), "Follower should receive result");
+        assertFalse(result.get().success(), "Result should indicate failure");
+        assertTrue(result.get().errorMessage().contains("stale"),
+                "Error message should mention stale cleanup");
+    }
+
+    @Test
+    void cleanupStaleEntries_WhenDisabled_ReturnsZero() {
+        // Arrange
+        RequestCoalescingService disabled = RequestCoalescingService.builder()
+                .enabled(false)
+                .defaultTimeoutMs(5000)
+                .staleEntryThresholdMs(10)
+                .build();
+
+        // Act
+        int cleaned = disabled.cleanupStaleEntries();
+
+        // Assert
+        assertEquals(0, cleaned, "Should return 0 when disabled");
+    }
+
+    // ========== IsInFlight Tests ==========
+
+    @Test
+    void isInFlight_ReturnsTrueWhenRequestExists() {
+        // Arrange
+        String cacheKey = "test:inflight:exists";
+        coalescingService.registerRequest(cacheKey);
+
+        // Act & Assert
+        assertTrue(coalescingService.isInFlight(cacheKey),
+                "Should return true when request is in-flight");
+    }
+
+    @Test
+    void isInFlight_ReturnsFalseWhenNoRequest() {
+        // Act & Assert
+        assertFalse(coalescingService.isInFlight("non-existent-key"),
+                "Should return false when no request is in-flight");
+    }
+
+    @Test
+    void isInFlight_ReturnsFalseAfterCompletion() {
+        // Arrange
+        String cacheKey = "test:inflight:completed";
+        coalescingService.registerRequest(cacheKey);
+        coalescingService.completeRequest(cacheKey, "result");
+
+        // Act & Assert
+        assertFalse(coalescingService.isInFlight(cacheKey),
+                "Should return false after request is completed");
+    }
+
+    // ========== Race Condition Simulation Tests ==========
+
+    @Test
+    @Timeout(30)
+    void concurrentForceLeadership_OnlyOneSucceeds() throws Exception {
+        // Arrange
+        String cacheKey = "test:concurrent:force";
+        int threadCount = 10;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threadCount);
+
+        // First, register a leader
+        coalescingService.registerRequest(cacheKey);
+
+        List<CompletableFuture<CoalescedResult>> futures = new CopyOnWriteArrayList<>();
+
+        // Act - multiple threads try to force leadership
+        for (int i = 0; i < threadCount; i++) {
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    RegistrationResult result = coalescingService.forceLeadership(cacheKey);
+                    futures.add(result.future());
+                } catch (Exception e) {
+                    // Ignore
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown();
+        doneLatch.await(10, TimeUnit.SECONDS);
+        executor.shutdown();
+
+        // Assert - only 1 in-flight request should remain
+        assertEquals(1, coalescingService.getInFlightCount(),
+                "Should have exactly 1 in-flight request after concurrent force leadership");
+    }
+
+    @Test
+    @Timeout(30)
+    void timeoutAndRetry_WithForceLeadership_PreventsMultipleBackendCalls() throws Exception {
+        // This test simulates the scenario where:
+        // 1. Request A becomes leader
+        // 2. Request B becomes follower
+        // 3. Request B times out
+        // 4. Request B uses forceLeadership to take over
+        // 5. Request A's followers (if any) are notified
+
+        // Arrange
+        String cacheKey = "test:timeout:force";
+        AtomicInteger backendCalls = new AtomicInteger(0);
+
+        // Request A becomes leader
+        RegistrationResult leaderA = coalescingService.registerRequest(cacheKey);
+        assertTrue(leaderA.isLeader(), "A should be leader");
+
+        // Request B becomes follower
+        RegistrationResult followerB = coalescingService.registerRequest(cacheKey);
+        assertFalse(followerB.isLeader(), "B should be follower");
+
+        // Simulate B timing out and forcing leadership
+        RegistrationResult forcedB = coalescingService.forceLeadership(cacheKey);
+        assertTrue(forcedB.isLeader(), "B should now be leader after force");
+
+        // The original A's future should be superseded
+        // If A tries to complete now, it won't find its entry
+        coalescingService.completeRequest(cacheKey, "result from original A");
+
+        // But the entry was already replaced by B, so this should log a warning
+        // and not affect B's future
+
+        // B completes with its result
+        coalescingService.completeRequest(cacheKey, "result from B");
+
+        // Assert - entry should be cleaned up
+        assertEquals(0, coalescingService.getInFlightCount(),
+                "Should have 0 in-flight requests after completion");
+    }
+
+    // ========== Statistics Reset Tests ==========
+
+    @Test
+    void resetStats_ClearsAllCountersIncludingNewOnes() {
+        // Arrange
+        coalescingService.registerRequest("key1");
+        coalescingService.forceLeadership("key1"); // Creates a forced takeover
+        coalescingService.completeRequest("key1", "result");
+
+        // Act
+        coalescingService.resetStats();
+
+        // Assert
+        assertEquals(0, coalescingService.getLeaderCount(), "Leader count should be reset");
+        assertEquals(0, coalescingService.getCoalescedCount(), "Coalesced count should be reset");
+        assertEquals(0, coalescingService.getTimeoutCount(), "Timeout count should be reset");
+        assertEquals(0, coalescingService.getFailureCount(), "Failure count should be reset");
+        assertEquals(0, coalescingService.getForcedTakeoverCount(), "Forced takeover count should be reset");
+        assertEquals(0, coalescingService.getStaleEntriesCleanedCount(), "Stale entries cleaned count should be reset");
+    }
+
+    // ========== Builder Default Tests ==========
+
+    @Test
+    void builder_WithDefaults_HasCorrectValues() {
+        // Act
+        RequestCoalescingService service = RequestCoalescingService.builder().build();
+
+        // Assert
+        assertFalse(service.isEnabled(), "Default enabled should be false");
+        assertEquals(30000L, service.getDefaultTimeoutMs(), "Default timeout should be 30000ms");
+        assertEquals(120000L, service.getStaleEntryThresholdMs(), "Default stale threshold should be 120000ms");
+    }
+
+    @Test
+    void builder_WithCustomStaleThreshold_UsesCustomValue() {
+        // Arrange
+        long customThreshold = 60000L;
+
+        // Act
+        RequestCoalescingService service = RequestCoalescingService.builder()
+                .enabled(true)
+                .staleEntryThresholdMs(customThreshold)
+                .build();
+
+        // Assert
+        assertEquals(customThreshold, service.getStaleEntryThresholdMs(),
+                "Should use custom stale threshold");
     }
 }

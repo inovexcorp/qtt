@@ -124,15 +124,31 @@ public class CacheCheckProcessor implements Processor {
                             // Stop the route - we have the result
                             exchange.setProperty(Exchange.ROUTE_STOP, true);
                         } else {
-                            // Leader failed or timed out - proceed to backend ourselves
-                            // Re-register as a new leader for this key
-                            RegistrationResult retryRegistration = coalescingService.registerRequest(key);
-                            exchange.setProperty(CACHE_HIT_PROPERTY, false);
-                            exchange.setProperty(COALESCING_LEADER_PROPERTY, retryRegistration.shouldProceed());
+                            // Leader failed or timed out - check cache again before proceeding
+                            // The original leader may have succeeded and stored in cache after our timeout
+                            Optional<String> retryCachedResult = cacheService.get(key);
+                            if (retryCachedResult.isPresent()) {
+                                // Cache hit on retry! Use the cached result
+                                exchange.getIn().setBody(retryCachedResult.get());
+                                exchange.setProperty(CACHE_HIT_PROPERTY, true);
+                                exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
 
-                            long duration = System.currentTimeMillis() - startTime;
-                            log.warn("Coalesced request failed/timed out for route '{}' - proceeding to backend ({}ms)",
-                                    routeTemplate.getRouteId(), duration);
+                                long duration = System.currentTimeMillis() - startTime;
+                                log.info("Cache HIT on retry for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
+
+                                exchange.setProperty(Exchange.ROUTE_STOP, true);
+                            } else {
+                                // Still a cache miss - force leadership takeover
+                                // This atomically removes any stale in-flight request and registers us as leader
+                                RegistrationResult retryRegistration = coalescingService.forceLeadership(key);
+                                exchange.setProperty(CACHE_HIT_PROPERTY, false);
+                                // forceLeadership always returns true for shouldProceed
+                                exchange.setProperty(COALESCING_LEADER_PROPERTY, true);
+
+                                long duration = System.currentTimeMillis() - startTime;
+                                log.warn("Coalesced request failed/timed out for route '{}' - forced leadership takeover, proceeding to backend ({}ms)",
+                                        routeTemplate.getRouteId(), duration);
+                            }
                         }
                     }
                 } else {

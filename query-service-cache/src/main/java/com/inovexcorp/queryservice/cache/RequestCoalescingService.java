@@ -1,7 +1,13 @@
 package com.inovexcorp.queryservice.cache;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,6 +27,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * simultaneous requests to hit the backend.
  */
 @Slf4j
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class RequestCoalescingService {
 
     /**
@@ -33,6 +41,15 @@ public class RequestCoalescingService {
 
         public static CoalescedResult failure(String errorMessage) {
             return new CoalescedResult(null, false, errorMessage);
+        }
+    }
+
+    /**
+     * Internal record to track in-flight request metadata.
+     */
+    private record InFlightRequest(CompletableFuture<CoalescedResult> future, long createdAt) {
+        static InFlightRequest create() {
+            return new InFlightRequest(new CompletableFuture<>(), System.currentTimeMillis());
         }
     }
 
@@ -69,38 +86,29 @@ public class RequestCoalescingService {
         }
     }
 
-    // Map of cache key -> future that will complete when the in-flight request finishes
-    private final ConcurrentHashMap<String, CompletableFuture<CoalescedResult>> inFlightRequests = new ConcurrentHashMap<>();
+    // Map of cache key -> in-flight request metadata
+    private final ConcurrentHashMap<String, InFlightRequest> inFlightRequests = new ConcurrentHashMap<>();
 
     // Statistics
     private final AtomicLong coalescedRequests = new AtomicLong(0);
     private final AtomicLong leaderRequests = new AtomicLong(0);
     private final AtomicLong timeouts = new AtomicLong(0);
     private final AtomicLong failures = new AtomicLong(0);
+    private final AtomicLong forcedTakeovers = new AtomicLong(0);
+    private final AtomicLong staleEntriesCleaned = new AtomicLong(0);
 
-    private final boolean enabled;
-    private final long defaultTimeoutMs;
+    @Getter
+    @Builder.Default
+    private final boolean enabled = false;
 
-    /**
-     * Creates a new RequestCoalescingService.
-     *
-     * @param enabled         whether coalescing is enabled
-     * @param defaultTimeoutMs default timeout for waiting on in-flight requests
-     */
-    public RequestCoalescingService(boolean enabled, long defaultTimeoutMs) {
-        this.enabled = enabled;
-        this.defaultTimeoutMs = defaultTimeoutMs;
-        log.info("RequestCoalescingService initialized: enabled={}, defaultTimeoutMs={}", enabled, defaultTimeoutMs);
-    }
+    @Getter
+    @Builder.Default
+    private final long defaultTimeoutMs = 30000L;
 
-    /**
-     * Checks if coalescing is enabled.
-     *
-     * @return true if coalescing is enabled
-     */
-    public boolean isEnabled() {
-        return enabled;
-    }
+    @Getter
+    @Builder.Default
+    private final long staleEntryThresholdMs = 120000L; // 2 minutes - entries older than this can be cleaned up
+
 
     /**
      * Attempts to register an in-flight request for the given cache key.
@@ -121,19 +129,19 @@ public class RequestCoalescingService {
             return new RegistrationResult(true, new CompletableFuture<>());
         }
 
-        CompletableFuture<CoalescedResult> newFuture = new CompletableFuture<>();
-        CompletableFuture<CoalescedResult> existingFuture = inFlightRequests.putIfAbsent(cacheKey, newFuture);
+        InFlightRequest newRequest = InFlightRequest.create();
+        InFlightRequest existingRequest = inFlightRequests.putIfAbsent(cacheKey, newRequest);
 
-        if (existingFuture == null) {
+        if (existingRequest == null) {
             // No existing request - this is the leader
             leaderRequests.incrementAndGet();
             log.debug("Registered as leader for cache key: {}", cacheKey);
-            return new RegistrationResult(true, newFuture);
+            return new RegistrationResult(true, newRequest.future());
         } else {
             // Existing request found - this is a follower
             coalescedRequests.incrementAndGet();
             log.debug("Coalescing request for cache key: {} (waiting for leader)", cacheKey);
-            return new RegistrationResult(false, existingFuture);
+            return new RegistrationResult(false, existingRequest.future());
         }
     }
 
@@ -145,9 +153,9 @@ public class RequestCoalescingService {
      * @param result   the result value
      */
     public void completeRequest(String cacheKey, String result) {
-        CompletableFuture<CoalescedResult> future = inFlightRequests.remove(cacheKey);
-        if (future != null) {
-            future.complete(CoalescedResult.success(result));
+        InFlightRequest request = inFlightRequests.remove(cacheKey);
+        if (request != null) {
+            request.future().complete(CoalescedResult.success(result));
             log.debug("Completed in-flight request for cache key: {}", cacheKey);
         } else {
             log.warn("No in-flight request found for cache key: {}", cacheKey);
@@ -162,10 +170,10 @@ public class RequestCoalescingService {
      * @param errorMessage the error message
      */
     public void failRequest(String cacheKey, String errorMessage) {
-        CompletableFuture<CoalescedResult> future = inFlightRequests.remove(cacheKey);
-        if (future != null) {
+        InFlightRequest request = inFlightRequests.remove(cacheKey);
+        if (request != null) {
             failures.incrementAndGet();
-            future.complete(CoalescedResult.failure(errorMessage));
+            request.future().complete(CoalescedResult.failure(errorMessage));
             log.debug("Failed in-flight request for cache key: {}", cacheKey);
         }
     }
@@ -177,11 +185,96 @@ public class RequestCoalescingService {
      * @param cacheKey the cache key
      */
     public void cancelRequest(String cacheKey) {
-        CompletableFuture<CoalescedResult> future = inFlightRequests.remove(cacheKey);
-        if (future != null) {
-            future.cancel(false);
+        InFlightRequest request = inFlightRequests.remove(cacheKey);
+        if (request != null) {
+            request.future().cancel(false);
             log.debug("Cancelled in-flight request for cache key: {}", cacheKey);
         }
+    }
+
+    /**
+     * Checks if a request is currently in-flight for the given cache key.
+     *
+     * @param cacheKey the cache key
+     * @return true if a request is in-flight
+     */
+    public boolean isInFlight(String cacheKey) {
+        return inFlightRequests.containsKey(cacheKey);
+    }
+
+    /**
+     * Forces takeover of leadership for a cache key.
+     * <p>
+     * This is used when a follower times out and needs to proceed to the backend.
+     * It atomically removes any existing in-flight request (notifying its waiters of failure)
+     * and registers a new request with this caller as leader.
+     * <p>
+     * This prevents the race condition where a timed-out follower proceeds to the backend
+     * while the original leader is still running.
+     *
+     * @param cacheKey the cache key
+     * @return registration result with this caller as leader
+     */
+    public RegistrationResult forceLeadership(String cacheKey) {
+        if (!enabled) {
+            return new RegistrationResult(true, new CompletableFuture<>());
+        }
+
+        // Atomically replace any existing request
+        InFlightRequest newRequest = InFlightRequest.create();
+        InFlightRequest oldRequest = inFlightRequests.put(cacheKey, newRequest);
+
+        if (oldRequest != null) {
+            // Notify waiters of the old request that it's being superseded
+            oldRequest.future().complete(CoalescedResult.failure("Request superseded by forced takeover after timeout"));
+            forcedTakeovers.incrementAndGet();
+            log.debug("Forced takeover for cache key: {} (superseded previous in-flight request)", cacheKey);
+        }
+
+        leaderRequests.incrementAndGet();
+        log.debug("Registered as leader via forced takeover for cache key: {}", cacheKey);
+        return new RegistrationResult(true, newRequest.future());
+    }
+
+    /**
+     * Cleans up stale in-flight requests that have exceeded the threshold.
+     * <p>
+     * This should be called periodically to prevent memory leaks from requests
+     * that were never completed (e.g., due to exceptions in the processing pipeline).
+     *
+     * @return the number of stale entries cleaned up
+     */
+    public int cleanupStaleEntries() {
+        if (!enabled) {
+            return 0;
+        }
+
+        long now = System.currentTimeMillis();
+        List<String> staleKeys = new ArrayList<>();
+
+        for (var entry : inFlightRequests.entrySet()) {
+            if (now - entry.getValue().createdAt() > staleEntryThresholdMs) {
+                staleKeys.add(entry.getKey());
+            }
+        }
+
+        int cleaned = 0;
+        for (String key : staleKeys) {
+            InFlightRequest request = inFlightRequests.remove(key);
+            if (request != null) {
+                request.future().complete(CoalescedResult.failure("Request cleaned up as stale after " + staleEntryThresholdMs + "ms"));
+                cleaned++;
+                log.warn("Cleaned up stale in-flight request for cache key: {} (age: {}ms)",
+                        key, now - request.createdAt());
+            }
+        }
+
+        if (cleaned > 0) {
+            staleEntriesCleaned.addAndGet(cleaned);
+            log.info("Cleaned up {} stale in-flight requests", cleaned);
+        }
+
+        return cleaned;
     }
 
     /**
@@ -217,15 +310,6 @@ public class RequestCoalescingService {
             log.warn("Interrupted while waiting for coalesced request");
             return Optional.empty();
         }
-    }
-
-    /**
-     * Gets the default timeout for waiting on in-flight requests.
-     *
-     * @return timeout in milliseconds
-     */
-    public long getDefaultTimeoutMs() {
-        return defaultTimeoutMs;
     }
 
     /**
@@ -274,6 +358,24 @@ public class RequestCoalescingService {
     }
 
     /**
+     * Gets the number of forced leadership takeovers.
+     *
+     * @return forced takeover count
+     */
+    public long getForcedTakeoverCount() {
+        return forcedTakeovers.get();
+    }
+
+    /**
+     * Gets the number of stale entries that have been cleaned up.
+     *
+     * @return stale entries cleaned count
+     */
+    public long getStaleEntriesCleanedCount() {
+        return staleEntriesCleaned.get();
+    }
+
+    /**
      * Resets all statistics counters.
      */
     public void resetStats() {
@@ -281,5 +383,7 @@ public class RequestCoalescingService {
         leaderRequests.set(0);
         timeouts.set(0);
         failures.set(0);
+        forcedTakeovers.set(0);
+        staleEntriesCleaned.set(0);
     }
 }

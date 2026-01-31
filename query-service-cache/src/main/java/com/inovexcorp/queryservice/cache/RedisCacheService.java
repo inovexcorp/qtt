@@ -75,10 +75,10 @@ public class RedisCacheService implements CacheService {
         log.info("Initialized stats cache with TTL of {}s", config.cache_statsTtlSeconds());
 
         // Initialize request coalescing service
-        this.coalescingService = new RequestCoalescingService(
-                config.cache_coalescingEnabled(),
-                config.cache_coalescingTimeoutMs()
-        );
+        this.coalescingService = RequestCoalescingService.builder()
+                .enabled(config.cache_coalescingEnabled())
+                .defaultTimeoutMs(config.cache_coalescingTimeoutMs())
+                .build();
         log.info("Initialized request coalescing: enabled={}, timeoutMs={}",
                 config.cache_coalescingEnabled(), config.cache_coalescingTimeoutMs());
 
