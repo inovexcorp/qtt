@@ -4,7 +4,8 @@ Freemarker templates are the heart of QTT, transforming simple requests into com
 
 ## Freemarker Basics for SPARQL
 
-Freemarker is a template engine that processes directives and expressions to generate text output. In QTT, templates generate SPARQL queries.
+Freemarker is a template engine that processes directives and expressions to generate text output. In QTT, templates
+generate SPARQL queries.
 
 ### Template Structure
 
@@ -29,11 +30,13 @@ LIMIT ${limit}
 ### Key Concepts
 
 **1. Parameter Access**: `${paramName}`
+
 ```freemarker
 FILTER(CONTAINS(?name, "${searchTerm}"))
 ```
 
 **2. Conditional Blocks**: `<#if>...</#if>`
+
 ```freemarker
 <#if startDate??>
 FILTER(?date >= "${startDate}"^^xsd:date)
@@ -41,6 +44,7 @@ FILTER(?date >= "${startDate}"^^xsd:date)
 ```
 
 **3. Parameter Existence Check**: `paramName??`
+
 ```freemarker
 <#if email??>
   ?person foaf:mbox "${email}" .
@@ -48,6 +52,7 @@ FILTER(?date >= "${startDate}"^^xsd:date)
 ```
 
 **4. String Transformations**
+
 ```freemarker
 ${name?lower_case}    # Convert to lowercase
 ${name?upper_case}    # Convert to uppercase
@@ -56,6 +61,7 @@ ${name?url}           # URL encode
 ```
 
 **5. Default Values**
+
 ```freemarker
 ${limit!'10'}         # Use '10' if limit not provided
 ```
@@ -84,6 +90,7 @@ LIMIT ${limit}
 ```
 
 **Usage:**
+
 ```bash
 # All people
 GET /people-search
@@ -149,6 +156,7 @@ WHERE {
 ```
 
 **Usage:**
+
 ```bash
 GET /items?types=TypeA,TypeB,TypeC
 ```
@@ -186,15 +194,18 @@ WHERE {
 The Monaco editor provides context-aware autocomplete for ontology elements.
 
 **Trigger Autocomplete:**
+
 - Type any character in the editor
 - Press `Ctrl+Space`
 
 **Autocomplete Provides:**
+
 - **Classes**: All OWL/RDFS classes from your GraphMart
 - **Properties**: Object properties, datatype properties, annotation properties
 - **Individuals**: Named instances
 
 **Example:**
+
 ```
 Type: PREFIX foaf: <http://xmlns.com/foaf/
 [Autocomplete suggests URIs]
@@ -217,6 +228,7 @@ GET /my-route?name=John&age=30
 ```
 
 Template access:
+
 ```freemarker
 ${headers.name}  # "John"
 ${headers.age}   # "30"
@@ -237,6 +249,7 @@ Content-Type: application/json
 ```
 
 Template access (same as GET):
+
 ```freemarker
 ${body.name}  # "John"
 ${body.age}   # 30
@@ -409,6 +422,7 @@ docker logs -f qtt
 When using Redis caching, template design affects cache efficiency:
 
 **Cache Key Generation:**
+
 - Cache keys are generated from the final SPARQL query + GraphMart + Layers
 - Different parameters create different cache keys
 - Case-sensitive: `?name=John` and `?name=john` are different keys

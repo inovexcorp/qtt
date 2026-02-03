@@ -64,6 +64,7 @@ Podman is a daemonless container engine that's Docker-compatible and can run roo
 ### Install Podman
 
 **On macOS:**
+
 ```bash
 brew install podman
 podman machine init
@@ -71,11 +72,13 @@ podman machine start
 ```
 
 **On RHEL/CentOS/Fedora:**
+
 ```bash
 sudo dnf install podman
 ```
 
 **On Ubuntu/Debian:**
+
 ```bash
 sudo apt-get install podman
 ```
@@ -96,12 +99,7 @@ podman run -d \
 **With volume mount for persistent data:**
 
 ```bash
-podman run -d \
-  --name qtt \
-  -p 8080:8080 \
-  -p 8888:8888 \
-  -v qtt-data:/opt/qtt/data:Z \
-  docker.io/inovexis/qtt:latest
+podman run -d --name qtt -p 8080:8080 -p 8888:8888 -v qtt-data:/opt/qtt/data:Z docker.io/inovexis/qtt:latest
 ```
 
 **Note**: The `:Z` flag is important for SELinux systems (RHEL, CentOS, Fedora) to properly label the volume.
@@ -109,10 +107,12 @@ podman run -d \
 ### Podman-Specific Considerations
 
 **Port Mapping in Rootless Mode:**
+
 - Rootless Podman can map ports 1024+ directly
 - For ports <1024, you need root or configure `net.ipv4.ip_unprivileged_port_start`
 
 **SELinux Context:**
+
 - Use `:Z` for private volume mounts
 - Use `:z` for shared volume mounts
 
@@ -122,14 +122,12 @@ For production-like deployments with PostgreSQL or SQL Server, use Docker Compos
 
 ### PostgreSQL Setup
 
-Create `docker-compose.yml`:
+Create `compose.yml`:
 
 ```yaml
-version: '3.8'
-
 services:
   postgresql:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: qtt-postgres
     environment:
       POSTGRES_DB: qtt
@@ -138,7 +136,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - qtt-postgres-data:/var/lib/postgresql/data
+      - qtt-postgres-data:/var/lib/postgresql
     networks:
       - qtt-network
 
@@ -178,8 +176,6 @@ docker compose up -d
 Create `docker-compose.yml`:
 
 ```yaml
-version: '3.8'
-
 services:
   mssql:
     image: mcr.microsoft.com/mssql/server:2019-latest
@@ -225,11 +221,9 @@ networks:
 For production deployments with query result caching, add Redis to your stack:
 
 ```yaml
-version: '3.8'
-
 services:
   postgresql:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: qtt-postgres
     environment:
       POSTGRES_DB: qtt
@@ -242,7 +236,7 @@ services:
     networks:
       - qtt-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U qttuser"]
+      test: [ "CMD-SHELL", "pg_isready -U qttuser" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -258,7 +252,7 @@ services:
     networks:
       - qtt-network
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -400,7 +394,8 @@ podman pod rm qtt-pod
 
 ### Using Custom SSL Certificates
 
-Typically, it's a better practice to sit behind a reverse proxy, such as nginx, but the container does support runtime SSL configuration via environment variables:
+Typically, it's a better practice to sit behind a reverse proxy, such as nginx, but the container does support runtime
+SSL configuration via environment variables:
 
 ```bash
 docker run -d \
@@ -473,24 +468,25 @@ To change ports, edit the Jetty endpoint configuration in your route templates o
 
 ## Docker vs Podman Command Reference
 
-| Action | Docker | Podman |
-|--------|--------|--------|
-| Pull image | `docker pull docker.io/inovexis/qtt:latest` | `podman pull docker.io/inovexis/qtt:latest` |
-| Run container | `docker run -d --name qtt -p 8080:8080 -p 8888:8888 docker.io/inovexis/qtt:latest` | `podman run -d --name qtt -p 8080:8080 -p 8888:8888 docker.io/inovexis/qtt:latest` |
-| List containers | `docker ps` | `podman ps` |
-| View logs | `docker logs qtt` | `podman logs qtt` |
-| Follow logs | `docker logs -f qtt` | `podman logs -f qtt` |
-| Execute command | `docker exec -it qtt bash` | `podman exec -it qtt bash` |
-| Stop container | `docker stop qtt` | `podman stop qtt` |
-| Start container | `docker start qtt` | `podman start qtt` |
-| Remove container | `docker rm qtt` | `podman rm qtt` |
-| Volume mount | `docker run -v qtt-data:/opt/qtt/data ...` | `podman run -v qtt-data:/opt/qtt/data:Z ...` |
-| Compose up | `docker compose up -d` | `podman-compose up -d` |
-| Compose down | `docker compose down` | `podman-compose down` |
-| Create pod | N/A | `podman pod create --name qtt-pod -p 8080:8080` |
-| Generate systemd | N/A | `podman generate systemd --name qtt --files --new` |
+| Action           | Docker                                                                             | Podman                                                                             |
+|------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| Pull image       | `docker pull docker.io/inovexis/qtt:latest`                                        | `podman pull docker.io/inovexis/qtt:latest`                                        |
+| Run container    | `docker run -d --name qtt -p 8080:8080 -p 8888:8888 docker.io/inovexis/qtt:latest` | `podman run -d --name qtt -p 8080:8080 -p 8888:8888 docker.io/inovexis/qtt:latest` |
+| List containers  | `docker ps`                                                                        | `podman ps`                                                                        |
+| View logs        | `docker logs qtt`                                                                  | `podman logs qtt`                                                                  |
+| Follow logs      | `docker logs -f qtt`                                                               | `podman logs -f qtt`                                                               |
+| Execute command  | `docker exec -it qtt bash`                                                         | `podman exec -it qtt bash`                                                         |
+| Stop container   | `docker stop qtt`                                                                  | `podman stop qtt`                                                                  |
+| Start container  | `docker start qtt`                                                                 | `podman start qtt`                                                                 |
+| Remove container | `docker rm qtt`                                                                    | `podman rm qtt`                                                                    |
+| Volume mount     | `docker run -v qtt-data:/opt/qtt/data ...`                                         | `podman run -v qtt-data:/opt/qtt/data:Z ...`                                       |
+| Compose up       | `docker compose up -d`                                                             | `podman-compose up -d`                                                             |
+| Compose down     | `docker compose down`                                                              | `podman-compose down`                                                              |
+| Create pod       | N/A                                                                                | `podman pod create --name qtt-pod -p 8080:8080`                                    |
+| Generate systemd | N/A                                                                                | `podman generate systemd --name qtt --files --new`                                 |
 
 **Key Differences:**
+
 - Podman requires `:Z` or `:z` for SELinux volume labels on RHEL/CentOS/Fedora
 - Podman supports pods (Kubernetes-style container groups)
 - Podman can generate systemd unit files

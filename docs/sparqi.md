@@ -5,6 +5,7 @@ SPARQi is an optional AI-powered assistant that helps you develop and refine Fre
 ## What is SPARQi?
 
 SPARQi stands for **SPARQL Query Intelligence**. It's a conversational AI agent that understands:
+
 - Your route's ontology (classes, properties, individuals)
 - Your current Freemarker template
 - SPARQL query syntax and best practices
@@ -13,6 +14,7 @@ SPARQi stands for **SPARQL Query Intelligence**. It's a conversational AI agent 
 ## When to Use SPARQi
 
 SPARQi is particularly helpful when you need to:
+
 - **Explore an unfamiliar ontology**: "What classes are available?"
 - **Find relationships**: "How do I connect Person to Organization?"
 - **Write complex queries**: "Help me create a query that finds all documents modified in the last week"
@@ -26,6 +28,7 @@ SPARQi is particularly helpful when you need to:
 1. **Get an OpenAI API key** from https://platform.openai.com
 
 2. **Configure environment variables:**
+
 ```bash
 docker run -d \
   --name qtt \
@@ -40,14 +43,17 @@ docker run -d \
 
 ### Option 2: Using LiteLLM (Recommended)
 
-[LiteLLM](https://docs.litellm.ai/) provides a unified gateway to 100+ LLM providers with enterprise features like caching, fallbacks, and load balancing.
+[LiteLLM](https://docs.litellm.ai/) provides a unified gateway to 100+ LLM providers with enterprise features like
+caching, fallbacks, and load balancing.
 
 **Step 1: Install LiteLLM**
+
 ```bash
 pip install litellm[proxy]
 ```
 
 **Step 2: Create configuration file** (`litellm_config.yaml`):
+
 ```yaml
 model_list:
   # Claude from Anthropic
@@ -76,6 +82,7 @@ model_list:
 ```
 
 **Step 3: Start LiteLLM proxy**
+
 ```bash
 export ANTHROPIC_API_KEY=your-key
 export OPENAI_API_KEY=your-key
@@ -83,6 +90,7 @@ litellm --config litellm_config.yaml --port 4000
 ```
 
 **Step 4: Configure QTT to use LiteLLM**
+
 ```bash
 docker run -d \
   --name qtt \
@@ -149,6 +157,7 @@ SPARQI_MAX_CONVO_HISTORY=50
 ```
 
 **Recommendations:**
+
 - **For code generation**: Lower temperature (0.3-0.5)
 - **For explanations**: Higher temperature (0.7-0.9)
 - **For long conversations**: Increase max history to 100
@@ -163,6 +172,7 @@ SPARQI_MAX_CONVO_HISTORY=50
 3. Click to open the chat panel
 
 The chat panel will:
+
 - Slide in from the right side
 - Show your current route context
 - Display a welcome message
@@ -171,18 +181,21 @@ The chat panel will:
 ### SPARQi Features
 
 **Context Display:**
+
 - Click "View Context" to see what SPARQi knows about your route:
-  - Route ID and description
-  - Current Freemarker template
-  - GraphMart URI and layers
-  - Number of ontology elements cached
+    - Route ID and description
+    - Current Freemarker template
+    - GraphMart URI and layers
+    - Number of ontology elements cached
 
 **Ontology Visualization:**
+
 - Click the ontology element count to open a dialog
 - See all classes, properties, and individuals
 - Organized by type with descriptions
 
 **Conversation Features:**
+
 - **Markdown rendering**: Formatted responses with code blocks
 - **Code copy buttons**: One-click copy of SPARQL/Freemarker snippets
 - **Message history**: Scroll through past conversations
@@ -192,6 +205,7 @@ The chat panel will:
 ### Example Conversations
 
 **Exploring the Ontology:**
+
 ```
 You: What classes are available in this ontology?
 
@@ -206,6 +220,7 @@ You can use these in your CONSTRUCT queries to specify what types of entities yo
 ```
 
 **Finding Relationships:**
+
 ```
 You: How can I connect a Person to an Organization?
 
@@ -224,6 +239,7 @@ Here's an example query:
 ```
 
 **Template Assistance:**
+
 ```
 You: Help me add a date filter to this query
 
@@ -237,41 +253,51 @@ SPARQi: I can see your current template. To add a date filter, you can use Freem
 SPARQi has access to intelligent tools that it automatically uses to answer your questions:
 
 ### Tool 1: lookupOntologyElements
+
 Searches ontology for specific concepts.
 
 **Example triggers:**
+
 - "Find properties related to dates"
 - "Search for organization-related classes"
 - "What properties connect documents to people?"
 
 ### Tool 2: getAllClasses
+
 Lists all available OWL/RDFS classes.
 
 **Example triggers:**
+
 - "What entity types exist?"
 - "Show me all classes"
 - "What can I query for?"
 
 ### Tool 3: getAllProperties
+
 Retrieves all properties with domain/range information.
 
 **Example triggers:**
+
 - "What properties are available?"
 - "Show me object properties"
 - "List all datatype properties"
 
 ### Tool 4: getIndividuals
+
 Retrieves named individuals (instances).
 
 **Example triggers:**
+
 - "Show me example data"
 - "What individuals exist?"
 - "Give me sample instances"
 
 ### Tool 5: getPropertyDetails
+
 Deep dive into specific properties.
 
 **Example triggers:**
+
 - "Tell me more about foaf:knows"
 - "What's the domain and range of this property?"
 - "Property details for http://example.org/hasMember"
@@ -291,6 +317,7 @@ curl -X POST "http://localhost:8080/queryrest/api/sparqi/session?routeId=people-
 ```
 
 **Response:**
+
 ```json
 {
   "sessionId": "550e8400-e29b-41d4-a716-446655440000",
@@ -310,6 +337,7 @@ curl -X POST "http://localhost:8080/queryrest/api/sparqi/session/{sessionId}/mes
 ```
 
 **Response:**
+
 ```json
 {
   "role": "ASSISTANT",
@@ -345,21 +373,25 @@ curl -X GET "http://localhost:8080/queryrest/api/sparqi/health"
 ## Troubleshooting SPARQi
 
 **SPARQi button not appearing:**
+
 - Verify `SPARQI_ENABLED=true`
 - Check health endpoint: `/api/sparqi/health`
 - Review Karaf logs: `docker logs qtt | grep sparqi`
 
 **LLM timeouts:**
+
 - Increase `SPARQI_LLM_TIMEOUT`
 - Check network connectivity to LLM provider
 - Try a different model (smaller/faster)
 
 **Incorrect or irrelevant responses:**
+
 - Lower temperature for more deterministic output
 - Clear cache and restart session
 - Ensure ontology is cached (check context display)
 
 **Session lost:**
+
 - Sessions timeout after inactivity (default: 60 minutes)
 - Refresh page to start new session
 - Check browser localStorage (key: `sparqi-session-{routeId}`)

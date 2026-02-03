@@ -17,6 +17,7 @@ GET /datasources
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -83,6 +84,7 @@ POST /datasources/{id}/test
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -113,6 +115,7 @@ GET /routes
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -120,9 +123,14 @@ GET /routes
     "description": "Search for people",
     "datasourceId": "my-anzo",
     "graphMartUri": "http://example.org/graphmart",
-    "layerUris": ["http://example.org/layer1"],
+    "layerUris": [
+      "http://example.org/layer1"
+    ],
     "template": "PREFIX foaf: ...",
-    "httpMethods": ["GET", "POST"],
+    "httpMethods": [
+      "GET",
+      "POST"
+    ],
     "state": "Started",
     "uptime": 3600000
   }
@@ -197,6 +205,7 @@ GET /datasources/{datasourceId}/graphmarts
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -214,6 +223,7 @@ GET /layers?graphMartUri={graphMartUri}&datasourceId={datasourceId}
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -239,6 +249,7 @@ GET /metrics
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -279,6 +290,7 @@ GET /metrics/history?routeId={routeId}&metric={metricName}&from={timestamp}&to={
 ```
 
 **Metric Names:**
+
 - `totalProcessingTime`
 - `minProcessingTime`
 - `maxProcessingTime`
@@ -297,6 +309,7 @@ GET /settings
 ```
 
 **Response:**
+
 ```json
 {
   "version": "1.0.0",
@@ -333,6 +346,7 @@ GET /{route-id}?param1=value1&param2=value2
 ```
 
 **Example:**
+
 ```bash
 curl "http://localhost:8888/people-search?name=john&limit=10"
 ```
@@ -350,6 +364,7 @@ Content-Type: application/json
 ```
 
 **Example:**
+
 ```bash
 curl -X POST "http://localhost:8888/people-search" \
   -H "Content-Type: application/json" \
@@ -360,7 +375,9 @@ curl -X POST "http://localhost:8888/people-search" \
 
 ```json
 {
-  "@context": {...},
+  "@context": {
+    ...
+  },
   "@graph": [
     {
       "@id": "http://example.org/person/1",
@@ -386,11 +403,13 @@ DELETE /queryrest/api/routes/{routeId}/cache
 ```
 
 **Example:**
+
 ```bash
 curl -X DELETE "http://localhost:8080/queryrest/api/routes/people-search/cache"
 ```
 
 **Success Response (200 OK):**
+
 ```json
 {
   "routeId": "people-search",
@@ -400,6 +419,7 @@ curl -X DELETE "http://localhost:8080/queryrest/api/routes/people-search/cache"
 ```
 
 **Error Response (404 Not Found):**
+
 ```json
 {
   "error": "Route not found: people-search"
@@ -407,6 +427,7 @@ curl -X DELETE "http://localhost:8080/queryrest/api/routes/people-search/cache"
 ```
 
 **Error Response (503 Service Unavailable):**
+
 ```json
 {
   "error": "Cache service not available"
@@ -422,11 +443,13 @@ DELETE /queryrest/api/routes/cache
 ```
 
 **Example:**
+
 ```bash
 curl -X DELETE "http://localhost:8080/queryrest/api/routes/cache"
 ```
 
 **Success Response (200 OK):**
+
 ```json
 {
   "deletedCount": 157,
@@ -443,11 +466,13 @@ GET /queryrest/api/routes/{routeId}/cache/stats
 ```
 
 **Example:**
+
 ```bash
 curl "http://localhost:8080/queryrest/api/routes/people-search/cache/stats"
 ```
 
 **Success Response (200 OK):**
+
 ```json
 {
   "routeId": "people-search",
@@ -467,6 +492,7 @@ curl "http://localhost:8080/queryrest/api/routes/people-search/cache/stats"
 ```
 
 **Response Fields:**
+
 - `routeId`: The route identifier
 - `cacheEnabled`: Whether caching is enabled for this route
 - `cacheTtlSeconds`: Time-to-live for cache entries (seconds)
@@ -482,11 +508,13 @@ GET /queryrest/api/routes/cache/info
 ```
 
 **Example:**
+
 ```bash
 curl "http://localhost:8080/queryrest/api/routes/cache/info"
 ```
 
 **Success Response (200 OK) - Cache Available:**
+
 ```json
 {
   "available": true,
@@ -516,6 +544,7 @@ curl "http://localhost:8080/queryrest/api/routes/cache/info"
 ```
 
 **Response (200 OK) - Cache Not Configured:**
+
 ```json
 {
   "available": false,
@@ -532,6 +561,7 @@ curl -X POST "http://localhost:8080/queryrest/api/sparqi/session?routeId=people-
 ```
 
 **Response:**
+
 ```json
 {
   "sessionId": "550e8400-e29b-41d4-a716-446655440000",
@@ -551,6 +581,7 @@ curl -X POST "http://localhost:8080/queryrest/api/sparqi/session/{sessionId}/mes
 ```
 
 **Response:**
+
 ```json
 {
   "role": "ASSISTANT",

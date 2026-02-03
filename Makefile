@@ -26,11 +26,22 @@ MAVEN := mvn -T 2C
 # Define the target directory for the query service distribution
 DIST_DIR := query-service-distribution/target
 
-# Path to Karaf binary
-KARAF_BIN := $(DIST_DIR)/assembly/bin/karaf
-
-# Path to Karaf stop script
-KARAF_STOP := $(DIST_DIR)/assembly/bin/stop
+# Detect operating system and set platform-specific variables
+ifeq ($(OS),Windows_NT)
+    DETECTED_OS := Windows
+    # Force cmd.exe as shell on Windows (choco make uses bash by default)
+    SHELL := cmd.exe
+    .SHELLFLAGS := /c
+    KARAF_BIN := $(DIST_DIR)/assembly/bin/karaf.bat
+    KARAF_STOP := $(DIST_DIR)/assembly/bin/stop.bat
+    # Use backslash for Windows path in existence checks
+    DIST_CHECK_PATH := $(subst /,\,$(DIST_DIR))\assembly
+else
+    DETECTED_OS := Unix
+    KARAF_BIN := $(DIST_DIR)/assembly/bin/karaf
+    KARAF_STOP := $(DIST_DIR)/assembly/bin/stop
+    DIST_CHECK_PATH := $(DIST_DIR)/assembly
+endif
 
 # ==============================================================================
 # Help Target (default)
@@ -101,27 +112,57 @@ build_docker: build
 
 # Run the service: if the distribution is already built, simply launch Karaf; otherwise, build first
 run:
+ifeq ($(DETECTED_OS),Windows)
+	@if not exist "$(DIST_CHECK_PATH)" ( \
+		echo Distribution not found. Building... & \
+		$(MAKE) build \
+	)
+	@if exist .env ( for /f "usebackq tokens=1,* delims==" %%A in (".env") do @set "%%A=%%B" ) & "$(KARAF_BIN)"
+else
 	@if [ ! -d $(DIST_DIR)/assembly/ ]; then \
 		echo "Distribution not found. Building..."; \
 		$(MAKE) build; \
 	fi
-	set -a; [ -f .env ] && . ./.env; set +a; $(KARAF_BIN)
+	set -a; [ -f .env ] && . .env; set +a; $(KARAF_BIN)
+endif
 
 # Build the project with Maven, then launch Karaf
 build_and_run: build run
 
 # Stop the running Karaf instance
 stop:
+ifeq ($(DETECTED_OS),Windows)
+	@if exist "$(KARAF_STOP)" ( \
+		echo Stopping Karaf... & \
+		"$(KARAF_STOP)" \
+	) else ( \
+		echo Karaf stop script not found. Is the distribution built? \
+	)
+else
 	@if [ -f $(KARAF_STOP) ]; then \
 		echo "Stopping Karaf..."; \
 		$(KARAF_STOP); \
 	else \
 		echo "Karaf stop script not found. Is the distribution built?"; \
 	fi
+endif
 
 # Run with PostgreSQL: start PostgreSQL container, then run Karaf with PostgreSQL configuration
 postgres_run: start_postgres
 	@echo "Starting Karaf with PostgreSQL configuration..."
+ifeq ($(DETECTED_OS),Windows)
+	@if not exist "$(DIST_CHECK_PATH)" ( \
+		echo Distribution not found. Building... & \
+		$(MAKE) build \
+	)
+	@echo Setting PostgreSQL environment variables...
+	@set "DB_DRIVER_NAME=PostgreSQL JDBC Driver" & \
+	set "DB_URL=jdbc:postgresql://localhost:5432/qtt" & \
+	set "DB_USER=postgres" & \
+	set "DB_PASSWORD=verYs3cret" & \
+	if exist .env ( for /f "usebackq tokens=1,* delims==" %%A in (".env") do @set "%%A=%%B" ) & \
+	"$(KARAF_BIN)"
+else
 	@if [ ! -d $(DIST_DIR)/assembly/ ]; then \
 		echo "Distribution not found. Building..."; \
 		$(MAKE) build; \
@@ -133,10 +174,24 @@ postgres_run: start_postgres
 	export DB_PASSWORD="verYs3cret"; \
 	set -a; [ -f .env ] && . ./.env; set +a; \
 	$(KARAF_BIN)
+endif
 
 # Run with MSSQL: start MSSQL container, then run Karaf with MSSQL configuration
 mssql_run: start_mssql
 	@echo "Starting Karaf with MSSQL configuration..."
+ifeq ($(DETECTED_OS),Windows)
+	@if not exist "$(DIST_CHECK_PATH)" ( \
+		echo Distribution not found. Building... & \
+		$(MAKE) build \
+	)
+	@echo Setting MSSQL environment variables...
+	@set "DB_DRIVER_NAME=Microsoft JDBC Driver for SQL Server" & \
+	set "DB_URL=jdbc:sqlserver://localhost:1433;databaseName=qtt;encrypt=true;trustServerCertificate=true" & \
+	set "DB_USER=sa" & \
+	set "DB_PASSWORD=verYs3cret" & \
+	if exist .env ( for /f "usebackq tokens=1,* delims==" %%A in (".env") do @set "%%A=%%B" ) & \
+	"$(KARAF_BIN)"
+else
 	@if [ ! -d $(DIST_DIR)/assembly/ ]; then \
 		echo "Distribution not found. Building..."; \
 		$(MAKE) build; \
@@ -148,6 +203,7 @@ mssql_run: start_mssql
 	export DB_PASSWORD="verYs3cret"; \
 	set -a; [ -f .env ] && . ./.env; set +a; \
 	$(KARAF_BIN)
+endif
 
 # ==============================================================================
 # Docker Targets

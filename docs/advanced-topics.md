@@ -19,9 +19,12 @@ docker exec -it qtt bin/client
 **Step 2: Create PostgreSQL Database**
 
 ```sql
-CREATE DATABASE qtt;
-CREATE USER qttuser WITH PASSWORD 'SecurePassword123';
-GRANT ALL PRIVILEGES ON DATABASE qtt TO qttuser;
+CREATE
+DATABASE qtt;
+CREATE
+USER qttuser WITH PASSWORD 'SecurePassword123';
+GRANT ALL PRIVILEGES ON DATABASE
+qtt TO qttuser;
 ```
 
 **Step 3: Update Configuration**
@@ -39,6 +42,7 @@ docker run -d \
 **Step 4: Import Data**
 
 JPA will auto-create schema on first startup. Import data via:
+
 - SQL INSERT statements
 - Custom migration scripts
 - Manual UI recreation (for small datasets)
@@ -48,11 +52,9 @@ JPA will auto-create schema on first startup. Import data via:
 ### Active-Passive Configuration
 
 ```yaml
-version: '3.8'
-
 services:
   postgresql-primary:
-    image: postgres:latest
+    image: postgres:18-alpine
     environment:
       POSTGRES_DB: qtt
       POSTGRES_USER: qttuser
@@ -96,6 +98,7 @@ Use HAProxy or nginx to route traffic to active instance.
 ### Database Backup
 
 **PostgreSQL:**
+
 ```bash
 # Backup
 docker exec qtt-postgres pg_dump -U qttuser qtt > qtt-backup.sql
@@ -105,6 +108,7 @@ cat qtt-backup.sql | docker exec -i qtt-postgres psql -U qttuser qtt
 ```
 
 **SQL Server:**
+
 ```bash
 # Backup
 docker exec qtt-mssql /opt/mssql-tools/bin/sqlcmd \
@@ -167,9 +171,9 @@ You can extend QTT with custom OSGi bundles.
 ```xml
 <!-- custom-feature.xml -->
 <features xmlns="http://karaf.apache.org/xmlns/features/v1.3.0" name="custom-features">
-  <feature name="custom-bundle" version="1.0.0">
-    <bundle>mvn:com.example/custom-bundle/1.0.0</bundle>
-  </feature>
+    <feature name="custom-bundle" version="1.0.0">
+        <bundle>mvn:com.example/custom-bundle/1.0.0</bundle>
+    </feature>
 </features>
 ```
 
@@ -195,6 +199,7 @@ karaf@root()> feature:install custom-bundle
 - Disable weak cipher suites
 
 **Configure in `org.ops4j.pax.web.cfg`:**
+
 ```properties
 org.ops4j.pax.web.ssl.protocols.included=TLSv1.2,TLSv1.3
 org.ops4j.pax.web.ssl.ciphersuites.excluded=.*NULL.*,.*RC4.*,.*MD5.*,.*DES.*,.*DSS.*
@@ -207,6 +212,7 @@ org.ops4j.pax.web.ssl.ciphersuites.excluded=.*NULL.*,.*RC4.*,.*MD5.*,.*DES.*,.*D
 - Use firewall rules to restrict datasource access
 
 **Example docker-compose with network isolation:**
+
 ```yaml
 services:
   qtt:
@@ -257,11 +263,24 @@ Grant only required permissions:
 
 ```sql
 -- PostgreSQL
-CREATE USER qttuser WITH PASSWORD 'SecurePassword123';
-GRANT CONNECT ON DATABASE qtt TO qttuser;
-GRANT USAGE ON SCHEMA public TO qttuser;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO qttuser;
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO qttuser;
+CREATE
+USER qttuser WITH PASSWORD 'SecurePassword123';
+GRANT CONNECT
+ON DATABASE qtt TO qttuser;
+GRANT USAGE ON SCHEMA
+public TO qttuser;
+GRANT
+SELECT,
+INSERT
+,
+UPDATE,
+DELETE
+ON ALL TABLES IN SCHEMA public TO qttuser;
+GRANT
+USAGE
+ON
+ALL
+SEQUENCES IN SCHEMA public TO qttuser;
 ```
 
 ### 5. Rate Limiting
@@ -288,16 +307,19 @@ http {
 Understanding how cache keys are generated helps optimize cache hit rates.
 
 **Cache Key Format:**
+
 ```
 {prefix}{routeId}:{hash}
 ```
 
 **Example:**
+
 ```
 qtt:cache:people-search:a3f8b9c2e1d4f6a8b1c3d5e7f9a0b2c4d6e8f0a2b4c6d8e0f2a4b6c8d0e2f4a6
 ```
 
 **Components:**
+
 - `prefix`: Configurable prefix (default: `qtt:cache:`), allows namespace separation
 - `routeId`: The route identifier (e.g., `people-search`)
 - `hash`: SHA-256 hash of query inputs (64 hex characters)
@@ -305,6 +327,7 @@ qtt:cache:people-search:a3f8b9c2e1d4f6a8b1c3d5e7f9a0b2c4d6e8f0a2b4c6d8e0f2a4b6c8
 **Hash Input Components:**
 
 The SHA-256 hash is computed from:
+
 1. **SPARQL Query** (after Freemarker template processing)
 2. **GraphMart URI** (target graph database)
 3. **Layer URIs** (comma-separated list of layers)
@@ -341,12 +364,14 @@ SELECT * WHERE {
 ### Cache Invalidation Patterns
 
 **Time-Based Invalidation (Automatic):**
+
 ```properties
 # All cache entries expire after TTL
 cache.defaultTtlSeconds=3600  # 1 hour
 ```
 
 **Manual Invalidation:**
+
 ```bash
 # Clear specific route cache after data update
 curl -X DELETE "http://localhost:8080/queryrest/api/routes/people-search/cache"
@@ -358,6 +383,7 @@ curl -X DELETE "http://localhost:8080/queryrest/api/routes/cache"
 ### Fail-Open vs Fail-Closed Strategy
 
 **Fail-Open (Default):** `cache.failOpen=true`
+
 ```
 Cache Error → Log warning → Continue without cache → Query executes normally
 
@@ -372,6 +398,7 @@ Cons:
 ```
 
 **Fail-Closed:** `cache.failOpen=false`
+
 ```
 Cache Error → Throw exception → Return 500 error to client
 
@@ -385,12 +412,14 @@ Cons:
 ```
 
 **Recommendation:**
+
 - **Production**: Use fail-open for resilience
 - **Development**: Use fail-closed to catch configuration issues early
 
 ## Useful Links
 
 **Documentation:**
+
 - Apache Karaf: https://karaf.apache.org/manual/latest/
 - Apache Camel: https://camel.apache.org/manual/
 - Freemarker: https://freemarker.apache.org/docs/
@@ -398,6 +427,7 @@ Cons:
 - JSON-LD: https://json-ld.org/
 
 **LLM Providers:**
+
 - OpenAI: https://platform.openai.com/
 - Anthropic Claude: https://console.anthropic.com/
 - LiteLLM: https://docs.litellm.ai/
@@ -405,6 +435,7 @@ Cons:
 - Ollama: https://ollama.ai/
 
 **Tools:**
+
 - Docker: https://docs.docker.com/
 - Podman: https://podman.io/
 - PostgreSQL: https://www.postgresql.org/docs/
@@ -418,7 +449,8 @@ Cons:
 
 **Apache Karaf**: OSGi runtime environment
 
-**Cache Aside Pattern**: Caching strategy where the application checks cache first, then queries database on miss and updates cache
+**Cache Aside Pattern**: Caching strategy where the application checks cache first, then queries database on miss and
+updates cache
 
 **Cache Eviction**: Removal of cache entries due to memory limits (LRU policy) or TTL expiration
 

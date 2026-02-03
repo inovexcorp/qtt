@@ -45,49 +45,50 @@ This path is relative to the Karaf home directory (`/opt/qtt` in containers).
 
 ### Build Commands
 
-| Command | Description |
-|---------|-------------|
-| `make build` | Build entire project with Maven |
-| `make build_no_web` | Build excluding query-service-web module |
+| Command                | Description                                     |
+|------------------------|-------------------------------------------------|
+| `make build`           | Build entire project with Maven                 |
+| `make build_no_web`    | Build excluding query-service-web module        |
 | `make refresh_bundles` | Rebuild bundles (excludes web and distribution) |
-| `make build_docker` | Build Docker image |
+| `make build_docker`    | Build Docker image                              |
 
 ### Local Run Commands
 
-| Command | Description |
-|---------|-------------|
-| `make run` | Run Karaf (builds if needed, uses Derby by default) |
-| `make build_and_run` | Build then run Karaf |
-| `make postgres_run` | Start PostgreSQL and run Karaf with PostgreSQL config |
-| `make mssql_run` | Start MSSQL and run Karaf with MSSQL config |
-| `make stop` | Stop running Karaf instance |
+| Command              | Description                                           |
+|----------------------|-------------------------------------------------------|
+| `make run`           | Run Karaf (builds if needed, uses Derby by default)   |
+| `make build_and_run` | Build then run Karaf                                  |
+| `make postgres_run`  | Start PostgreSQL and run Karaf with PostgreSQL config |
+| `make mssql_run`     | Start MSSQL and run Karaf with MSSQL config           |
+| `make stop`          | Stop running Karaf instance                           |
 
 ### Database Management Commands
 
-| Command | Description |
-|---------|-------------|
-| `make start_redis` | Start Redis container |
-| `make start_postgres` | Start PostgreSQL container |
-| `make start_mssql` | Start MSSQL container |
-| `make stop_redis` | Stop Redis container |
-| `make stop_postgres` | Stop PostgreSQL container |
-| `make stop_mssql` | Stop MSSQL container |
+| Command               | Description                  |
+|-----------------------|------------------------------|
+| `make start_redis`    | Start Redis container        |
+| `make start_postgres` | Start PostgreSQL container   |
+| `make start_mssql`    | Start MSSQL container        |
+| `make stop_redis`     | Stop Redis container         |
+| `make stop_postgres`  | Stop PostgreSQL container    |
+| `make stop_mssql`     | Stop MSSQL container         |
 | `make stop_databases` | Stop all database containers |
-| `make logs_redis` | View Redis logs |
-| `make logs_postgres` | View PostgreSQL logs |
-| `make logs_mssql` | View MSSQL logs |
+| `make logs_redis`     | View Redis logs              |
+| `make logs_postgres`  | View PostgreSQL logs         |
+| `make logs_mssql`     | View MSSQL logs              |
 
 ### Utility Commands
 
-| Command | Description |
-|---------|-------------|
-| `make clean` | Remove build artifacts |
-| `make test` | Run Maven tests |
-| `make help` | Show help message with all commands |
+| Command      | Description                         |
+|--------------|-------------------------------------|
+| `make clean` | Remove build artifacts              |
+| `make test`  | Run Maven tests                     |
+| `make help`  | Show help message with all commands |
 
 ## Recommended Setup: PostgreSQL + Redis
 
-This workflow sets up a production-like local environment with PostgreSQL for persistence and Redis for query result caching.
+This workflow sets up a production-like local environment with PostgreSQL for persistence and Redis for query result
+caching.
 
 ### Step 1: Initial Build
 
@@ -123,6 +124,7 @@ make postgres_run
 ```
 
 This command:
+
 1. Starts PostgreSQL container if not already running
 2. Sets PostgreSQL environment variables automatically
 3. Sources your `.env` file if present (for Redis or other config)

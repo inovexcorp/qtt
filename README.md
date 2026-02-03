@@ -1,6 +1,8 @@
 # Query Templating Tool (QTT)
 
-Query Templating Tool (QTT) is a microservice platform that translates domain-specific search requests into optimized SPARQL queries for graph database systems. It acts as a middleware layer between your applications and your knowledge graph, simplifying data access through templated queries.
+Query Templating Tool (QTT) is a microservice platform that translates domain-specific search requests into optimized
+SPARQL queries for graph database systems. It acts as a middleware layer between your applications and your knowledge
+graph, simplifying data access through templated queries.
 
 ## How It Works
 
@@ -11,6 +13,7 @@ HTTP Request + Freemarker Template → SPARQL Query → Graph Studio Backend →
 **Example Flow:**
 
 1. Your application sends a simple JSON request:
+
 ```json
 {
   "search_type": "email",
@@ -49,6 +52,7 @@ HTTP Request + Freemarker Template → SPARQL Query → Graph Studio Backend →
 QTT is built on a multi-module Maven project with these key components:
 
 **Backend Modules:**
+
 - **query-service-core**: RDF/JSON-LD serialization utilities
 - **camel-anzo**: Custom Apache Camel component for Anzo integration
 - **query-service-route-builder**: Dynamic Camel route creation from database templates
@@ -61,6 +65,7 @@ QTT is built on a multi-module Maven project with these key components:
 - **query-service-distribution**: Complete Karaf distribution with all bundles
 
 **Frontend Module:**
+
 - **query-service-web**: Angular 15.2.2 web application (builds to OSGi bundle)
 
 **Runtime Architecture:**
@@ -68,13 +73,13 @@ QTT is built on a multi-module Maven project with these key components:
 The application runs in Apache Karaf 4.4.1 and provides two separate HTTP applications:
 
 1. **JAX-RS Application** (Port 8080 - HTTP)
-   - Static CRUD endpoints for routes, datasources, layers
-   - SPARQi AI assistant API
-   - Metrics and settings endpoints
+    - Static CRUD endpoints for routes, datasources, layers
+    - SPARQi AI assistant API
+    - Metrics and settings endpoints
 
 2. **Camel Jetty Application** (Port 8888 - HTTP)
-   - Dynamically created query endpoints based on database route definitions
-   - Endpoint pattern: `http://localhost:8888/{route-id}?param=value`
+    - Dynamically created query endpoints based on database route definitions
+    - Endpoint pattern: `http://localhost:8888/{route-id}?param=value`
 
 ## Quick Start
 
@@ -93,6 +98,7 @@ docker run -d \
 ```
 
 Access the application:
+
 - **Web UI**: http://localhost:8080
 - **API Base**: http://localhost:8080/queryrest/api/
 - **Query Endpoints**: http://localhost:8888/{route-id}
@@ -101,33 +107,36 @@ For detailed deployment options, see the [Administration Guide](docs/administrat
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Administration Guide](docs/administration.md) | Docker, Podman, Docker Compose deployment, SSL/TLS, volumes, production setup |
-| [Development Setup](docs/development-setup.md) | Building from source, Makefile commands, local development environment |
-| [Configuration Reference](docs/configuration.md) | Environment variables, configuration files, database backends |
-| [User Guide](docs/user-guide.md) | Getting started tutorial, Web UI guide, creating routes and datasources |
-| [Template Development](docs/template-development.md) | Freemarker templates, SPARQL patterns, best practices |
-| [API Reference](docs/api-reference.md) | REST API documentation for all endpoints |
-| [SPARQi AI Assistant](docs/sparqi.md) | Setup and usage of the AI-powered SPARQL assistant |
-| [Troubleshooting](docs/troubleshooting.md) | Common issues, monitoring, logging, performance tuning |
-| [Advanced Topics](docs/advanced-topics.md) | Database migration, high availability, backup/restore, security hardening |
+| Document                                             | Description                                                                   |
+|------------------------------------------------------|-------------------------------------------------------------------------------|
+| [Administration Guide](docs/administration.md)       | Docker, Podman, Docker Compose deployment, SSL/TLS, volumes, production setup |
+| [Development Setup](docs/development-setup.md)       | Building from source, Makefile commands, local development environment        |
+| [Configuration Reference](docs/configuration.md)     | Environment variables, configuration files, database backends                 |
+| [User Guide](docs/user-guide.md)                     | Getting started tutorial, Web UI guide, creating routes and datasources       |
+| [Template Development](docs/template-development.md) | Freemarker templates, SPARQL patterns, best practices                         |
+| [API Reference](docs/api-reference.md)               | REST API documentation for all endpoints                                      |
+| [SPARQi AI Assistant](docs/sparqi.md)                | Setup and usage of the AI-powered SPARQL assistant                            |
+| [Troubleshooting](docs/troubleshooting.md)           | Common issues, monitoring, logging, performance tuning                        |
+| [Advanced Topics](docs/advanced-topics.md)           | Database migration, high availability, backup/restore, security hardening     |
 
 ## System Requirements
 
 **For Running with Docker/Podman:**
+
 - Docker 20.10+ or Podman 3.0+
 - 2GB RAM minimum (4GB recommended)
 - 2GB disk space
 
 **For Running from Source:**
+
 - Java 17 (JDK)
 - Apache Maven 3.6+
 - Node.js v20.18.1
 - Angular CLI 18.2.21
 
 **For Production Deployment:**
-- PostgreSQL 12+ or SQL Server 2019+ (recommended over embedded Derby)
+
+- PostgreSQL 16+ or SQL Server 2019+ (recommended over embedded Derby)
 - SSL certificates for HTTPS
 - Optional: Redis 6.0+ for query result caching
 - Optional: LLM provider access for SPARQi (OpenAI, Azure OpenAI, LiteLLM, etc.)
