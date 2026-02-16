@@ -4,6 +4,8 @@ Query Templating Tool (QTT) is a microservice platform that translates domain-sp
 SPARQL queries for graph database systems. It acts as a middleware layer between your applications and your knowledge
 graph, simplifying data access through templated queries.
 
+![qtt screen](docs/config-route-screen.png)
+
 ## How It Works
 
 ```
