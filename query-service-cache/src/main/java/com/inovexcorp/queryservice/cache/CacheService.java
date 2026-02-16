@@ -17,6 +17,18 @@ public interface CacheService {
     Optional<String> get(String key);
 
     /**
+     * Gets the request coalescing service for preventing duplicate backend calls.
+     * <p>
+     * Request coalescing ensures that when multiple requests arrive for the same
+     * cache key while the first request is still fetching from the backend,
+     * subsequent requests wait for the first to complete rather than making
+     * duplicate backend calls.
+     *
+     * @return the request coalescing service
+     */
+    RequestCoalescingService getCoalescingService();
+
+    /**
      * Stores a value in the cache with the specified TTL.
      *
      * @param key The cache key

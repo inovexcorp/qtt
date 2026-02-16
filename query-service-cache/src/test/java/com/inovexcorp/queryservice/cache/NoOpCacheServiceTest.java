@@ -121,6 +121,14 @@ class NoOpCacheServiceTest {
         assertEquals(0, stats.getKeyCount(), "Key count should be 0");
         assertEquals(0, stats.getMemoryUsageBytes(), "Memory usage should be 0");
         assertEquals(0.0, stats.getHitRatio(), 0.0001, "Hit ratio should be 0.0");
+
+        // Coalescing stats
+        assertEquals(0, stats.getCoalescedRequests(), "Coalesced requests should be 0");
+        assertEquals(0, stats.getCoalescingLeaders(), "Coalescing leaders should be 0");
+        assertEquals(0, stats.getCoalescingTimeouts(), "Coalescing timeouts should be 0");
+        assertEquals(0, stats.getCoalescingFailures(), "Coalescing failures should be 0");
+        assertEquals(0, stats.getCoalescingInFlight(), "Coalescing in-flight should be 0");
+        assertFalse(stats.isCoalescingEnabled(), "Coalescing should be disabled");
     }
 
     @Test
@@ -153,6 +161,8 @@ class NoOpCacheServiceTest {
         assertFalse(info.isCompressionEnabled(), "Compression should not be enabled");
         assertTrue(info.isFailOpen(), "Should be configured to fail open");
         assertNull(info.getErrorMessage(), "Error message should be null");
+        assertFalse(info.isCoalescingEnabled(), "Coalescing should not be enabled");
+        assertEquals(0, info.getCoalescingTimeoutMs(), "Coalescing timeout should be 0");
     }
 
     @Test
@@ -243,5 +253,39 @@ class NoOpCacheServiceTest {
     void countPattern_WithNullPattern_DoesNotThrowException() {
         // Act & Assert
         assertDoesNotThrow(() -> cacheService.countPattern(null));
+    }
+
+    @Test
+    void getCoalescingService_ReturnsDisabledService() {
+        // Act
+        RequestCoalescingService coalescingService = cacheService.getCoalescingService();
+
+        // Assert
+        assertNotNull(coalescingService, "Coalescing service should not be null");
+        assertFalse(coalescingService.isEnabled(), "Coalescing service should be disabled");
+    }
+
+    @Test
+    void getCoalescingService_ReturnsSameInstance() {
+        // Act
+        RequestCoalescingService service1 = cacheService.getCoalescingService();
+        RequestCoalescingService service2 = cacheService.getCoalescingService();
+
+        // Assert
+        assertSame(service1, service2, "Should return the same instance");
+    }
+
+    @Test
+    void getCoalescingService_WhenDisabled_AllRequestsAreLeaders() {
+        // Arrange
+        RequestCoalescingService coalescingService = cacheService.getCoalescingService();
+
+        // Act & Assert
+        for (int i = 0; i < 5; i++) {
+            RequestCoalescingService.RegistrationResult result =
+                    coalescingService.registerRequest("same-key");
+            assertTrue(result.isLeader(),
+                    "All requests should be leaders when coalescing is disabled");
+        }
     }
 }

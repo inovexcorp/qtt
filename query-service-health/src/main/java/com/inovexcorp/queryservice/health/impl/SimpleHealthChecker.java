@@ -1,6 +1,7 @@
 package com.inovexcorp.queryservice.health.impl;
 
 import com.inovexcorp.queryservice.ContextManager;
+import com.inovexcorp.queryservice.camel.anzo.comm.QueryResponse;
 import com.inovexcorp.queryservice.camel.anzo.comm.SimpleAnzoClient;
 import com.inovexcorp.queryservice.health.HealthChecker;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
@@ -56,6 +57,12 @@ public class SimpleHealthChecker implements HealthChecker {
      */
     private final Map<String, SimpleAnzoClient> clientCache = new ConcurrentHashMap<>();
 
+    /**
+     * Cache keys tracking the configuration fingerprint for each cached client.
+     * Used to detect when datasource configuration changes require a new client.
+     */
+    private final Map<String, String> clientConfigKeys = new ConcurrentHashMap<>();
+
     @Activate
     public void activate() {
         log.info("SimpleHealthChecker activated with client pooling enabled (timeout: {}s, max retries: {}, jitter: {}ms)",
@@ -66,6 +73,7 @@ public class SimpleHealthChecker implements HealthChecker {
     public void deactivate() {
         log.info("SimpleHealthChecker deactivating - clearing {} cached clients", clientCache.size());
         clientCache.clear();
+        clientConfigKeys.clear();
     }
 
     /**
@@ -81,22 +89,25 @@ public class SimpleHealthChecker implements HealthChecker {
      * If datasource configuration has changed, the old client is evicted and a new one is created.
      */
     private SimpleAnzoClient getOrCreateClient(Datasources datasource) {
+        String datasourceId = datasource.getDataSourceId();
         String cacheKey = buildClientCacheKey(datasource);
 
         // Check if we have a cached client with matching configuration
-        SimpleAnzoClient cachedClient = clientCache.get(datasource.getDataSourceId());
+        SimpleAnzoClient cachedClient = clientCache.get(datasourceId);
+        String cachedKey = clientConfigKeys.get(datasourceId);
 
         // If client exists and configuration hasn't changed, reuse it
-        if (cachedClient != null) {
-            String currentKey = buildClientCacheKey(datasource);
-            // For simplicity, we just create a new client if datasource might have changed
-            // A more sophisticated approach would track datasource modification timestamps
-            log.trace("Reusing cached client for datasource: {}", datasource.getDataSourceId());
+        if (cachedClient != null && cacheKey.equals(cachedKey)) {
+            log.trace("Reusing cached client for datasource: {}", datasourceId);
             return cachedClient;
         }
 
+        if (cachedClient != null) {
+            log.info("Datasource configuration changed for {}, creating new client", datasourceId);
+        }
+
         // Create new client and cache it
-        log.debug("Creating new AnzoClient for datasource: {}", datasource.getDataSourceId());
+        log.debug("Creating new AnzoClient for datasource: {}", datasourceId);
         SimpleAnzoClient newClient = new SimpleAnzoClient(
                 datasource.getUrl(),
                 datasource.getUsername(),
@@ -105,7 +116,8 @@ public class SimpleHealthChecker implements HealthChecker {
                 datasource.isValidateCertificate()
         );
 
-        clientCache.put(datasource.getDataSourceId(), newClient);
+        clientCache.put(datasourceId, newClient);
+        clientConfigKeys.put(datasourceId, cacheKey);
         return newClient;
     }
 
@@ -149,7 +161,9 @@ public class SimpleHealthChecker implements HealthChecker {
                 SimpleAnzoClient client = getOrCreateClient(datasource);
 
                 // Perform lightweight health check by getting graphmarts
-                client.getGraphmarts();
+                // Close the response stream to release the HTTP connection back to the pool
+                QueryResponse response = client.getGraphmarts();
+                response.getResult().close();
 
                 // If we get here without exception, datasource is UP
                 status = DatasourceStatus.UP;
@@ -182,6 +196,7 @@ public class SimpleHealthChecker implements HealthChecker {
 
                     // Evict client from cache on persistent failure - it may be stale
                     clientCache.remove(dataSourceId);
+                    clientConfigKeys.remove(dataSourceId);
                 }
 
             } catch (InterruptedException e) {
@@ -213,6 +228,7 @@ public class SimpleHealthChecker implements HealthChecker {
 
                     // Evict client from cache on persistent failure
                     clientCache.remove(dataSourceId);
+                    clientConfigKeys.remove(dataSourceId);
                 }
             }
         }

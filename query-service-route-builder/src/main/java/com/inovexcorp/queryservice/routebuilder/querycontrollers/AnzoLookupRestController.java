@@ -66,7 +66,7 @@ public class AnzoLookupRestController {
                     .build();
         }
         Datasources source = this.dataSourceService.getDataSource(datasourceId);
-        AnzoClient client = createClient(source.getUrl(), source.getUsername(), source.getPassword(), 60);
+        AnzoClient client = createClient(source);
         LOG.info("Requested to get graphmarts as {} at Anzo: {}", source.getUsername(), source.getUrl());
         return Response.status(200).type(MediaType.APPLICATION_JSON)
                 .entity(parseQueryResponse(client.getGraphmarts(), "graphmartTitle", "gm", "gmActive").toString())
@@ -96,7 +96,7 @@ public class AnzoLookupRestController {
                     .build();
         }
         Datasources source = this.dataSourceService.getDataSource(datasourceId);
-        AnzoClient client = createClient(source.getUrl(), source.getUsername(), source.getPassword(), 60);
+        AnzoClient client = createClient(source);
         LOG.info("Requested to get layers as {} at Anzo: {}\n\tfor Graphmart: {}", source.getUsername(),
                 source.getUrl(), graphmartUri);
         return Response.status(200).type(MediaType.APPLICATION_JSON)
@@ -131,15 +131,13 @@ public class AnzoLookupRestController {
     }
 
     /**
-     * Creates a new instance of AnzoClient using the provided URL, username, password, and timeout in seconds.
+     * Creates a new instance of AnzoClient from a datasource, respecting its certificate validation setting.
      *
-     * @param url       The base URL of the Anzo service.
-     * @param user     The username to authenticate with the Anzo server.
-     * @param password The password associated with the specified username.
-     * @param timeoutSeconds The maximum number of seconds to wait for a response from the Anzo server.
-     * @return A new instance of SimpleAnzoClient configured with the given parameters.
+     * @param source The datasource to create a client for.
+     * @return A new instance of SimpleAnzoClient configured from the datasource.
      */
-    private AnzoClient createClient(String url, String user, String password, int timeoutSeconds) {
-        return new SimpleAnzoClient(url, user, password, timeoutSeconds);
+    private AnzoClient createClient(Datasources source) {
+        return new SimpleAnzoClient(source.getUrl(), source.getUsername(), source.getPassword(),
+                60, source.isValidateCertificate());
     }
 }

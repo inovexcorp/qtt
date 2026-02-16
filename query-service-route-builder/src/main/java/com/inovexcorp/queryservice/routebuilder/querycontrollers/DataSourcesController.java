@@ -4,6 +4,7 @@ import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.cache.CacheService;
 import com.inovexcorp.queryservice.cache.NoOpCacheService;
 import com.inovexcorp.queryservice.camel.anzo.comm.AnzoClient;
+import com.inovexcorp.queryservice.camel.anzo.comm.QueryResponse;
 import com.inovexcorp.queryservice.camel.anzo.comm.SimpleAnzoClient;
 import com.inovexcorp.queryservice.health.HealthChecker;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
@@ -254,12 +255,16 @@ public class DataSourcesController {
                 datasource.getPassword(), Integer.parseInt(datasource.getTimeOutSeconds()),
                 datasource.isValidateCertificate());
         try {
-            client.getGraphmarts();
+            QueryResponse queryResponse = client.getGraphmarts();
+            queryResponse.getResult().close();
             response.put("status", "success");
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             response.put("status", "error");
             response.put("message", e.getMessage());
             Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
         }
         return response;
     }
