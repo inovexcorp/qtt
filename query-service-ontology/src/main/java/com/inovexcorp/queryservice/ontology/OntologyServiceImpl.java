@@ -374,9 +374,11 @@ public class OntologyServiceImpl implements OntologyService {
                     }
                 }
             }
+        } catch (InterruptedException e) {
+            log.error("Ontology query interrupted", e);
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.error("Failed to execute ontology query", e);
-            Thread.currentThread().interrupt();
         }
 
         return elements;

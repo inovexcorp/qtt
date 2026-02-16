@@ -25,6 +25,7 @@ import org.mockito.MockedConstruction;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +37,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
@@ -72,6 +74,7 @@ class SimpleHealthCheckerTest {
 
     private Datasources testDatasource;
     private CamelRouteTemplate testRoute;
+    private QueryResponse mockQueryResponse;
 
     @BeforeEach
     void setUp() {
@@ -94,6 +97,18 @@ class SimpleHealthCheckerTest {
                 "http://graphmart.test",
                 testDatasource
         );
+
+        mockQueryResponse = createMockQueryResponse();
+    }
+
+    /**
+     * Creates a mock QueryResponse with a closeable InputStream to avoid NPE
+     * when the health checker closes the response stream.
+     */
+    private QueryResponse createMockQueryResponse() {
+        QueryResponse mockResponse = mock(QueryResponse.class);
+        lenient().when(mockResponse.getResult()).thenReturn(InputStream.nullInputStream());
+        return mockResponse;
     }
 
     // ========================================
@@ -108,7 +123,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When
@@ -291,7 +306,7 @@ class SimpleHealthCheckerTest {
                 (mock, context) -> {
                     when(mock.getGraphmarts()).thenAnswer(invocation -> {
                         Thread.sleep(50); // Simulate 50ms delay
-                        return mock(QueryResponse.class);
+                        return mockQueryResponse;
                     });
                 })) {
 
@@ -322,7 +337,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When - should not throw exception
@@ -352,7 +367,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When
@@ -383,7 +398,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When
@@ -415,7 +430,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When
@@ -440,7 +455,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When
@@ -462,7 +477,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When
@@ -484,7 +499,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When
@@ -525,7 +540,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When
@@ -549,7 +564,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When
@@ -587,7 +602,7 @@ class SimpleHealthCheckerTest {
 
         try (MockedConstruction<SimpleAnzoClient> mocked = mockConstruction(SimpleAnzoClient.class,
                 (mock, context) -> {
-                    when(mock.getGraphmarts()).thenReturn(mock(QueryResponse.class));
+                    when(mock.getGraphmarts()).thenReturn(mockQueryResponse);
                 })) {
 
             // When
