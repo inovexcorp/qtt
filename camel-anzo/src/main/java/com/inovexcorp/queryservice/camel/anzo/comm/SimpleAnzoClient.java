@@ -3,25 +3,35 @@ package com.inovexcorp.queryservice.camel.anzo.comm;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.util.IOHelper;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javax.net.ssl.SSLSocketFactory;
 
 
 /**
@@ -38,11 +48,16 @@ public class SimpleAnzoClient implements AnzoClient {
     private static final String GRAPHMARTS_COMP_DS = "http://cambridgesemantics.com/registries/GraphmartElements";
     private static final String SYSTEM_DS = "http://openanzo.org/datasource/systemDatasource";
 
+    private static final HostnameVerifier TRUST_ALL_HOSTNAMES = (hostname, session) -> true;
+
     private final String server;
     private final String user;
     private final String password;
-    private final HttpClient httpClient;
+    private final int connectTimeoutMs;
     private final int requestTimeoutSeconds;
+    private final boolean validateCertificate;
+    private final SSLSocketFactory sslSocketFactory;
+    private final String authHeader;
 
     public SimpleAnzoClient(String server, String user, String password,
                             int connectTimeoutSeconds) {
@@ -51,30 +66,27 @@ public class SimpleAnzoClient implements AnzoClient {
 
     public SimpleAnzoClient(String server, String user, String password,
                             int connectTimeoutSeconds, boolean validateCertificate) {
+        if (connectTimeoutSeconds <= 0) {
+            throw new RuntimeException("Connect timeout must be positive, got: " + connectTimeoutSeconds);
+        }
         this.server = server;
         this.user = user;
         this.password = password;
-        // Use same timeout for both connection and request for health checks
+        this.connectTimeoutMs = connectTimeoutSeconds * 1000;
         this.requestTimeoutSeconds = connectTimeoutSeconds;
-        this.httpClient = createHttpClient(connectTimeoutSeconds, validateCertificate);
-    }
+        this.validateCertificate = validateCertificate;
+        this.authHeader = "Basic " + Base64.getEncoder().encodeToString(
+                (user + ":" + password).getBytes(StandardCharsets.UTF_8));
 
-    private HttpClient createHttpClient(int connectTimeoutSeconds, boolean validateCertificate) {
-        try {
-            HttpClient.Builder builder = HttpClient.newBuilder()
-                    .connectTimeout(Duration.of(connectTimeoutSeconds, ChronoUnit.SECONDS))
-                    .followRedirects(HttpClient.Redirect.ALWAYS);
-
-            if (!validateCertificate) {
+        if (!validateCertificate) {
+            try {
                 SSLContext sslContext = createInsecureSSLContext();
-                builder.sslContext(sslContext);
-                System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true"); // Disable hostname verification
+                this.sslSocketFactory = sslContext.getSocketFactory();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create insecure SSL context", e);
             }
-
-            return builder.build();
-        } catch (Exception e) {
-            //TODO - better error handling?
-            throw new RuntimeException("Failed to create HttpClient", e);
+        } else {
+            this.sslSocketFactory = null;
         }
     }
 
@@ -102,6 +114,74 @@ public class SimpleAnzoClient implements AnzoClient {
     }
 
     /**
+     * Sends a POST request and returns the response, adapting {@link HttpURLConnection}
+     * to the {@link HttpResponse} interface that {@link QueryResponse} expects.
+     */
+    private HttpResponse<InputStream> sendPost(URI uri, String body, int timeoutSeconds) throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
+
+        if (conn instanceof HttpsURLConnection httpsConn) {
+            if (!validateCertificate) {
+                httpsConn.setSSLSocketFactory(sslSocketFactory);
+                httpsConn.setHostnameVerifier(TRUST_ALL_HOSTNAMES);
+            }
+        }
+
+        conn.setRequestMethod("POST");
+        conn.setDoOutput(true);
+        conn.setInstanceFollowRedirects(true);
+        conn.setConnectTimeout(connectTimeoutMs);
+        conn.setReadTimeout(timeoutSeconds * 1000);
+        conn.setRequestProperty("Authorization", authHeader);
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+
+        byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
+        conn.setFixedLengthStreamingMode(bodyBytes.length);
+
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(bodyBytes);
+        }
+
+        int statusCode = conn.getResponseCode();
+        InputStream responseStream = (statusCode >= 400)
+                ? conn.getErrorStream()
+                : conn.getInputStream();
+
+        return new UrlConnectionResponse(statusCode, responseStream, conn.getHeaderFields(), uri);
+    }
+
+    /**
+     * Adapter that wraps an {@link HttpURLConnection} result as an {@link HttpResponse},
+     * allowing {@link QueryResponse} to remain unchanged.
+     */
+    private static class UrlConnectionResponse implements HttpResponse<InputStream> {
+        private final int statusCode;
+        private final InputStream body;
+        private final HttpHeaders headers;
+        private final URI uri;
+
+        UrlConnectionResponse(int statusCode, InputStream body, Map<String, List<String>> headerMap, URI uri) {
+            this.statusCode = statusCode;
+            this.body = body;
+            // HttpURLConnection includes a null key for the status line; filter it out
+            Map<String, List<String>> filtered = headerMap.entrySet().stream()
+                    .filter(e -> e.getKey() != null)
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            this.headers = HttpHeaders.of(filtered, (k, v) -> true);
+            this.uri = uri;
+        }
+
+        @Override public int statusCode() { return statusCode; }
+        @Override public InputStream body() { return body; }
+        @Override public HttpHeaders headers() { return headers; }
+        @Override public URI uri() { return uri; }
+        @Override public HttpRequest request() { return null; }
+        @Override public Optional<HttpResponse<InputStream>> previousResponse() { return Optional.empty(); }
+        @Override public Optional<SSLSession> sslSession() { return Optional.empty(); }
+        @Override public HttpClient.Version version() { return HttpClient.Version.HTTP_1_1; }
+    }
+
+    /**
      * Query Anzo in the context of a graphmart.
      *
      * @param query          The SPARQL query to run.
@@ -120,9 +200,8 @@ public class SimpleAnzoClient implements AnzoClient {
         final URI resource = createGraphmartSparqlUri(graphmartUri, layerUris);
 
         try {
-            final HttpResponse<InputStream> resp = httpClient.send(
-                    buildRequest(resource, query, format, timeoutSeconds, skipCache),
-                    HttpResponse.BodyHandlers.ofInputStream());
+            final HttpResponse<InputStream> resp = sendPost(resource,
+                    buildFormMultipartQueryBody(query, format, skipCache), timeoutSeconds);
 
             long duration = System.currentTimeMillis() - start;
 
@@ -143,13 +222,13 @@ public class SimpleAnzoClient implements AnzoClient {
         } catch (java.net.ConnectException e) {
             long duration = System.currentTimeMillis() - start;
             throw new AnzoConnectionException("Connection refused", e, server, duration);
-        } catch (java.net.http.HttpTimeoutException e) {
+        } catch (SocketTimeoutException e) {
             long duration = System.currentTimeMillis() - start;
             throw new AnzoConnectionException("Request timeout after " + timeoutSeconds + "s", e, server, duration);
         } catch (AnzoAuthenticationException | AnzoConnectionException e) {
             // Re-throw our custom exceptions
             throw e;
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             long duration = System.currentTimeMillis() - start;
             log.error("Error communicating with Anzo server {}: {}", server, e.getMessage());
             throw e;
@@ -183,12 +262,12 @@ public class SimpleAnzoClient implements AnzoClient {
         } catch (java.net.ConnectException e) {
             long duration = System.currentTimeMillis() - start;
             throw new AnzoConnectionException("Connection refused getting graphmarts", e, server, duration);
-        } catch (java.net.http.HttpTimeoutException e) {
+        } catch (SocketTimeoutException e) {
             long duration = System.currentTimeMillis() - start;
             throw new AnzoConnectionException("Timeout getting graphmarts", e, server, duration);
         } catch (AnzoAuthenticationException | AnzoConnectionException e) {
             throw e;
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             log.error("Error getting graphmarts from Anzo server {}: {}", server, e.getMessage());
             throw e;
         }
@@ -217,69 +296,21 @@ public class SimpleAnzoClient implements AnzoClient {
     }
 
     private HttpResponse<InputStream> makeLdsRequest(String dataset, String query)
-            throws IOException, InterruptedException {
+            throws IOException {
         // Use default 30-second timeout for backward compatibility
         return makeLdsRequest(dataset, query, 30);
     }
 
     private HttpResponse<InputStream> makeLdsRequest(String dataset, String query, int timeoutSeconds)
-            throws IOException, InterruptedException {
-        return httpClient.send(
-                buildRequest(createLdsSparqlUri(dataset), query, RESPONSE_FORMAT.JSON, timeoutSeconds, false),
-                HttpResponse.BodyHandlers.ofInputStream());
+            throws IOException {
+        return sendPost(createLdsSparqlUri(dataset),
+                buildFormMultipartQueryBody(query, RESPONSE_FORMAT.JSON, false), timeoutSeconds);
     }
 
     private HttpResponse<InputStream> makeLegacyRequest(String query, String datasource, String... LDS)
-            throws IOException, InterruptedException {
-        return httpClient.send(
-                buildLegacyRequest(query, RESPONSE_FORMAT.JSON, 30, false, datasource, LDS),
-                HttpResponse.BodyHandlers.ofInputStream());
-    }
-
-    private HttpRequest buildLegacyRequest(String query, RESPONSE_FORMAT responseFormat,
-                                           int timeoutSeconds, boolean skipCache, String datasource, String... LDS) {
-        return HttpRequest.newBuilder()
-                .POST(HttpRequest.BodyPublishers.ofString(buildFormMultipartQueryBody(query,
-                        responseFormat, skipCache)))
-                .uri(createLegacySparqlUri())
-                .POST(HttpRequest.BodyPublishers.ofString(buildFormMultipartQueryBody(query,
-                        responseFormat, skipCache, datasource, LDS)))
-                .header("Authorization", String.format("Basic %s",
-                        Base64.getEncoder().encodeToString(String.format("%s:%s", this.user,
-                                this.password).getBytes(StandardCharsets.UTF_8))))
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                // Set timeout.
-                .timeout(Duration.of(timeoutSeconds, ChronoUnit.SECONDS))
-                // Build the request.
-                .build();
-    }
-
-    /**
-     * Build a request to execute a query against a graphmart-based SPARQL endpoint.
-     *
-     * @param resource       The URI to hit.
-     * @param query          The query to execute.
-     * @param responseFormat The desired response format.
-     * @param timeoutSeconds The number of seconds to wait for a response.
-     * @return The {@link HttpRequest} we'll make to Anzo.
-     */
-    private HttpRequest buildRequest(URI resource, String query, RESPONSE_FORMAT responseFormat,
-                                     int timeoutSeconds, boolean skipCache) {
-        return HttpRequest.newBuilder()
-                // URI location.
-                .uri(resource)
-                // Do POST.
-                .POST(HttpRequest.BodyPublishers.ofString(buildFormMultipartQueryBody(query,
-                        responseFormat, skipCache)))
-                // Add basic auth.
-                .header("Authorization", String.format("Basic %s",
-                        Base64.getEncoder().encodeToString(String.format("%s:%s", this.user,
-                                this.password).getBytes(StandardCharsets.UTF_8))))
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                // Set timeout.
-                .timeout(Duration.of(timeoutSeconds, ChronoUnit.SECONDS))
-                // Build the request.
-                .build();
+            throws IOException {
+        return sendPost(createLegacySparqlUri(),
+                buildFormMultipartQueryBody(query, RESPONSE_FORMAT.JSON, false, datasource, LDS), 30);
     }
 
     /**
