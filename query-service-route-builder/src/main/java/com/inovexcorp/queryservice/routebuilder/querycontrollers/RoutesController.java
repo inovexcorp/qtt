@@ -24,6 +24,7 @@ import org.osgi.service.metatype.annotations.Designate;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.Encoded;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.PATCH;
@@ -154,8 +155,8 @@ public class RoutesController {
                                    @QueryParam("cacheEnabled") Boolean cacheEnabled,
                                    @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
                                    @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
-                                   @FormParam("freemarker") String freemarker,
-                                   @FormParam("layers") String layers) throws Exception {
+                                   @Encoded @FormParam("freemarker") String freemarker,
+                                   @Encoded @FormParam("layers") String layers) throws Exception {
         // If the incoming request was invalid (allow empty freemarker template)
         if (routeId == null || routeParams == null || dataSourceId == null || freemarker == null || description == null
                 || graphMartUri == null || layers == null) {
@@ -247,8 +248,8 @@ public class RoutesController {
                                    @QueryParam("cacheEnabled") Boolean cacheEnabled,
                                    @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
                                    @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
-                                   @FormParam("freemarker") String freemarker,
-                                   @FormParam("layers") String layers) throws Exception {
+                                   @Encoded @FormParam("freemarker") String freemarker,
+                                   @Encoded @FormParam("layers") String layers) throws Exception {
         // Check if route exists
         if (!routeManagementService.routeExists(routeId)) {
             return Response.status(Response.Status.NOT_FOUND)
