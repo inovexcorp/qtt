@@ -536,6 +536,46 @@ public class RoutesControllerTest {
     }
 
     // ========================================
+    // Tests for special characters in template content
+    // ========================================
+
+    @Test
+    public void testCreateEndpoint_PreservesSpecialCharactersInTemplate() throws Exception {
+        // Arrange - Template containing + characters (e.g., SPARQL arithmetic)
+        String templateWithPlus = "SELECT ?x WHERE { BIND(?a + ?b AS ?x) }";
+        when(dataSourceService.dataSourceExists(TEST_DATASOURCE_ID)).thenReturn(true);
+
+        // Act
+        Response response = routesController.createEndpoint(
+                TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, templateWithPlus, TEST_LAYERS);
+
+        // Assert - The + character must be preserved as-is, not decoded to a space
+        assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
+        verify(routeManagementService).createRoute(
+                TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, templateWithPlus, TEST_LAYERS, null, null, null);
+    }
+
+    @Test
+    public void testModifyEndpoint_PreservesSpecialCharactersInTemplate() throws Exception {
+        // Arrange - Template containing + characters (e.g., SPARQL arithmetic)
+        String templateWithPlus = "SELECT ?x WHERE { BIND(?a + ?b AS ?x) }";
+        when(routeManagementService.routeExists(TEST_ROUTE_ID)).thenReturn(true);
+
+        // Act
+        Response response = routesController.modifyEndpoint(
+                TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, templateWithPlus, TEST_LAYERS);
+
+        // Assert - The + character must be preserved as-is, not decoded to a space
+        assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+        verify(routeManagementService).modifyRoute(
+                TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, templateWithPlus, TEST_LAYERS, null, null, null);
+    }
+
+    // ========================================
     // Tests for getFileContent()
     // ========================================
 
