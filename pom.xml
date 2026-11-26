@@ -48,6 +48,7 @@
         <module>query-service-web</module>
 
         <!-- The Quarkus application and its container image -->
+        <module>query-service-derby</module>
         <module>query-service-app</module>
         <module>query-service-it</module>
     </modules>

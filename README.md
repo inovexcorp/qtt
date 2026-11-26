@@ -63,6 +63,8 @@ QTT is built on a multi-module Maven project with these key components:
 - **query-service-metrics**: JMX-based metrics collection
 - **query-service-cache**: Redis-backed caching layer for query results
 - **query-service-sparqi**: Optional AI assistant for template development
+- **query-service-derby**: Embedded Derby support (driver, dialect, persistence unit); included by default, left
+  out of native builds
 - **query-service-app**: The Camel Quarkus application that assembles all modules into one runnable service and
   container image
 

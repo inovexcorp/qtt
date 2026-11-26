@@ -30,7 +30,13 @@ public class SimpleMetricsScraper implements MetricsScraper {
     /**
      * MBean server for querying metrics.
      */
-    private static final MBeanServer M_BEAN_SERVER = ManagementFactory.getPlatformMBeanServer();
+    /**
+     * Looked up on use rather than in a static initializer, so a native image does not capture an MBean server at
+     * build time. The JDK caches the platform MBean server, so this is cheap.
+     */
+    private static MBeanServer mBeanServer() {
+        return ManagementFactory.getPlatformMBeanServer();
+    }
 
     /**
      * Context manager for managing routes.
@@ -84,9 +90,9 @@ public class SimpleMetricsScraper implements MetricsScraper {
         // Get the mbean route name to get metrics from
         ObjectName routeMBeanName = new ObjectName(
                 "org.apache.camel:context=" + ctx.getManagementName() + ",type=routes,name=\"" + routeId + "\"");
-        if (M_BEAN_SERVER.isRegistered(routeMBeanName)) {
+        if (mBeanServer().isRegistered(routeMBeanName)) {
             // Get the routeMbean, has metrics objects embedded in it from camel.
-            ManagedRouteMBean routeMBean = MBeanServerInvocationHandler.newProxyInstance(M_BEAN_SERVER, routeMBeanName,
+            ManagedRouteMBean routeMBean = MBeanServerInvocationHandler.newProxyInstance(mBeanServer(), routeMBeanName,
                     ManagedRouteMBean.class, true);
             if (routeMBean == null) {
                 log.error("Couldn't retrieve metrics for route {}. Route MBean is null...", routeId);

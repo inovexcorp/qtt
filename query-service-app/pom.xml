@@ -87,24 +87,6 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-jdbc-mssql</artifactId>
         </dependency>
-        <!-- Derby has no Quarkus extension since 3.23; plain driver + Hibernate community dialect (JVM mode). -->
-        <dependency>
-            <groupId>org.apache.derby</groupId>
-            <artifactId>derby</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.derby</groupId>
-            <artifactId>derbytools</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.derby</groupId>
-            <artifactId>derbyshared</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hibernate.orm</groupId>
-            <artifactId>hibernate-community-dialects</artifactId>
-        </dependency>
-
         <!-- Camel -->
         <dependency>
             <groupId>org.apache.camel.quarkus</groupId>
@@ -163,10 +145,28 @@
     </build>
 
     <profiles>
+        <!-- Embedded Derby support (default). Leaving it out is what makes a native build possible. -->
+        <profile>
+            <id>derby</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>com.inovexcorp.queryservice</groupId>
+                    <artifactId>query-service-derby</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <!-- Native image (experimental, see docs/perf/phase8-native.md). Built in a Linux builder container:
+             mvn -Pnative -pl query-service-app package; then src/main/docker/Dockerfile.native. -->
         <profile>
             <id>native</id>
             <properties>
                 <quarkus.native.enabled>true</quarkus.native.enabled>
+                <quarkus.native.container-build>true</quarkus.native.container-build>
+                <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
             </properties>
         </profile>
     </profiles>

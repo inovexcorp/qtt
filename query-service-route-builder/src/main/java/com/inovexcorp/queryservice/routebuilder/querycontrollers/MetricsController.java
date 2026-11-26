@@ -39,7 +39,13 @@ import java.util.stream.Collectors;
 public class MetricsController {
 
     private static final String ROUTE_NOT_FOUND_MESSAGE = "Route not found";
-    private static final MBeanServer MBEAN_SERVER = ManagementFactory.getPlatformMBeanServer();
+    /**
+     * Looked up on use rather than in a static initializer, so a native image does not capture an MBean server at
+     * build time. The JDK caches the platform MBean server, so this is cheap.
+     */
+    private static MBeanServer mBeanServer() {
+        return ManagementFactory.getPlatformMBeanServer();
+    }
 
     @Inject
     ContextManager contextManager;
@@ -212,7 +218,7 @@ public class MetricsController {
     private Set<ObjectName> queryRouteMBeans(CamelContext ctx) throws Exception {
         String objectNamePattern = String.format("org.apache.camel:context=%s,type=routes,*",
                 ctx.getManagementName());
-        return MBEAN_SERVER.queryNames(new ObjectName(objectNamePattern), null);
+        return mBeanServer().queryNames(new ObjectName(objectNamePattern), null);
     }
 
     /**
@@ -228,12 +234,12 @@ public class MetricsController {
                 String.format("org.apache.camel:context=%s,type=routes,name=\"%s\"",
                         ctx.getManagementName(), routeId));
 
-        if (!MBEAN_SERVER.isRegistered(routeMBeanName)) {
+        if (!mBeanServer().isRegistered(routeMBeanName)) {
             return Optional.empty();
         }
 
         ManagedRouteMBean routeMBean = MBeanServerInvocationHandler.newProxyInstance(
-                MBEAN_SERVER, routeMBeanName, ManagedRouteMBean.class, true);
+                mBeanServer(), routeMBeanName, ManagedRouteMBean.class, true);
         return Optional.of(routeMBean);
     }
 
@@ -270,7 +276,7 @@ public class MetricsController {
         for (ObjectName routeMBeanName : routeMBeanNames) {
             log.debug("Retrieving metrics for route {}", routeMBeanName.getKeyProperty("name"));
             ManagedRouteMBean routeMBean = MBeanServerInvocationHandler.newProxyInstance(
-                    MBEAN_SERVER, routeMBeanName, ManagedRouteMBean.class, true);
+                    mBeanServer(), routeMBeanName, ManagedRouteMBean.class, true);
             metrics.add(MetricObject.fromRouteMBean()
                     .managedRouteMBean(routeMBean)
                     .build());

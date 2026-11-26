@@ -279,6 +279,7 @@ qtt/
 ├── query-service-scheduler/       # Scheduled jobs
 ├── query-service-metrics/         # JMX metrics collection
 ├── query-service-cache/           # Redis caching layer
+├── query-service-derby/           # Embedded Derby support (left out of native builds)
 ├── query-service-sparqi/          # AI assistant
 ├── query-service-web/             # Angular frontend
 ├── query-service-app/             # Camel Quarkus application and container image

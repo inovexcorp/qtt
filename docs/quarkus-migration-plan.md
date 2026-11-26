@@ -180,3 +180,35 @@ These came out of the code read and are not optimizations. By default they are p
 - `QueryMetrics` aborts collection for all routes when one fails.
 
 The first two are cheap to fix during Phase 4, since the REST and persistence layers are being rewritten there anyway. Say so and they become part of that phase, with the UI change it requires.
+
+## Outcome (2026-11-26)
+
+All phases were carried out on `refactor/optimize`. Measurements: `docs/perf/measurements.md` (conditions at the top of
+that file); every phase passed the gate before its commit.
+
+| Phase | Image (gzip) | API ready, cold | Idle RSS | Uncached rps / p95 | Cached rps |
+|---|---|---|---|---|---|
+| 0 Karaf baseline | 684 MB (400) | 12.2 s | 893 MB | 1022 / 10.1 ms | 6312 |
+| 1 JRE base image | 495 MB (249) | 9.4 s | 819 MB | 1077 / 9.6 ms | 7318 |
+| 2 Karaf feature trim | 453 MB (211) | 6.2 s | 674 MB | 1071 / 9.7 ms | 7341 |
+| 4–5 Camel Quarkus (JVM) | 427 MB (189) | 2.5 s | 452 MB | 1039 / 12.2 ms | 9002 |
+| 7 Tuned JVM image | 352 MB (172) | 2.1 s | 296 MB | 1043 / 12.1 ms | 8808 |
+| 8 Native | not built, see `docs/perf/phase8-native.md` | | | | |
+
+Net: image 49% smaller (57% smaller compressed), startup 5.8x faster, idle memory 67% lower, uncached throughput
+unchanged (the mock Anzo is the bottleneck), cached throughput +40%. The one regression is tail latency on uncached
+queries (p95 about 12 ms vs about 10 ms); it is not GC (phase 7 experiments) and was left as is.
+
+Measurement correction: the first Karaf throughput figures (about 1800 rps uncached) were wrong. ApacheBench
+miscounts Jetty's chunked keep-alive responses; `scripts/tools/LoadGen.java` replaced it and every phase was re-measured.
+
+Bugs found and fixed along the way (all with unit tests): health-history JSON, datasource re-POST deleting routes,
+metrics NPE on orphaned routes, run.sh ignoring custom keystores, UI font path and NaN summary, SQL Server losing
+non-Latin template text, template text depending on the JVM default charset, credentials in INFO logs, and the
+Hibernate 7 / Netty / JSON-P issues met during the port. Known issues still open and pinned in `KnownIssuesIT`:
+plaintext datasource passwords in the API, disabling a datasource not stopping its routes, and template errors
+reported as "datasource unavailable".
+
+Deviations from the plan above: the port happened in one module tree (Karaf kept building only until the Phase 6
+cutover), SPARQi keeps plain LangChain4j and Redis keeps Lettuce, configuration keeps the OSGi PIDs, and Phase 8
+stopped at its timebox.
