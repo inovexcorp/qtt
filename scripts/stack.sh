@@ -49,9 +49,8 @@ db_args() { # prints one "K=V" per line
     derby) ;;
     postgres) printf '%s\n' "DB_DRIVER_NAME=PostgreSQL JDBC Driver" "DB_URL=jdbc:postgresql://qtt-it-db:5432/qtt" \
         "DB_USER=postgres" "DB_PASSWORD=$DB_PASSWORD" ;;
-    mssql) local mssql_db=qtt; [[ "$(arch_of_engine)" == "arm64" ]] && mssql_db=master
-      printf '%s\n' "DB_DRIVER_NAME=Microsoft JDBC Driver for SQL Server" \
-        "DB_URL=jdbc:sqlserver://qtt-it-db:1433;databaseName=$mssql_db;encrypt=true;trustServerCertificate=true" \
+    mssql) printf '%s\n' "DB_DRIVER_NAME=Microsoft JDBC Driver for SQL Server" \
+        "DB_URL=jdbc:sqlserver://qtt-it-db:1433;databaseName=qtt;encrypt=true;trustServerCertificate=true" \
         "DB_USER=sa" "DB_PASSWORD=$DB_PASSWORD" ;;
     *) log "unknown QTT_DB=$QTT_DB"; exit 2 ;;
   esac
@@ -66,13 +65,12 @@ start_db() {
     mssql)
       if [[ "$(arch_of_engine)" == "arm64" ]]; then
         # SQL Server publishes amd64 only and segfaults under emulation; Azure SQL Edge is the arm64 equivalent
-        # (same TDS protocol and JDBC driver). It ships no sqlcmd, so QTT uses the master database there.
-        $ENGINE run -d --name qtt-it-db --network $NET -e ACCEPT_EULA=1 -e MSSQL_SA_PASSWORD="$DB_PASSWORD" \
-          mcr.microsoft.com/azure-sql-edge:latest >/dev/null
-        local i=0
-        until $ENGINE logs qtt-it-db 2>&1 | grep -q 'Recovery is complete'; do
-          i=$((i+1)); (( i > 120 )) && { log "azure-sql-edge did not start"; exit 1; }; sleep 1
-        done
+        # (same TDS protocol and JDBC driver). It ships no sqlcmd, so the qtt database is created over JDBC.
+        $ENGINE run -d --name qtt-it-db --network $NET -p 11433:1433 -e ACCEPT_EULA=1 \
+          -e MSSQL_SA_PASSWORD="$DB_PASSWORD" mcr.microsoft.com/azure-sql-edge:latest >/dev/null
+        local jdbc; jdbc=$(ls "$HOME"/.m2/repository/com/microsoft/sqlserver/mssql-jdbc/*/mssql-jdbc-*.jre11.jar | tail -1)
+        java -cp "$jdbc" "$ROOT/scripts/tools/CreateMssqlDb.java" localhost:11433 "$DB_PASSWORD" \
+          || { log "azure-sql-edge did not start"; exit 1; }
       else
         $ENGINE run -d --name qtt-it-db --network $NET -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD="$DB_PASSWORD" \
           mcr.microsoft.com/mssql/server:2022-latest >/dev/null

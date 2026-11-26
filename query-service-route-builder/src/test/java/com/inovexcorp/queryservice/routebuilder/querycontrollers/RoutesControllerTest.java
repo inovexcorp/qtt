@@ -420,6 +420,20 @@ public class RoutesControllerTest {
         assertTrue(response.getEntity().toString().contains("No route with specified ID found"));
     }
 
+    /** A route still running in Camel but without a database row used to return 200 with an empty body. */
+    @Test
+    public void testGetEndpoint_RunningButNotStored() {
+        // Arrange
+        when(camelContext.getRoute(TEST_ROUTE_ID)).thenReturn(mock(Route.class));
+        when(routeService.getRoute(TEST_ROUTE_ID)).thenReturn(null);
+
+        // Act
+        Response response = routesController.getEndpoint(TEST_ROUTE_ID);
+
+        // Assert
+        assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
+    }
+
     // ========================================
     // Tests for getAllEndpoints()
     // ========================================

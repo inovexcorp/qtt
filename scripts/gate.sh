@@ -31,7 +31,7 @@ run_suite() { # db redis extra-maven-args...
   if ! QTT_IMAGE=$IMAGE QTT_DB=$db QTT_REDIS=$redis "$STACK" up > "$log" 2>&1; then
     record "$name (stack up)" 1 "$log"; "$STACK" down; return
   fi
-  (cd "$ROOT" && mvn -B -Pit -pl query-service-it verify -Dqtt.redis="$redis" "$@") >> "$log" 2>&1
+  (cd "$ROOT" && mvn -B -Pit -pl query-service-it verify -Dqtt.redis="$redis" -Dqtt.db="$db" "$@") >> "$log" 2>&1
   record "$name" $? "$log"
 }
 

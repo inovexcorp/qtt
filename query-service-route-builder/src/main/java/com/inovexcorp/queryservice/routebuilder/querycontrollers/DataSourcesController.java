@@ -116,12 +116,15 @@ public class DataSourcesController {
         }
         // Clear the previous version if it exists.
         if (dataSourceService.dataSourceExists(dataSourceId)) {
-            log.warn("DataSource with id: {} already exists, going to delete and replace it with the updated version",
-                    dataSourceId);
-            dataSourceService.delete(dataSourceId);
+            // Update in place. Deleting and re-adding used to cascade (orphanRemoval) to the datasource's routes:
+            // their rows were deleted while the routes kept running in Camel, so they could no longer be listed
+            // or deleted and were lost on restart.
+            log.warn("DataSource with id: {} already exists, updating it in place", dataSourceId);
+            dataSourceService.update(datasource);
+            reinstantiateRoutes(dataSourceId);
+        } else {
+            dataSourceService.add(datasource);
         }
-
-        dataSourceService.add(datasource);
         res = "{\"uri\": \"" + datasource.getUrl() + "\"}";
         return Response.status(Response.Status.CREATED).entity(res).type(MediaType.APPLICATION_JSON)
                 .header("Location", "/datasources/" + dataSourceId).build();
@@ -157,7 +160,6 @@ public class DataSourcesController {
     @PUT
     @Produces(MediaType.APPLICATION_JSON)
     public Response modifyDatasource(Datasources datasource) {
-        CamelContext camelContext = contextManager.getDefaultContext();
         String dataSourceId = datasource.getDataSourceId();
 
         if (!dataSourceService.dataSourceExists(dataSourceId)) {
@@ -173,7 +175,15 @@ public class DataSourcesController {
         }
         // Modify the provided datasource.
         dataSourceService.update(datasource);
+        reinstantiateRoutes(dataSourceId);
 
+        return Response.status(Response.Status.OK).entity(dataSourceService.getDataSource(dataSourceId))
+                .type(MediaType.APPLICATION_JSON).build();
+    }
+
+    /** Rebuilds the Camel routes of a datasource so they pick up its changed connection settings. */
+    private void reinstantiateRoutes(String dataSourceId) {
+        CamelContext camelContext = contextManager.getDefaultContext();
         // Re-instantiate routes, have to hook into the database to look up the camel routes themselves.
         dataSourceService.getDataSource(dataSourceId).getCamelRouteTemplateNames()
                 .forEach(route -> {
@@ -201,10 +211,6 @@ public class DataSourcesController {
                         log.error("Error re-instantiating route: {} after modification to data source", route, e);
                     }
                 });
-
-        return Response.status(Response.Status.OK).entity(dataSourceService.getDataSource(dataSourceId))
-                .type(MediaType.APPLICATION_JSON).build();
-
     }
 
     /**

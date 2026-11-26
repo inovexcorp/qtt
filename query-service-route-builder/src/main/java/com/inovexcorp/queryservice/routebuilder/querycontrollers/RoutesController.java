@@ -288,8 +288,9 @@ public class RoutesController {
     public Response getEndpoint(@PathParam("routeId") String routeId) {
         CamelContext camelContext = contextManager.getDefaultContext();
         Route route = camelContext.getRoute(routeId);
-        if (route != null) {
-            return Response.status(Response.Status.OK).entity(routeService.getRoute(routeId))
+        CamelRouteTemplate stored = route != null ? routeService.getRoute(routeId) : null;
+        if (stored != null) {
+            return Response.status(Response.Status.OK).entity(stored)
                     .type(MediaType.APPLICATION_JSON).build();
         } else {
             return Response.status(Response.Status.NOT_FOUND)

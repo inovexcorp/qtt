@@ -87,7 +87,7 @@ class QueryPathIT {
 
     @Test
     void unknownRouteIs404() {
-        query().get("/no-such-route-" + System.nanoTime()).then().statusCode(404);
+        assertNotServed("no-such-route-" + System.nanoTime());
     }
 
     @ParameterizedTest(name = "Anzo {0} maps to {1}")

@@ -25,6 +25,7 @@
         <qtt.wiremock>http://localhost:18080</qtt.wiremock>
         <qtt.anzo.internal>http://wiremock:8080</qtt.anzo.internal>
         <qtt.redis>false</qtt.redis>
+        <qtt.db>derby</qtt.db>
         <it.groups/>
         <it.excludedGroups>restart-setup,restart-verify</it.excludedGroups>
     </properties>
@@ -79,6 +80,7 @@
                         <qtt.wiremock>${qtt.wiremock}</qtt.wiremock>
                         <qtt.anzo.internal>${qtt.anzo.internal}</qtt.anzo.internal>
                         <qtt.redis>${qtt.redis}</qtt.redis>
+                        <qtt.db>${qtt.db}</qtt.db>
                     </systemPropertyVariables>
                     <runOrder>alphabetical</runOrder>
                 </configuration>

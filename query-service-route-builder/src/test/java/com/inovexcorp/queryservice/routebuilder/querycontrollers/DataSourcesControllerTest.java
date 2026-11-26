@@ -106,20 +106,48 @@ public class DataSourcesControllerTest {
         verify(dataSourceService).add(testDatasource);
     }
 
+    /** Re-POSTing an existing id updates it in place; delete + add used to wipe its routes (orphanRemoval). */
     @Test
-    public void testCreateDatasource_ReplaceExisting() {
+    public void testCreateDatasource_ReplaceExisting_UpdatesInPlace() {
         // Arrange
+        Datasources stored = new Datasources();
+        stored.setDataSourceId(TEST_DATASOURCE_ID);
+        stored.setCamelRouteTemplate(Collections.emptyList());
         when(dataSourceService.dataSourceExists(TEST_DATASOURCE_ID)).thenReturn(true);
-        doNothing().when(dataSourceService).delete(TEST_DATASOURCE_ID);
-        doNothing().when(dataSourceService).add(testDatasource);
+        when(dataSourceService.getDataSource(TEST_DATASOURCE_ID)).thenReturn(stored);
 
         // Act
         Response response = dataSourcesController.createDatasource(testDatasource);
 
         // Assert
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
-        verify(dataSourceService).delete(TEST_DATASOURCE_ID);
-        verify(dataSourceService).add(testDatasource);
+        verify(dataSourceService).update(testDatasource);
+        verify(dataSourceService, never()).delete(any());
+        verify(dataSourceService, never()).add(any());
+    }
+
+    @Test
+    public void testCreateDatasource_ReplaceExisting_KeepsAndRebuildsRoutes() throws Exception {
+        // Arrange
+        CamelRouteTemplate route = new CamelRouteTemplate();
+        route.setRouteId("route1");
+        route.setDatasources(testDatasource);
+        Datasources stored = new Datasources();
+        stored.setDataSourceId(TEST_DATASOURCE_ID);
+        stored.setCamelRouteTemplate(List.of(route));
+        when(dataSourceService.dataSourceExists(TEST_DATASOURCE_ID)).thenReturn(true);
+        when(dataSourceService.getDataSource(TEST_DATASOURCE_ID)).thenReturn(stored);
+        when(routeService.getRoute("route1")).thenReturn(route);
+        when(layerService.getLayerUris(route)).thenReturn(Collections.emptyList());
+        when(camelKarafComponent.getTemplateLocation()).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
+
+        // Act
+        Response response = dataSourcesController.createDatasource(testDatasource);
+
+        // Assert: the route row is saved again, never left deleted
+        assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
+        verify(routeService).add(route);
+        verify(camelContext).addRoutes(any());
     }
 
     @Test

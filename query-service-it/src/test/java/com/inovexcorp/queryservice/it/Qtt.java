@@ -30,6 +30,8 @@ public final class Qtt {
     /** Anzo base URL as seen from inside the QTT container. */
     public static final String ANZO_INTERNAL = System.getProperty("qtt.anzo.internal", "http://wiremock:8080");
     public static final boolean REDIS = Boolean.parseBoolean(System.getProperty("qtt.redis", "false"));
+    /** Database behind the stack under test: derby, postgres or mssql. */
+    public static final String DB = System.getProperty("qtt.db", "derby");
 
     /** Graphmart and layer recorded from the Anzo test system (see wiremock/__files). */
     public static final String GRAPHMART = "http://cambridgesemantics.com/Graphmart/93794a1ba2a24246a0f33c4340858d80";
@@ -137,6 +139,23 @@ public final class Qtt {
 
     public static void deleteRouteQuietly(String routeId) {
         api().delete("/routes/" + routeId);
+    }
+
+    /**
+     * Asserts nothing serves the route on the query port: 404, or no listener at all (Karaf closes port 8888 when the
+     * last route is removed).
+     */
+    public static void assertNotServed(String routeId) {
+        try {
+            int status = query().get("/" + routeId).statusCode();
+            if (status != 404) {
+                throw new AssertionError("expected route " + routeId + " not to be served, got HTTP " + status);
+            }
+        } catch (AssertionError e) {
+            throw e;
+        } catch (Exception e) {
+            // connection refused / reset: nothing listening
+        }
     }
 
     // ---------------------------------------------------------------- WireMock (mock Anzo)

@@ -134,17 +134,26 @@ class DatasourceApiIT {
         api().get("/datasources/" + id).then().body("status", equalTo("UNKNOWN"));
     }
 
-    /** Re-POSTing an existing id replaces the datasource; its routes survive (code review suspected otherwise). */
+    /**
+     * Re-POSTing an existing id updates the datasource in place. It used to delete and re-add it, which cascaded to
+     * its routes: their rows vanished while they kept running, so they could not be listed or deleted.
+     */
     @Test
     void repostingDatasourceKeepsItsRoutes() {
         createDatasource(id);
         String route = uniqueId("it-repost");
         try {
             createRoute(route, id);
-            api().contentType(ContentType.JSON).body(datasource(id, ANZO_INTERNAL))
-                    .post("/datasources").then().statusCode(201);
-            api().get("/routes/" + route).then().statusCode(200);
+            Map<String, Object> changed = datasource(id, ANZO_INTERNAL);
+            changed.put("timeOutSeconds", "41");
+            api().contentType(ContentType.JSON).body(changed).post("/datasources").then().statusCode(201);
+            api().get("/datasources/" + id).then().body("timeOutSeconds", equalTo("41"));
+            api().get("/routes/" + route).then().statusCode(200).body("routeId", equalTo(route));
+            assertThat(api().get("/routes").then().extract().jsonPath().getList("routeId", String.class))
+                    .contains(route);
             query().get("/" + route).then().statusCode(200);
+            api().delete("/routes/" + route).then().statusCode(anyOf(is(200), is(204)));
+            assertNotServed(route);
         } finally {
             deleteRouteQuietly(route);
         }

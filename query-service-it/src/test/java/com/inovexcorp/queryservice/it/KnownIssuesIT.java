@@ -55,6 +55,18 @@ class KnownIssuesIT {
                 .body("status", equalTo("DOWN"));
     }
 
+    /**
+     * KNOWN ISSUE (SQL Server only): the template column is varchar(max), not nvarchar(max), so non-Latin characters
+     * in a saved template are replaced by '?'.
+     */
+    @Test
+    void sqlServerCorruptsNonLatinTemplateText() {
+        org.junit.jupiter.api.Assumptions.assumeTrue("mssql".equals(DB), "SQL Server only");
+        createRoute(route, ds, GRAPHMART, TEMPLATE + "\n# 日本\n", LAYER, null).then().statusCode(201);
+        api().get("/routes/templateContent/" + route).then().statusCode(200)
+                .body(endsWith("# ??\n"));
+    }
+
     /** KNOWN ISSUE: the management API answers 500 when the client accepts any type (e.g. plain curl). */
     @Test
     void wildcardAcceptHeaderFails() {
