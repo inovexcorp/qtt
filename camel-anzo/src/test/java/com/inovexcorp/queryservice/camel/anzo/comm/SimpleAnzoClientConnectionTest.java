@@ -21,12 +21,14 @@ class SimpleAnzoClientConnectionTest {
     private final List<Integer> clientPorts = new CopyOnWriteArrayList<>();
     private final List<String> contentLengths = new CopyOnWriteArrayList<>();
     private final List<String> bodies = new CopyOnWriteArrayList<>();
+    private final List<String> rawUris = new CopyOnWriteArrayList<>();
 
     @BeforeEach
     void start() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/sparql/graphmart/", exchange -> {
             clientPorts.add(exchange.getRemoteAddress().getPort());
+            rawUris.add(exchange.getRequestURI().getRawPath() + "?" + exchange.getRequestURI().getRawQuery());
             contentLengths.add(exchange.getRequestHeaders().getFirst("Content-Length"));
             try (InputStream in = exchange.getRequestBody()) {
                 bodies.add(new String(in.readAllBytes(), StandardCharsets.UTF_8));
@@ -68,5 +70,17 @@ class SimpleAnzoClientConnectionTest {
         // keep-alive: all three queries arrived over the same client connection
         assertThat(clientPorts).hasSize(3);
         assertThat(clientPorts.stream().distinct().count()).isEqualTo(1);
+    }
+
+    /** IRIs are percent-encoded as UTF-8 whatever the JVM's default charset (it is ASCII without a UTF-8 locale). */
+    @Test
+    void encodesGraphmartAndLayerIrisAsUtf8() throws Exception {
+        SimpleAnzoClient client = new SimpleAnzoClient("http://127.0.0.1:" + server.getAddress().getPort(),
+                "user", "pass", 10);
+        QueryResponse r = client.queryGraphmart("ASK {}", "urn:gm:café", "urn:layer:ü", AnzoClient.RESPONSE_FORMAT.RDFXML, 10, false);
+        try (InputStream body = r.getResponse().body()) {
+            body.readAllBytes();
+        }
+        assertThat(rawUris.get(0)).contains("caf%C3%A9").contains("named-graph-uri=urn%3Alayer%3A%C3%BC");
     }
 }

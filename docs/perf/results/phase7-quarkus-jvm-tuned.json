@@ -1,0 +1,76 @@
+{
+  "label": "phase7-quarkus-jvm-tuned",
+  "image": "qtt:phase7",
+  "commit": "97ae32d+dirty",
+  "date": "2026-11-26T18:36:45",
+  "note": "jlink Java 17 on Debian slim, AppCDS, SerialGC, unused LangChain4j jars excluded",
+  "image_bytes": 351955993,
+  "image_gzip_bytes": 172414500,
+  "layers": 9,
+  "cold_start": [
+    {
+      "api_ms": 2111,
+      "first_query_ms": 2209
+    },
+    {
+      "api_ms": 2100,
+      "first_query_ms": 2176
+    },
+    {
+      "api_ms": 2104,
+      "first_query_ms": 2188
+    },
+    {
+      "api_ms": 2121,
+      "first_query_ms": 2192
+    },
+    {
+      "api_ms": 2116,
+      "first_query_ms": 2194
+    },
+    {
+      "api_ms": 2126,
+      "first_query_ms": 2195
+    },
+    {
+      "api_ms": 2233,
+      "first_query_ms": 2318
+    },
+    {
+      "api_ms": 2101,
+      "first_query_ms": 2178
+    },
+    {
+      "api_ms": 2108,
+      "first_query_ms": 2200
+    },
+    {
+      "api_ms": 2116,
+      "first_query_ms": 2187
+    }
+  ],
+  "api_ready_ms_median": 2113.5,
+  "api_ready_ms_min": 2100,
+  "api_ready_ms_max": 2233,
+  "first_query_ms_median": 2193.0,
+  "first_query_ms_min": 2176,
+  "first_query_ms_max": 2318,
+  "rss_idle_mb": 295.8,
+  "load_uncached": {
+    "rps": 1042.7,
+    "p50_ms": 7.28,
+    "p95_ms": 12.1,
+    "p99_ms": 13.73,
+    "errors": 0,
+    "requests": 31284
+  },
+  "load_cached": {
+    "rps": 8808.2,
+    "p50_ms": 0.85,
+    "p95_ms": 1.38,
+    "p99_ms": 2.07,
+    "errors": 0,
+    "requests": 264264
+  },
+  "rss_after_load_mb": 347.8
+}

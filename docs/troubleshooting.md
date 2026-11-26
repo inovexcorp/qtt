@@ -439,8 +439,10 @@ docker run -d \
   ...
 ```
 
-The image's default `JAVA_OPTS` is `-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`; setting `JAVA_OPTS`
-replaces it.
+The image's default `JAVA_OPTS` is `-XX:+UseSerialGC -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`; setting
+`JAVA_OPTS` replaces it (include `-XX:+UseSerialGC` or choose another collector explicitly). SerialGC was chosen
+because it gave the same throughput and latency as G1 for QTT's workload with about a third less memory
+(docs/perf/phase7-experiments.md).
 
 ### Database Connection Pool
 

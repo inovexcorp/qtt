@@ -21,8 +21,6 @@ import org.apache.camel.Route;
 
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
-import jakarta.ws.rs.Encoded;
-import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
@@ -33,6 +31,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.jboss.resteasy.reactive.server.multipart.MultipartFormDataInput;
 import java.util.Map;
 
 @Slf4j
@@ -147,16 +146,23 @@ public class RoutesController {
     @Path("{routeId}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response createEndpoint(@PathParam("routeId") String routeId,
-                                   @QueryParam("routeParams") String routeParams,
-                                   @QueryParam("dataSourceId") String dataSourceId,
-                                   @QueryParam("description") String description,
-                                   @QueryParam("graphMartUri") String graphMartUri,
-                                   @QueryParam("cacheEnabled") Boolean cacheEnabled,
-                                   @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
-                                   @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
-                                   @Encoded @FormParam("freemarker") String freemarker,
-                                   @Encoded @FormParam("layers") String layers) throws Exception {
+    public Response createEndpointMultipart(@PathParam("routeId") String routeId,
+                                            @QueryParam("routeParams") String routeParams,
+                                            @QueryParam("dataSourceId") String dataSourceId,
+                                            @QueryParam("description") String description,
+                                            @QueryParam("graphMartUri") String graphMartUri,
+                                            @QueryParam("cacheEnabled") Boolean cacheEnabled,
+                                            @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
+                                            @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
+                                            MultipartFormDataInput form) throws Exception {
+        return createEndpoint(routeId, routeParams, dataSourceId, description, graphMartUri, cacheEnabled,
+                cacheTtlSeconds, cacheKeyStrategy, MultipartText.field(form, "freemarker"),
+                MultipartText.field(form, "layers"));
+    }
+
+    public Response createEndpoint(String routeId, String routeParams, String dataSourceId, String description,
+                                   String graphMartUri, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                   String cacheKeyStrategy, String freemarker, String layers) throws Exception {
         // If the incoming request was invalid (allow empty freemarker template)
         if (routeId == null || routeParams == null || dataSourceId == null || freemarker == null || description == null
                 || graphMartUri == null || layers == null) {
@@ -240,16 +246,23 @@ public class RoutesController {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @Path("{routeId}")
-    public Response modifyEndpoint(@PathParam("routeId") String routeId,
-                                   @QueryParam("routeParams") String routeParams,
-                                   @QueryParam("dataSourceId") String dataSourceId,
-                                   @QueryParam("description") String description,
-                                   @QueryParam("graphMartUri") String graphMartUri,
-                                   @QueryParam("cacheEnabled") Boolean cacheEnabled,
-                                   @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
-                                   @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
-                                   @Encoded @FormParam("freemarker") String freemarker,
-                                   @Encoded @FormParam("layers") String layers) throws Exception {
+    public Response modifyEndpointMultipart(@PathParam("routeId") String routeId,
+                                            @QueryParam("routeParams") String routeParams,
+                                            @QueryParam("dataSourceId") String dataSourceId,
+                                            @QueryParam("description") String description,
+                                            @QueryParam("graphMartUri") String graphMartUri,
+                                            @QueryParam("cacheEnabled") Boolean cacheEnabled,
+                                            @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
+                                            @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
+                                            MultipartFormDataInput form) throws Exception {
+        return modifyEndpoint(routeId, routeParams, dataSourceId, description, graphMartUri, cacheEnabled,
+                cacheTtlSeconds, cacheKeyStrategy, MultipartText.field(form, "freemarker"),
+                MultipartText.field(form, "layers"));
+    }
+
+    public Response modifyEndpoint(String routeId, String routeParams, String dataSourceId, String description,
+                                   String graphMartUri, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                   String cacheKeyStrategy, String freemarker, String layers) throws Exception {
         // Check if route exists
         if (!routeManagementService.routeExists(routeId)) {
             return Response.status(Response.Status.NOT_FOUND)

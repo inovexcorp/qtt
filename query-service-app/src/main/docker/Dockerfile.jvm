@@ -1,21 +1,44 @@
-# QTT on Quarkus (JVM mode). Build from query-service-app after `mvn package`:
+# QTT on Quarkus (JVM mode). Build from query-service-app after `mvn package` (or `make build_docker`):
 #   podman build -f src/main/docker/Dockerfile.jvm -t inovexis/qtt .
-FROM docker.io/library/eclipse-temurin:17-jre
+#
+# - A jlink'd Java 17 runtime with only the modules QTT uses, on Debian slim (148 MB smaller than the Temurin JRE image).
+# - An AppCDS archive recorded from a training start of this exact image (about 0.4 s faster startup).
+# - SerialGC: same throughput and latency as G1 under QTT's load, about a third less memory.
+# Measurements: docs/perf/phase7-experiments.md.
+FROM docker.io/library/eclipse-temurin:17-jdk AS jre
+# Modules from jdeps over every application jar, plus modules reached only via reflection or ServiceLoader:
+# TLS (jdk.crypto.ec), DNS/JNDI, zip file systems, JFR/management, charsets.
+RUN jlink --add-modules java.base,java.compiler,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.rmi,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.transaction.xa,java.xml,java.xml.crypto,jdk.charsets,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.jfr,jdk.management,jdk.management.jfr,jdk.naming.dns,jdk.net,jdk.unsupported,jdk.zipfs \
+        --strip-debug --no-man-pages --no-header-files --compress=2 --generate-cds-archive --output /opt/jre
 
+FROM docker.io/library/debian:12-slim AS base
+# UTF-8 default charset: Debian slim has no UTF-8 locale, so the JVM would otherwise default to ASCII.
+ENV JAVA_HOME=/opt/java PATH=/opt/java/bin:$PATH LANG=C.UTF-8
+COPY --from=jre /opt/jre /opt/java
 RUN groupadd --system --gid 1001 qtt \
     && useradd --system --uid 1001 --gid qtt --home-dir /opt/qtt --no-create-home qtt \
     && mkdir -p /opt/qtt/data /opt/qtt/etc && chown -R qtt:qtt /opt/qtt
-
 WORKDIR /opt/qtt
-# Dependencies first: they change least often, so image rebuilds reuse this layer.
 COPY --chown=qtt:qtt target/quarkus-app/lib/ /opt/qtt/lib/
 COPY --chown=qtt:qtt target/quarkus-app/quarkus/ /opt/qtt/quarkus/
 COPY --chown=qtt:qtt target/quarkus-app/app/ /opt/qtt/app/
 COPY --chown=qtt:qtt target/quarkus-app/quarkus-run.jar /opt/qtt/quarkus-run.jar
 COPY --chown=qtt:qtt src/main/etc/keystore /opt/qtt/etc/keystore
 
+FROM base AS train
+WORKDIR /tmp/train
+# Training run: start the application, wait until it is up, stop it gracefully; the JVM writes the archive on exit.
+RUN cp -r /opt/qtt/etc /tmp/train/etc \
+    && (java -XX:+UseSerialGC -XX:ArchiveClassesAtExit=/opt/qtt/app-cds.jsa -jar /opt/qtt/quarkus-run.jar > /tmp/train/run.log 2>&1 & echo $! > /tmp/train/pid) \
+    && for i in $(seq 1 120); do grep -q 'started in' /tmp/train/run.log && break; sleep 1; done \
+    && grep 'started in' /tmp/train/run.log \
+    && kill -TERM $(cat /tmp/train/pid) \
+    && while kill -0 $(cat /tmp/train/pid) 2>/dev/null; do sleep 1; done \
+    && ls -la /opt/qtt/app-cds.jsa
+
+FROM base
+COPY --from=train --chown=qtt:qtt /opt/qtt/app-cds.jsa /opt/qtt/app-cds.jsa
 USER qtt
-# 8443: UI + API (TLS), 8080: UI + API (plain), 8888: query endpoints
 EXPOSE 8443 8080 8888
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
-ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /opt/qtt/quarkus-run.jar"]
+ENV JAVA_OPTS="-XX:+UseSerialGC -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
+ENTRYPOINT ["sh", "-c", "exec java -XX:SharedArchiveFile=/opt/qtt/app-cds.jsa $JAVA_OPTS -jar /opt/qtt/quarkus-run.jar"]

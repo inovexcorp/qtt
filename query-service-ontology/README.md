@@ -349,7 +349,7 @@ Tests cover:
 1. Reduce `cacheMaxEntries`
 2. Reduce `ontologyMaxResults`
 3. Reduce `cacheTtlMinutes` to evict entries sooner
-4. Monitor JVM heap usage (the container sets `-XX:MaxRAMPercentage=75.0` in `JAVA_OPTS`)
+4. Monitor JVM heap usage (the container sets `-XX:+UseSerialGC -XX:MaxRAMPercentage=75.0` in `JAVA_OPTS`)
 
 ## Development
 

@@ -30,3 +30,5 @@ dependency-reduced-pom.xml
 .vscode
 
 .env
+#Python
+__pycache__/
