@@ -125,7 +125,6 @@
                 <extensions>true</extensions>
                 <configuration>
                     <startupRepositories>
-                        <startupRepository>mvn:org.apache.karaf.features/spring/${karaf.version}/xml/features</startupRepository>
                         <startupRepository>mvn:org.apache.karaf.features/standard/${karaf.version}/xml/features</startupRepository>
                         <startupRepository>mvn:org.apache.karaf.features/enterprise/${karaf.version}/xml/features</startupRepository>
                         <startupRepository>mvn:org.apache.karaf.features/framework/${karaf.version}/xml/features</startupRepository>
@@ -139,7 +138,6 @@
                         <feature>framework</feature>
                         <feature>ssh</feature>
                         <feature>feature</feature>
-                        <feature>service-wrapper</feature>
                         <feature>jaas</feature>
                         <feature>deployer</feature>
                         <feature>diagnostic</feature>
@@ -159,9 +157,7 @@
                         <feature>shell-compat</feature>
                         <feature>config</feature>
                         <feature>wrap</feature>
-                        <feature>obr</feature>
                         <feature>transaction</feature>
-                        <feature>jasypt-encryption</feature>
                         <feature>scheduler</feature>
                         <feature>jndi</feature>
                         <feature>camel</feature>

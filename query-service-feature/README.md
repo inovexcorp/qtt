@@ -91,7 +91,7 @@ SPARQi - AI-powered assistant for SPARQL template development.
 
 **Key Dependencies:**
 - LangChain4j (`langchain4j-core`, `langchain4j-open-ai` 1.7.1)
-- LangGraph4j workflow orchestration (`langgraph4j-core` 1.7.0-beta2)
+
 - Retrofit HTTP client with OkHttp
 - Gson JSON parsing
 - Freemarker template analysis

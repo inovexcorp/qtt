@@ -1,42 +1,20 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <features xmlns:ns2="http://karaf.apache.org/xmlns/features/v1.6.0" name="query-service-feature">
     <feature name="qs-rdf4j" description="qs-rdf4j" version="${project.version}">
-        <details>Query Service rdf4j support dependencies.</details>
-        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.elasticsearch/5.6.3_1</bundle>
-        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.elasticsearch-client/5.6.3_1</bundle>
-        <bundle>mvn:com.google.guava/guava/28.2-jre</bundle>
+        <details>The RDF4J subset QTT uses (Rio RDF/XML + JSON-LD, SPARQL JSON results) and its dependencies.</details>
         <bundle>mvn:com.google.guava/guava/30.1.1-jre</bundle>
         <bundle>mvn:com.google.guava/failureaccess/1.0.1</bundle>
-        <bundle>mvn:commons-io/commons-io/2.5</bundle>
+        <bundle>mvn:commons-io/commons-io/2.11.0</bundle>
         <bundle>mvn:org.apache.commons/commons-lang3/3.12.0</bundle>
-        <bundle>mvn:commons-collections/commons-collections/3.2.1</bundle>
-        <bundle>mvn:org.apache.commons/commons-collections4/4.4</bundle>
-        <bundle>mvn:com.opencsv/opencsv/5.6</bundle>
-        <bundle>mvn:commons-beanutils/commons-beanutils/1.9.3</bundle>
+        <bundle>mvn:org.apache.commons/commons-text/1.10.0</bundle>
         <bundle>mvn:org.apache.httpcomponents/httpcore-osgi/4.4.15</bundle>
         <bundle>mvn:org.apache.httpcomponents/httpclient-osgi/4.5.8</bundle>
-        <bundle>mvn:org.apache.commons/commons-text/1.10.0</bundle>
-        <bundle>mvn:com.fasterxml.jackson.core/jackson-databind/2.13.2</bundle>
-        <bundle>mvn:com.fasterxml.jackson.core/jackson-core/2.13.2</bundle>
-        <bundle>mvn:com.fasterxml.jackson.core/jackson-annotations/2.13.2</bundle>
-        <bundle>mvn:com.fasterxml.jackson.dataformat/jackson-dataformat-yaml/2.13.2</bundle>
-        <bundle>mvn:com.fasterxml.jackson.dataformat/jackson-dataformat-smile/2.13.2</bundle>
-        <bundle>mvn:com.fasterxml.jackson.dataformat/jackson-dataformat-cbor/2.13.2</bundle>
-        <bundle>mvn:org.locationtech.jts/jts-core/1.18.2</bundle>
+        <bundle>mvn:com.fasterxml.jackson.core/jackson-databind/${jackson.version}</bundle>
+        <bundle>mvn:com.fasterxml.jackson.core/jackson-core/${jackson.version}</bundle>
+        <bundle>mvn:com.fasterxml.jackson.core/jackson-annotations/${jackson.version}</bundle>
         <bundle>mvn:com.github.jsonld-java/jsonld-java/0.13.4</bundle>
-        <bundle>mvn:com.ning/compress-lzf/1.0.4</bundle>
-        <bundle>mvn:org.yaml/snakeyaml/1.30</bundle>
-        <bundle>mvn:org.locationtech.jts/jts-core/1.15.1</bundle>
-        <bundle>mvn:org.locationtech.spatial4j/spatial4j/0.8</bundle>
-        <bundle>wrap:mvn:org.lwjgl/lwjgl/3.3.1</bundle>
-        <bundle>wrap:mvn:org.lwjgl/lwjgl-lmdb/3.3.1</bundle>
-        <bundle>mvn:org.mapdb/mapdb/1.0.9</bundle>
-        <bundle>mvn:com.carrotsearch/hppc/0.7.3</bundle>
-        <bundle>mvn:ch.qos.logback/logback-classic/${logback.version}</bundle>
-        <bundle>mvn:ch.qos.logback/logback-core/${logback.version}</bundle>
-        <bundle>mvn:org.eclipse.rdf4j/rdf4j-runtime-osgi/${rdf4j.version}</bundle>
+        <bundle>mvn:com.inovexcorp.queryservice/query-service-rdf4j/${project.version}</bundle>
     </feature>
-
     <feature name="qs-persistence" description="qs-persistence" version="${project.version}">
         <details>Feature providing dependencies for JDBC/JPA/etc. for persistence</details>
         <feature dependency="true">jndi</feature>
@@ -103,9 +81,6 @@
         <bundle dependency="true" start-level="74">wrap:mvn:dev.langchain4j/langchain4j-http-client-jdk/1.7.1</bundle>
         <bundle dependency="true" start-level="75">wrap:mvn:dev.langchain4j/langchain4j-core/1.7.1$Bundle-SymbolicName=dev.langchain4j.core&amp;Export-Package=dev.langchain4j.*&amp;Import-Package=!java.*,!jdk.*,retrofit2.*;resolution:=optional,com.google.gson.*;resolution:=optional,okhttp3.*;resolution:=optional,okio.*;resolution:=optional,org.slf4j.*;resolution:=optional,*;resolution:=optional,*</bundle>
         <bundle dependency="true" start-level="75">wrap:mvn:dev.langchain4j/langchain4j-open-ai/1.7.1$Bundle-SymbolicName=dev.langchain4j.openai&amp;Export-Package=dev.langchain4j.model.openai.*&amp;Import-Package=!java.*,!jdk.*,dev.langchain4j.*;resolution:=optional,retrofit2.*;resolution:=optional,com.google.gson.*;resolution:=optional,okhttp3.*;resolution:=optional,okio.*;resolution:=optional,org.slf4j.*;resolution:=optional,*;resolution:=optional,*</bundle>
-
-        <!-- LangGraph4j -->
-        <bundle dependency="true" start-level="75">wrap:mvn:org.bsc.langgraph4j/langgraph4j-core/1.7.0-beta2$Bundle-SymbolicName=org.bsc.langgraph4j&amp;Export-Package=org.bsc.langgraph4j.*&amp;Import-Package=!java.*,!jdk.*,dev.langchain4j.*;resolution:=optional,org.slf4j.*;resolution:=optional,*;resolution:=optional</bundle>
         <bundle dependency="true" start-level="75">wrap:mvn:dev.langchain4j/langchain4j/1.7.1$Bundle-SymbolicName=dev.langchain4j&amp;Export-Package=dev.langchain4j.service.*,dev.langchain4j.model.*,dev.langchain4j.memory.*&amp;Import-Package=!java.*,!jdk.*,dev.langchain4j.*;resolution:=optional,com.google.gson.*;resolution:=optional,org.slf4j.*;resolution:=optional,*;resolution:=optional</bundle>
 
         <!-- Freemarker for template analysis -->

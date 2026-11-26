@@ -42,6 +42,7 @@
     </properties>
     <modules>
         <!-- Base modules with no internal dependencies -->
+        <module>query-service-rdf4j</module>
         <module>query-service-core</module>
         <module>camel-anzo</module>
         <module>query-service-persistence</module>

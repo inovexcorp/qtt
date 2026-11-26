@@ -21,9 +21,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.eclipse.rdf4j</groupId>
-            <artifactId>rdf4j-runtime-osgi</artifactId>
-            <version>${rdf4j.version}</version>
+            <groupId>com.inovexcorp.queryservice</groupId>
+            <artifactId>query-service-rdf4j</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.inovexcorp.queryservice</groupId>

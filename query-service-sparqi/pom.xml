@@ -23,7 +23,6 @@
 
     <properties>
         <langchain4j.version>1.7.1</langchain4j.version>
-        <langgraph4j.version>1.7.0-beta2</langgraph4j.version>
     </properties>
 
     <dependencies>
@@ -52,13 +51,6 @@
             <groupId>com.inovexcorp.queryservice</groupId>
             <artifactId>query-service-testing</artifactId>
             <version>${project.version}</version>
-        </dependency>
-
-        <!-- LangGraph4j -->
-        <dependency>
-            <groupId>org.bsc.langgraph4j</groupId>
-            <artifactId>langgraph4j-core</artifactId>
-            <version>${langgraph4j.version}</version>
         </dependency>
 
         <!-- LangChain4j OpenAI (works with OpenAI, LiteLLM, Azure OpenAI, etc.) -->
