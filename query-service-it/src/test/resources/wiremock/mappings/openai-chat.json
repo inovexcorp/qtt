@@ -1,0 +1,35 @@
+{
+  "name": "openai-chat",
+  "priority": 5,
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/chat/completions"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "id": "chatcmpl-mock",
+      "object": "chat.completion",
+      "created": 1764190000,
+      "model": "mock-model",
+      "choices": [
+        {
+          "index": 0,
+          "finish_reason": "stop",
+          "message": {
+            "role": "assistant",
+            "content": "Hello from the mock SPARQi model."
+          }
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 42,
+        "completion_tokens": 8,
+        "total_tokens": 50
+      }
+    }
+  }
+}

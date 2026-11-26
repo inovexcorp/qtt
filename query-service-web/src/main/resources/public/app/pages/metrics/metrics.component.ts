@@ -201,7 +201,11 @@ export class MetricsComponent {
     }
 
 
-    let successRate: number = Number((((completedExchanges / totalExchanges) * 100).toFixed(2)));
+    // Guard against division by zero before any route has handled an exchange.
+    const successRate: number = totalExchanges > 0
+      ? Number((((completedExchanges / totalExchanges) * 100).toFixed(2)))
+      : 0;
+    const avgProcessingTime: number = totalExchanges > 0 ? totalProcessingTime / totalExchanges : 0;
 
     this.cardMetrics = [{
       "name": "Total Endpoints",
@@ -210,7 +214,7 @@ export class MetricsComponent {
 
     {
       "name": "Avg Processing Time",
-      "value": (totalProcessingTime / totalExchanges).toFixed(2) + "ms"
+      "value": avgProcessingTime.toFixed(2) + "ms"
     },
 
     {

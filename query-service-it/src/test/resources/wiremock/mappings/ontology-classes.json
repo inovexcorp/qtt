@@ -1,0 +1,20 @@
+{
+  "name": "ontology-classes",
+  "priority": 3,
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/sparql/graphmart/.*",
+    "bodyPatterns": [
+      {
+        "contains": "owl%3AClass+rdfs%3AClass"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/sparql-results+json"
+    },
+    "bodyFileName": "ontology-classes.json"
+  }
+}

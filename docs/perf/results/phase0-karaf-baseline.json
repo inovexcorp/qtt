@@ -1,0 +1,76 @@
+{
+  "label": "phase0-karaf-baseline",
+  "image": "qtt:phase0-baseline",
+  "commit": "09a74fc+dirty",
+  "date": "2026-11-26T15:41:01",
+  "note": "Karaf 4.4.1, openjdk:17.0.2-jdk, unmodified",
+  "image_bytes": 684071073,
+  "image_gzip_bytes": 400142137,
+  "layers": 12,
+  "cold_start": [
+    {
+      "api_ms": 12153,
+      "first_query_ms": 12243
+    },
+    {
+      "api_ms": 12138,
+      "first_query_ms": 12219
+    },
+    {
+      "api_ms": 12197,
+      "first_query_ms": 12265
+    },
+    {
+      "api_ms": 12081,
+      "first_query_ms": 12185
+    },
+    {
+      "api_ms": 13871,
+      "first_query_ms": 13964
+    },
+    {
+      "api_ms": 12182,
+      "first_query_ms": 12288
+    },
+    {
+      "api_ms": 12346,
+      "first_query_ms": 12426
+    },
+    {
+      "api_ms": 12435,
+      "first_query_ms": 12520
+    },
+    {
+      "api_ms": 12052,
+      "first_query_ms": 12150
+    },
+    {
+      "api_ms": 12555,
+      "first_query_ms": 12690
+    }
+  ],
+  "api_ready_ms_median": 12189.5,
+  "api_ready_ms_min": 12052,
+  "api_ready_ms_max": 13871,
+  "first_query_ms_median": 12276.5,
+  "first_query_ms_min": 12150,
+  "first_query_ms_max": 13964,
+  "rss_idle_mb": 893.4,
+  "load_uncached": {
+    "rps": 1720.36,
+    "p50_ms": 5,
+    "p95_ms": 11,
+    "p99_ms": 14,
+    "failed": 25808,
+    "non2xx": 0
+  },
+  "load_cached": {
+    "rps": 7261.68,
+    "p50_ms": 1,
+    "p95_ms": 3,
+    "p99_ms": 4,
+    "failed": 108925,
+    "non2xx": 0
+  },
+  "rss_after_load_mb": 1042.0
+}

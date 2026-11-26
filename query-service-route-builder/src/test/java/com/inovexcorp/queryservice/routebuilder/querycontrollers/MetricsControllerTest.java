@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -316,6 +317,39 @@ public class MetricsControllerTest {
         assertNotNull(routeMetrics);
     }
     */
+
+    // ========================================
+    // routeBelongsToDatasource(): /api/metrics/routes/{datasourceId} used to throw a NullPointerException (HTTP 500)
+    // whenever Camel held a route with no database row, e.g. a temporary template-test route.
+    // ========================================
+
+    @Test
+    public void testRouteBelongsToDatasource_MatchingDatasource() {
+        assertTrue(MetricsController.routeBelongsToDatasource(routeWithDatasource(TEST_DATASOURCE_ID), TEST_DATASOURCE_ID));
+    }
+
+    @Test
+    public void testRouteBelongsToDatasource_OtherDatasource() {
+        assertFalse(MetricsController.routeBelongsToDatasource(routeWithDatasource("other"), TEST_DATASOURCE_ID));
+    }
+
+    @Test
+    public void testRouteBelongsToDatasource_RouteNotPersisted() {
+        assertFalse(MetricsController.routeBelongsToDatasource(null, TEST_DATASOURCE_ID));
+    }
+
+    @Test
+    public void testRouteBelongsToDatasource_RouteWithoutDatasource() {
+        assertFalse(MetricsController.routeBelongsToDatasource(new CamelRouteTemplate(), TEST_DATASOURCE_ID));
+    }
+
+    private static CamelRouteTemplate routeWithDatasource(String datasourceId) {
+        Datasources ds = new Datasources();
+        ds.setDataSourceId(datasourceId);
+        CamelRouteTemplate route = new CamelRouteTemplate();
+        route.setDatasources(ds);
+        return route;
+    }
 
     // ========================================
     // Tests for edge cases

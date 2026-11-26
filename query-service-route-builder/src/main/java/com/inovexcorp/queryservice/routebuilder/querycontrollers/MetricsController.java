@@ -248,8 +248,16 @@ public class MetricsController {
      */
     private boolean isRouteTiedToDatasource(ObjectName routeMBeanName, String datasourceId) {
         String routeId = routeMBeanName.getKeyProperty("name").replace("\"", "");
-        CamelRouteTemplate route = routeService.getRoute(routeId);
-        return route.getDatasources().getDataSourceId().equals(datasourceId);
+        return routeBelongsToDatasource(routeService.getRoute(routeId), datasourceId);
+    }
+
+    /**
+     * True if the persisted route uses the given datasource. Routes running in Camel without a database row
+     * (temporary test routes, for example) belong to no datasource.
+     */
+    static boolean routeBelongsToDatasource(CamelRouteTemplate route, String datasourceId) {
+        return route != null && route.getDatasources() != null
+                && datasourceId != null && datasourceId.equals(route.getDatasources().getDataSourceId());
     }
 
     /**

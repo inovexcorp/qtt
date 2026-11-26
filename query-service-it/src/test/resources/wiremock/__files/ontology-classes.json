@@ -1,0 +1,70 @@
+{
+  "head" : {
+    "vars" : [
+      "uri",
+      "label",
+      "comment",
+      "type"
+    ]
+  },
+  "results" : {
+    "bindings" : [
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#OrderedCollection"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "Ordered Collection"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Class"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#ConceptScheme"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "Concept Scheme"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Class"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#Concept"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "Concept"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Class"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#Collection"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "Collection"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Class"
+        }
+      }
+    ]
+  }
+}

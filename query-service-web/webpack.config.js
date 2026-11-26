@@ -4,7 +4,10 @@ module.exports = (config) => {
     {
       test: /\.css$/,
       include: /node_modules[\\/]monaco-editor/,
-      use: ['style-loader', 'css-loader']
+      // esModule: false makes css-loader emit require() for url(...) so the codicon font goes through the
+      // asset/resource rule below. With ES modules it emitted new URL(..., import.meta.url), which Angular's
+      // webpack config resolves to the build machine's absolute file:// path.
+      use: ['style-loader', { loader: 'css-loader', options: { esModule: false } }]
     },
     {
       test: /\.(ttf|woff|woff2|eot)$/,

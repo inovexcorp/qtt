@@ -66,6 +66,7 @@
         <!-- Packaging modules (must be last) -->
         <module>query-service-feature</module>
         <module>query-service-distribution</module>
+        <module>query-service-it</module>
     </modules>
 
     <scm>

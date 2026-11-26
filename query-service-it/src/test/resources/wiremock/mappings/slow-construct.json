@@ -1,0 +1,16 @@
+{
+  "name": "slow-construct",
+  "priority": 1,
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/sparql/graphmart/urn%3Amock%3Aslow.*"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/rdf+xml;charset=utf-8"
+    },
+    "bodyFileName": "construct.rdf",
+    "fixedDelayMilliseconds": 1500
+  }
+}

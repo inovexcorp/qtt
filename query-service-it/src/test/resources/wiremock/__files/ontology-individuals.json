@@ -1,0 +1,34 @@
+{
+  "head" : {
+    "vars" : [
+      "uri",
+      "label",
+      "comment",
+      "type"
+    ]
+  },
+  "results" : {
+    "bindings" : [
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "https://mobi.solutions/ontologies/TestOntology#Concept2"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Concept"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "https://mobi.solutions/ontologies/TestOntology#Concept1"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Concept"
+        }
+      }
+    ]
+  }
+}
