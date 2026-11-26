@@ -1,5 +1,7 @@
 package com.inovexcorp.queryservice.routebuilder.service;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
@@ -7,8 +9,6 @@ import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.routebuilder.test.TestRouteBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -25,16 +25,16 @@ import java.util.UUID;
  * - Have failsafe cleanup after 5 minutes
  */
 @Slf4j
-@Component(service = TestRouteService.class, immediate = true)
+@ApplicationScoped
 public class TestRouteServiceImpl implements TestRouteService {
 
     private static final long TEST_ROUTE_CLEANUP_DELAY_MS = 5 * 60 * 1000; // 5 minutes
 
-    @Reference
-    private ContextManager contextManager;
+    @Inject
+    ContextManager contextManager;
 
-    @Reference
-    private DataSourceService dataSourceService;
+    @Inject
+    DataSourceService dataSourceService;
 
     @Override
     public String createTestRoute(String templateContent, String dataSourceId,

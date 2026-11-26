@@ -1,5 +1,7 @@
 package com.inovexcorp.queryservice.testing.service;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
@@ -8,8 +10,6 @@ import com.inovexcorp.queryservice.routebuilder.service.TestRouteService;
 import com.inovexcorp.queryservice.testing.model.TestExecuteRequest;
 import com.inovexcorp.queryservice.testing.model.TestExecuteResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -26,14 +26,14 @@ import java.util.Map;
  * the actual Camel route infrastructure with enhanced debugging information.
  */
 @Slf4j
-@Component(service = RouteTestExecutor.class, immediate = true)
+@ApplicationScoped
 public class RouteTestExecutor {
 
-    @Reference
-    private DataSourceService dataSourceService;
+    @Inject
+    DataSourceService dataSourceService;
 
-    @Reference
-    private TestRouteService testRouteService;
+    @Inject
+    TestRouteService testRouteService;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(30))

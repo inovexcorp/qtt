@@ -3,17 +3,19 @@ package com.inovexcorp.queryservice.persistence;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.ToString;
-import org.hibernate.annotations.Type;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.Nationalized;
+import org.hibernate.type.SqlTypes;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import java.util.List;
 
 @Data
@@ -26,7 +28,10 @@ public class CamelRouteTemplate {
     @Column(name = "routeId")
     private String routeId;
 
-    @Type(type = "text")
+    // Nationalized so SQL Server stores non-Latin text (nvarchar(max)); databases without national character types
+    // (Derby, PostgreSQL) ignore it. 1.x SQL Server databases are converted by SqlServerUnicodeMigration.
+    @Nationalized
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
     @Column(name = "templateContent")
     private String templateContent;
 
@@ -45,7 +50,7 @@ public class CamelRouteTemplate {
     @Column(name = "cacheKeyStrategy")
     private String cacheKeyStrategy = "QUERY_HASH";
 
-    @ManyToOne(cascade = {javax.persistence.CascadeType.MERGE})
+    @ManyToOne(cascade = {jakarta.persistence.CascadeType.MERGE})
     @JoinColumn(name = "datasources", referencedColumnName = "dataSourceId")
     private Datasources datasources;
 

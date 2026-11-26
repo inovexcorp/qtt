@@ -1,5 +1,7 @@
 package com.inovexcorp.queryservice.routebuilder.service;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.cache.CacheService;
 import com.inovexcorp.queryservice.cache.NoOpCacheService;
@@ -15,9 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.spi.RouteController;
 import org.apache.commons.io.FileUtils;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.component.annotations.ReferenceCardinality;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,26 +28,26 @@ import java.util.List;
  * separating it from the REST controller layer.
  */
 @Slf4j
-@Component(service = RouteManagementService.class, immediate = true)
+@ApplicationScoped
 public class RouteManagementServiceImpl implements RouteManagementService {
 
-    @Reference
-    private CamelKarafComponent camelKarafComponent;
+    @Inject
+    CamelKarafComponent camelKarafComponent;
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
-    @Reference
-    private LayerService layerService;
+    @Inject
+    LayerService layerService;
 
-    @Reference
-    private DataSourceService dataSourceService;
+    @Inject
+    DataSourceService dataSourceService;
 
-    @Reference
-    private ContextManager contextManager;
+    @Inject
+    ContextManager contextManager;
 
-    @Reference(cardinality = ReferenceCardinality.OPTIONAL)
-    private volatile CacheService cacheService;
+    @Inject
+    CacheService cacheService;
 
     private CacheService getEffectiveCacheService() {
         return cacheService != null ? cacheService : new NoOpCacheService();

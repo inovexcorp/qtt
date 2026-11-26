@@ -1,35 +1,29 @@
 package com.inovexcorp.queryservice.scheduler;
 
+import jakarta.annotation.PostConstruct;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import io.quarkus.scheduler.Scheduled;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.DatasourceHealthService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.karaf.scheduler.Job;
-import org.apache.karaf.scheduler.JobContext;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Modified;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.metatype.annotations.Designate;
 
 @Slf4j
-@Component(name = "com.inovexcorp.queryservice.scheduler.CleanHealthRecords",
-        immediate = true,
-        property = {
-                "scheduler.name=CleanHealthRecords",
-                "scheduler.concurrent:Boolean=false"
-        },
-        configurationPolicy = ConfigurationPolicy.REQUIRE
-)
-@Designate(ocd = CleanHealthRecordsConfig.class)
+@ApplicationScoped
 public class CleanHealthRecords implements Job {
 
-    @Reference
-    private DatasourceHealthService datasourceHealthService;
+    @Inject
+    DatasourceHealthService datasourceHealthService;
 
     private int daysToLive;
 
-    @Activate
-    @Modified
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.scheduler.CleanHealthRecords";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(CleanHealthRecordsConfig.class, CONFIG_PID));
+    }
+
     public void activate(final CleanHealthRecordsConfig config) {
         this.daysToLive = config.daysToLive();
         log.info("CleanHealthRecords activated with daysToLive={}", daysToLive);
@@ -43,5 +37,12 @@ public class CleanHealthRecords implements Job {
         } catch (Exception e) {
             log.error("Error cleaning old health records: {}", e.getMessage(), e);
         }
+    }
+
+    /** Trigger: cron from {@code com.inovexcorp.queryservice.scheduler.CleanHealthRecords.scheduler.expression}; overlapping runs are skipped (scheduler.concurrent=false). */
+    @Scheduled(identity = "CleanHealthRecords", cron = "${com.inovexcorp.queryservice.scheduler.CleanHealthRecords.scheduler.expression:0 0 0 * * ?}",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void scheduled() {
+        execute(null);
     }
 }

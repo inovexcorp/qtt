@@ -1,14 +1,14 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.SparqiMetricRecord;
 import com.inovexcorp.queryservice.persistence.SparqiMetricService;
 import com.inovexcorp.queryservice.persistence.SparqiMetricsSummary;
-import org.apache.aries.jpa.template.JpaTemplate;
-import org.apache.aries.jpa.template.TransactionType;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
+import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
+import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 
-import javax.persistence.Query;
+import jakarta.persistence.Query;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
@@ -18,11 +18,11 @@ import java.util.Map;
 /**
  * Implementation of SPARQi metrics service using JPA.
  */
-@Component(immediate = true, service = SparqiMetricService.class)
+@ApplicationScoped
 public class SparqiMetricServiceImpl implements SparqiMetricService {
 
-    @Reference(target = "(osgi.unit.name=qtt-pu)")
-    private JpaTemplate jpa;
+    @Inject
+    JpaTemplate jpa;
 
     @Override
     public void recordMetric(SparqiMetricRecord metricRecord) {

@@ -116,6 +116,14 @@ class FeaturesIT {
                 .body("datasources", greaterThanOrEqualTo(1));
     }
 
+    /** Plain clients (curl sends Accept: *\/*) get JSON; Karaf answered 500 here. */
+    @Test
+    void wildcardAcceptGetsJson() {
+        io.restassured.RestAssured.given().baseUri(API).accept("*/*").get("/settings/sysinfo").then().statusCode(200)
+                .contentType(containsString("json"))
+                .body("$", hasKey("version"));
+    }
+
     // ---------------------------------------------------------------- SPARQi (mock OpenAI endpoint)
 
     @Test

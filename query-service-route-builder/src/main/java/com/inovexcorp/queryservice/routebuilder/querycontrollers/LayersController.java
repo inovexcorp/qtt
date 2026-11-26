@@ -1,32 +1,30 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.LayerAssociations;
 import com.inovexcorp.queryservice.persistence.LayerService;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import org.json.JSONArray;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 /**
  * Controller class responsible for managing layers associated with routes.
  *
  * <p>The LayersController provides RESTful endpoints to interact with the route and layer management.
  */
-@Component(immediate = true, service = LayersController.class)
-@JaxrsResource
+@ApplicationScoped
 @Path("/api/layers")
 public class LayersController {
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
-    @Reference
-    private LayerService layerService;
+    @Inject
+    LayerService layerService;
 
     /**
      * Deletes all layers associated with the specified route.

@@ -57,7 +57,7 @@ public class TestRouteBuilder extends RouteBuilder {
         tempTemplateFile = createTempTemplateFile();
 
         // Build test route (no caching - all queries execute fresh)
-        from(String.format("jetty:http://0.0.0.0:8888/%s?httpMethodRestrict=POST",
+        from(String.format("netty-http:http://0.0.0.0:8888/%s?httpMethodRestrict=POST",
                 camelRouteTemplate.getRouteId()))
                 .routeId(camelRouteTemplate.getRouteId())
                 // Attach cleanup policy to automatically delete template file on route removal

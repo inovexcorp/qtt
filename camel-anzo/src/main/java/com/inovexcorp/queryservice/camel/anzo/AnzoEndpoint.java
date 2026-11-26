@@ -4,6 +4,7 @@ import com.inovexcorp.queryservice.camel.anzo.comm.AnzoClient;
 import com.inovexcorp.queryservice.camel.anzo.comm.SimpleAnzoClient;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Getter;
 import org.apache.camel.Category;
 import org.apache.camel.Consumer;
@@ -27,7 +28,7 @@ import java.util.Base64;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @UriEndpoint(firstVersion = "1.0.0-SNAPSHOT", scheme = "anzo", title = "camel-anzo", syntax = "anzo:server",
-        category = {Category.JAVA}, producerOnly = true)
+        category = {Category.DATABASE}, producerOnly = true)
 public class AnzoEndpoint extends DefaultEndpoint {
 
     private static final Base64.Decoder decoder = Base64.getDecoder();
@@ -62,10 +63,12 @@ public class AnzoEndpoint extends DefaultEndpoint {
 
     @UriParam(name = "user", description = "The user to query against the graphmart with")
     @Metadata(required = true)
+    @ToString.Exclude
     private String user;
 
     @UriParam(name = "password", description = "The password to authenticate with against the graphmart", secret = true)
     @Metadata(required = true, secret = true)
+    @ToString.Exclude
     private String password;
 
     @UriParam(name = "timeoutSeconds", description = "The number of seconds prior to timing out", defaultValue = "30")

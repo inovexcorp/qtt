@@ -1,5 +1,7 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import com.inovexcorp.queryservice.camel.anzo.comm.AnzoClient;
@@ -8,30 +10,27 @@ import com.inovexcorp.queryservice.camel.anzo.comm.SimpleAnzoClient;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.json.Json;
-import javax.json.JsonValue;
-import javax.json.stream.JsonParser;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.json.Json;
+import jakarta.json.JsonValue;
+import jakarta.json.JsonReader;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * REST controller for interacting with Anzograph data and metadata.
  */
-@Component(immediate = true, service = AnzoLookupRestController.class)
-@JaxrsResource
+@ApplicationScoped
 @Path("/api/anzo")
 public class AnzoLookupRestController {
 
@@ -39,11 +38,11 @@ public class AnzoLookupRestController {
 
     private static final String VALUE_KEY = "value";
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
-    @Reference
-    private DataSourceService dataSourceService;
+    @Inject
+    DataSourceService dataSourceService;
 
     /**
      * Retrieves graphmarts from a specified data source.
@@ -116,9 +115,18 @@ public class AnzoLookupRestController {
      * @return A JSONArray containing JSONObjects representing graphmart information.
      */
     private JSONArray parseQueryResponse(QueryResponse qResponse, String titleKey, String iriKey, String activeKey) {
+        return parseBindings(qResponse.getHttpResponse().body(), titleKey, iriKey, activeKey);
+    }
+
+    /**
+     * Converts SPARQL JSON results into [{title, iri, active}]. Reads the whole document with a JsonReader; the old
+     * JsonParser#getObject() call without a preceding next() only worked with the lenient Glassfish JSON-P that Karaf
+     * shipped, and fails with Parsson (HTTP 500 on the graphmart and layer lookups).
+     */
+    static JSONArray parseBindings(InputStream body, String titleKey, String iriKey, String activeKey) {
         final JSONArray arr = new JSONArray();
-        try (JsonParser parser = Json.createParser(qResponse.getHttpResponse().body())) {
-            parser.getObject().getJsonObject("results")
+        try (JsonReader reader = Json.createReader(body)) {
+            reader.readObject().getJsonObject("results")
                     .getJsonArray("bindings").stream().map(JsonValue::asJsonObject).forEach(obj -> {
                         JSONObject jsObj = new JSONObject();
                         jsObj.put("title", obj.getJsonObject(titleKey).getString(VALUE_KEY));

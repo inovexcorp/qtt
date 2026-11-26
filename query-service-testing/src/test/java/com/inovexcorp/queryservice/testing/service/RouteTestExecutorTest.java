@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.testing.service;
 
+import jakarta.inject.Inject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;

@@ -1,11 +1,12 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.Datasources;
-import org.apache.aries.jpa.template.EmConsumer;
-import org.apache.aries.jpa.template.EmFunction;
-import org.apache.aries.jpa.template.JpaTemplate;
-import org.apache.aries.jpa.template.TransactionType;
+import com.inovexcorp.queryservice.persistence.jpa.EmConsumer;
+import com.inovexcorp.queryservice.persistence.jpa.EmFunction;
+import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
+import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -13,8 +14,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -80,7 +81,7 @@ public class RouteServiceImplTest {
     @Test
     public void testDeleteAll_Success() {
         // Arrange
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(entityManager.createQuery("delete from CamelRouteTemplate")).thenReturn(query);
 
         doAnswer(invocation -> {
@@ -201,6 +202,33 @@ public class RouteServiceImplTest {
         verify(entityManager).find(CamelRouteTemplate.class, "testRoute");
         verify(entityManager).remove(testRoute);
         verify(entityManager).flush();
+    }
+
+    /** The route is unlinked from its datasource's orphanRemoval collection before removal (Hibernate 6+). */
+    @Test
+    public void testDelete_UnlinksRouteFromDatasource() {
+        // Arrange
+        Datasources ds = new Datasources();
+        ds.setDataSourceId("ds");
+        CamelRouteTemplate route = new CamelRouteTemplate();
+        route.setRouteId("linked");
+        route.setDatasources(ds);
+        CamelRouteTemplate sibling = new CamelRouteTemplate();
+        sibling.setRouteId("sibling");
+        ds.setCamelRouteTemplate(new java.util.ArrayList<>(java.util.List.of(route, sibling)));
+        when(entityManager.find(CamelRouteTemplate.class, "linked")).thenReturn(route);
+        doAnswer(invocation -> {
+            EmConsumer consumer = invocation.getArgument(1);
+            consumer.accept(entityManager);
+            return null;
+        }).when(jpaTemplate).tx(eq(TransactionType.Required), any(EmConsumer.class));
+
+        // Act
+        routeService.delete("linked");
+
+        // Assert
+        assertEquals(java.util.List.of(sibling), ds.getCamelRouteTemplate());
+        verify(entityManager).remove(route);
     }
 
     @Test

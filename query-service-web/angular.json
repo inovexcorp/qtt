@@ -20,7 +20,7 @@
             "customWebpackConfig": {
               "path": "./webpack.config.js"
             },
-            "outputPath": "target/classes/build",
+            "outputPath": "target/classes/META-INF/resources",
             "index": "src/main/resources/public/index.html",
             "main": "src/main/resources/public/main.ts",
             "polyfills": [

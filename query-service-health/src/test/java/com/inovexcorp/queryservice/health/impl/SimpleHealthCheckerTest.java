@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.health.impl;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.camel.anzo.comm.QueryResponse;
 import com.inovexcorp.queryservice.camel.anzo.comm.SimpleAnzoClient;

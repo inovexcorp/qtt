@@ -1,29 +1,29 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.DatasourceHealthRecord;
 import com.inovexcorp.queryservice.persistence.DatasourceHealthService;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.aries.jpa.template.JpaTemplate;
-import org.apache.aries.jpa.template.TransactionType;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
+import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
+import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 
 @Slf4j
-@Component(immediate = true, service = DatasourceHealthService.class)
+@ApplicationScoped
 public class DatasourceHealthServiceImpl implements DatasourceHealthService {
 
-    @Reference(target = "(osgi.unit.name=qtt-pu)")
-    private JpaTemplate jpa;
+    @Inject
+    JpaTemplate jpa;
 
-    @Reference
-    private DataSourceService dataSourceService;
+    @Inject
+    DataSourceService dataSourceService;
 
     @Override
     public void add(DatasourceHealthRecord healthRecord) {

@@ -136,7 +136,9 @@ public class SimpleAnzoClient implements AnzoClient {
         conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
         byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
-        conn.setFixedLengthStreamingMode(bodyBytes.length);
+        // No fixed-length streaming mode: for streamed POSTs the JDK probes every pooled keep-alive connection with
+        // a 1 ms-timeout read before reuse (sun.net.www.http.HttpClient#available), adding a millisecond or more to
+        // every query. The form body is small, so letting HttpURLConnection buffer it (and set Content-Length) is free.
 
         try (OutputStream os = conn.getOutputStream()) {
             os.write(bodyBytes);

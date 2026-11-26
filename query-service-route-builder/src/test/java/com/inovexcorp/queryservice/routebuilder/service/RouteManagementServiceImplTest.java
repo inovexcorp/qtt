@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.routebuilder.service;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.DataSourceService;

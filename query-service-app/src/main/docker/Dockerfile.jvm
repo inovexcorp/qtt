@@ -1,0 +1,21 @@
+# QTT on Quarkus (JVM mode). Build from query-service-app after `mvn package`:
+#   podman build -f src/main/docker/Dockerfile.jvm -t inovexis/qtt .
+FROM docker.io/library/eclipse-temurin:17-jre
+
+RUN groupadd --system --gid 1001 qtt \
+    && useradd --system --uid 1001 --gid qtt --home-dir /opt/qtt --no-create-home qtt \
+    && mkdir -p /opt/qtt/data /opt/qtt/etc && chown -R qtt:qtt /opt/qtt
+
+WORKDIR /opt/qtt
+# Dependencies first: they change least often, so image rebuilds reuse this layer.
+COPY --chown=qtt:qtt target/quarkus-app/lib/ /opt/qtt/lib/
+COPY --chown=qtt:qtt target/quarkus-app/quarkus/ /opt/qtt/quarkus/
+COPY --chown=qtt:qtt target/quarkus-app/app/ /opt/qtt/app/
+COPY --chown=qtt:qtt target/quarkus-app/quarkus-run.jar /opt/qtt/quarkus-run.jar
+COPY --chown=qtt:qtt src/main/etc/keystore /opt/qtt/etc/keystore
+
+USER qtt
+# 8443: UI + API (TLS), 8080: UI + API (plain), 8888: query endpoints
+EXPOSE 8443 8080 8888
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /opt/qtt/quarkus-run.jar"]

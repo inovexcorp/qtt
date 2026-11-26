@@ -1,15 +1,15 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.util.PasswordEncryptionService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.aries.jpa.template.JpaTemplate;
-import org.apache.aries.jpa.template.TransactionType;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
+import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
+import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -17,16 +17,20 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@Component(immediate = true, service = DataSourceService.class)
+@ApplicationScoped
 public class DataSourceServiceImpl implements DataSourceService {
 
-    @Reference(target = "(osgi.unit.name=qtt-pu)")
-    private JpaTemplate jpa;
+    @Inject
+    JpaTemplate jpa;
 
-    @Reference
-    private PasswordEncryptionService encryptionService;
+    @Inject
+    PasswordEncryptionService encryptionService;
 
-    @Activate
+    @PostConstruct
+    void postConstruct() {
+        activate();
+    }
+
     public void activate() {
         log.info("DataSourceService activated with password encryption {}",
                 encryptionService.isEncryptionEnabled() ? "ENABLED" : "DISABLED");

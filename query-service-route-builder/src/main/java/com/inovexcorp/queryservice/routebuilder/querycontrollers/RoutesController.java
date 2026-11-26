@@ -1,5 +1,9 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.annotation.PostConstruct;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.cache.CacheInfo;
 import com.inovexcorp.queryservice.cache.CacheKey;
@@ -14,52 +18,48 @@ import com.inovexcorp.queryservice.routebuilder.service.RouteManagementService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Route;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.component.annotations.ReferenceCardinality;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
-import org.osgi.service.metatype.annotations.Designate;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.Encoded;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.PATCH;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.Encoded;
+import jakarta.ws.rs.FormParam;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PATCH;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.Map;
 
 @Slf4j
-@JaxrsResource
 @Path("/api/routes")
-@Designate(ocd = RoutesControllerConfig.class)
-@Component(immediate = true, service = RoutesController.class,
-        configurationPolicy = ConfigurationPolicy.REQUIRE)
+@ApplicationScoped
 public class RoutesController {
 
-    @Reference
-    private RouteManagementService routeManagementService;
-    @Reference
-    private RouteService routeService;
-    @Reference
-    private DataSourceService dataSourceService;
-    @Reference
-    private ContextManager contextManager;
-    @Reference(cardinality = ReferenceCardinality.OPTIONAL)
-    private volatile CacheService cacheService;
+    @Inject
+    RouteManagementService routeManagementService;
+    @Inject
+    RouteService routeService;
+    @Inject
+    DataSourceService dataSourceService;
+    @Inject
+    ContextManager contextManager;
+    @Inject
+    CacheService cacheService;
 
     private String baseUrl;
 
-    @Activate
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(RoutesControllerConfig.class, CONFIG_PID));
+    }
+
     public void activate(final RoutesControllerConfig config) {
         baseUrl = config.baseUrl().endsWith("/") ? config.baseUrl().substring(0, config.baseUrl().length() - 1)
                 : config.baseUrl();

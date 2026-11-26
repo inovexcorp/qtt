@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.camel.anzo.comm.AnzoClient;
 import com.inovexcorp.queryservice.camel.anzo.comm.QueryResponse;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
@@ -12,8 +13,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.http.HttpResponse;
@@ -322,5 +323,39 @@ public class AnzoLookupRestControllerTest {
         assertTrue(entity.contains("DataSource"));
         assertTrue(entity.contains(TEST_DATASOURCE_ID));
         assertTrue(entity.contains("not found"));
+    }
+
+    // ========================================
+    // parseBindings(): the success path of both lookups, using responses recorded from an Anzo server
+    // ========================================
+
+    @Test
+    public void testParseBindings_Graphmarts() throws Exception {
+        try (java.io.InputStream in = getClass().getResourceAsStream("/anzo/graphmarts.json")) {
+            org.json.JSONArray arr = AnzoLookupRestController.parseBindings(in, "graphmartTitle", "gm", "gmActive");
+            assertEquals(11, arr.length());
+            org.json.JSONObject first = arr.getJSONObject(0);
+            assertEquals("07-29-26 Test model Graphmart", first.getString("title"));
+            assertEquals("http://cambridgesemantics.com/Graphmart/93794a1ba2a24246a0f33c4340858d80", first.getString("iri"));
+            assertEquals("true", first.getString("active"));
+        }
+    }
+
+    @Test
+    public void testParseBindings_Layers() throws Exception {
+        try (java.io.InputStream in = getClass().getResourceAsStream("/anzo/layers.json")) {
+            org.json.JSONArray arr = AnzoLookupRestController.parseBindings(in, "title", "layer", "layerActive");
+            assertEquals(1, arr.length());
+            assertEquals("http://cambridgesemantics.com/Layer/67c99b630d494b4da6dc5a0a11cb717e",
+                    arr.getJSONObject(0).getString("iri"));
+        }
+    }
+
+    @Test
+    public void testParseBindings_NoResults() {
+        String empty = "{\"head\":{\"vars\":[]},\"results\":{\"bindings\":[]}}";
+        org.json.JSONArray arr = AnzoLookupRestController.parseBindings(
+                new java.io.ByteArrayInputStream(empty.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "t", "i", "a");
+        assertEquals(0, arr.length());
     }
 }

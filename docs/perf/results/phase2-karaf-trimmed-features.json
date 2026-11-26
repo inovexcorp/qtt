@@ -57,22 +57,21 @@
   "first_query_ms_max": 6507,
   "rss_idle_mb": 673.7,
   "load_uncached": {
-    "rps": 1836.72,
-    "p50_ms": 4,
-    "p95_ms": 11,
-    "p99_ms": 13,
-    "length_varied": 27550,
+    "rps": 1071.4,
+    "p50_ms": 7.47,
+    "p95_ms": 9.68,
+    "p99_ms": 11.31,
     "errors": 0,
-    "non2xx": 0
+    "requests": 32149
   },
   "load_cached": {
-    "rps": 7487.55,
-    "p50_ms": 1,
-    "p95_ms": 3,
-    "p99_ms": 3,
-    "length_varied": 112314,
+    "rps": 7340.8,
+    "p50_ms": 0.95,
+    "p95_ms": 1.65,
+    "p99_ms": 4.7,
     "errors": 0,
-    "non2xx": 0
+    "requests": 220267
   },
-  "rss_after_load_mb": 720.1
+  "rss_after_load_mb": 759.1,
+  "load_remeasured": "2026-11-26T17:37:38"
 }

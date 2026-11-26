@@ -1,5 +1,7 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.metrics.MetricObject;
 import com.inovexcorp.queryservice.metrics.MetricsScraper;
@@ -10,19 +12,16 @@ import com.inovexcorp.queryservice.persistence.RouteService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.api.management.mbean.ManagedRouteMBean;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 
 import javax.management.MBeanServer;
 import javax.management.MBeanServerInvocationHandler;
 import javax.management.ObjectName;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,25 +34,24 @@ import java.util.stream.Collectors;
  * Provides endpoints to retrieve both live JMX metrics and persisted historical metrics.
  */
 @Slf4j
-@Component(immediate = true, service = MetricsController.class)
-@JaxrsResource
+@ApplicationScoped
 @Path("/api/metrics")
 public class MetricsController {
 
     private static final String ROUTE_NOT_FOUND_MESSAGE = "Route not found";
     private static final MBeanServer MBEAN_SERVER = ManagementFactory.getPlatformMBeanServer();
 
-    @Reference
-    private ContextManager contextManager;
+    @Inject
+    ContextManager contextManager;
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
-    @Reference
-    private MetricService metricService;
+    @Inject
+    MetricService metricService;
 
-    @Reference
-    private MetricsScraper metricsScraper;
+    @Inject
+    MetricsScraper metricsScraper;
 
     /**
      * Retrieves all persisted metrics from the database.

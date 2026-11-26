@@ -8,13 +8,7 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.osgi.framework.Bundle;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.InvalidSyntaxException;
-import org.osgi.framework.ServiceReference;
-import org.osgi.framework.Version;
 
-import javax.sql.DataSource;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
@@ -42,12 +36,6 @@ public class SettingsRestControllerTest {
     @Mock
     private DataSourceService datasourceService;
 
-    @Mock
-    private BundleContext bundleContext;
-
-    @Mock
-    private Bundle bundle;
-
     @InjectMocks
     private SettingsRestController settingsRestController;
 
@@ -55,125 +43,9 @@ public class SettingsRestControllerTest {
     private static final String TEST_DATASOURCE_URL = "jdbc:derby:data/database;create=true";
     private static final String TEST_DATASOURCE_TYPE = "Apache Derby Embedded";
 
-    @Before
-    public void setUp() throws Exception {
-        // Set up basic bundle context behavior
-        when(bundleContext.getBundle()).thenReturn(bundle);
-        Version version = new Version(TEST_VERSION);
-        when(bundle.getVersion()).thenReturn(version);
+    private void setupWithDataSource() {
+        settingsRestController.configure(TEST_VERSION, TEST_DATASOURCE_URL, TEST_DATASOURCE_TYPE);
     }
-
-    // ========================================
-    // Tests for activate()
-    // ========================================
-
-    @Test
-    public void testActivate_Success_WithDataSource() throws Exception {
-        // Arrange
-        ServiceReference<DataSource> mockServiceRef = mock(ServiceReference.class);
-        when(mockServiceRef.getProperty("url")).thenReturn(TEST_DATASOURCE_URL);
-        when(mockServiceRef.getProperty("osgi.jdbc.driver.name")).thenReturn(TEST_DATASOURCE_TYPE);
-
-        Collection<ServiceReference<DataSource>> serviceRefs = Collections.singletonList(mockServiceRef);
-        when(bundleContext.getServiceReferences(eq(DataSource.class), anyString())).thenReturn(serviceRefs);
-
-        // Act
-        settingsRestController.activate(bundleContext);
-
-        // Assert
-        Map<String, String> sysInfo = settingsRestController.getSystemInformation();
-        assertEquals(TEST_VERSION, sysInfo.get("version"));
-        assertEquals(TEST_DATASOURCE_URL, sysInfo.get("datasourceUrl"));
-        assertEquals(TEST_DATASOURCE_TYPE, sysInfo.get("datasourceType"));
-        assertNotNull(sysInfo.get("uptime"));
-    }
-
-    @Test
-    public void testActivate_NoDataSourceFound() throws Exception {
-        // Arrange
-        when(bundleContext.getServiceReferences(eq(DataSource.class), anyString())).thenReturn(null);
-
-        // Act
-        settingsRestController.activate(bundleContext);
-
-        // Assert
-        Map<String, String> sysInfo = settingsRestController.getSystemInformation();
-        assertEquals(TEST_VERSION, sysInfo.get("version"));
-        assertEquals("unknown", sysInfo.get("datasourceUrl"));
-        assertEquals("unknown", sysInfo.get("datasourceType"));
-    }
-
-    @Test
-    public void testActivate_EmptyDataSourceCollection() throws Exception {
-        // Arrange
-        Collection<ServiceReference<DataSource>> emptyRefs = Collections.emptyList();
-        when(bundleContext.getServiceReferences(eq(DataSource.class), anyString())).thenReturn(emptyRefs);
-
-        // Act
-        settingsRestController.activate(bundleContext);
-
-        // Assert
-        Map<String, String> sysInfo = settingsRestController.getSystemInformation();
-        assertEquals("unknown", sysInfo.get("datasourceUrl"));
-        assertEquals("unknown", sysInfo.get("datasourceType"));
-    }
-
-    @Test
-    public void testActivate_InvalidSyntaxException() throws Exception {
-        // Arrange
-        when(bundleContext.getServiceReferences(eq(DataSource.class), anyString()))
-                .thenThrow(new InvalidSyntaxException("Invalid filter", "bad filter"));
-
-        // Act
-        settingsRestController.activate(bundleContext);
-
-        // Assert - Should handle exception gracefully
-        Map<String, String> sysInfo = settingsRestController.getSystemInformation();
-        assertNotNull(sysInfo);
-        assertEquals(TEST_VERSION, sysInfo.get("version"));
-    }
-
-    @Test
-    public void testActivate_NullUrlProperty() throws Exception {
-        // Arrange
-        ServiceReference<DataSource> mockServiceRef = mock(ServiceReference.class);
-        when(mockServiceRef.getProperty("url")).thenReturn(null);
-        when(mockServiceRef.getProperty("osgi.jdbc.driver.name")).thenReturn(TEST_DATASOURCE_TYPE);
-
-        Collection<ServiceReference<DataSource>> serviceRefs = Collections.singletonList(mockServiceRef);
-        when(bundleContext.getServiceReferences(eq(DataSource.class), anyString())).thenReturn(serviceRefs);
-
-        // Act
-        settingsRestController.activate(bundleContext);
-
-        // Assert
-        Map<String, String> sysInfo = settingsRestController.getSystemInformation();
-        assertEquals("unknown", sysInfo.get("datasourceUrl"));
-        assertEquals(TEST_DATASOURCE_TYPE, sysInfo.get("datasourceType"));
-    }
-
-    @Test
-    public void testActivate_NullTypeProperty() throws Exception {
-        // Arrange
-        ServiceReference<DataSource> mockServiceRef = mock(ServiceReference.class);
-        when(mockServiceRef.getProperty("url")).thenReturn(TEST_DATASOURCE_URL);
-        when(mockServiceRef.getProperty("osgi.jdbc.driver.name")).thenReturn(null);
-
-        Collection<ServiceReference<DataSource>> serviceRefs = Collections.singletonList(mockServiceRef);
-        when(bundleContext.getServiceReferences(eq(DataSource.class), anyString())).thenReturn(serviceRefs);
-
-        // Act
-        settingsRestController.activate(bundleContext);
-
-        // Assert
-        Map<String, String> sysInfo = settingsRestController.getSystemInformation();
-        assertEquals(TEST_DATASOURCE_URL, sysInfo.get("datasourceUrl"));
-        assertEquals("unknown", sysInfo.get("datasourceType"));
-    }
-
-    // ========================================
-    // Tests for getSystemInformation()
-    // ========================================
 
     @Test
     public void testGetSystemInformation_Success() throws Exception {
@@ -338,17 +210,9 @@ public class SettingsRestControllerTest {
     // ========================================
 
     @Test
-    public void testActivate_WithPostgresqlDataSource() throws Exception {
-        // Arrange
-        ServiceReference<DataSource> mockServiceRef = mock(ServiceReference.class);
-        when(mockServiceRef.getProperty("url")).thenReturn("jdbc:postgresql://localhost:5432/querydb");
-        when(mockServiceRef.getProperty("osgi.jdbc.driver.name")).thenReturn("PostgreSQL JDBC Driver");
-
-        Collection<ServiceReference<DataSource>> serviceRefs = Collections.singletonList(mockServiceRef);
-        when(bundleContext.getServiceReferences(eq(DataSource.class), anyString())).thenReturn(serviceRefs);
-
+    public void testConfigure_WithPostgresqlDataSource() {
         // Act
-        settingsRestController.activate(bundleContext);
+        settingsRestController.configure(TEST_VERSION, "jdbc:postgresql://localhost:5432/querydb", "PostgreSQL JDBC Driver");
 
         // Assert
         Map<String, String> sysInfo = settingsRestController.getSystemInformation();
@@ -357,19 +221,9 @@ public class SettingsRestControllerTest {
     }
 
     @Test
-    public void testActivate_WithSqlServerDataSource() throws Exception {
-        // Arrange
-        ServiceReference<DataSource> mockServiceRef = mock(ServiceReference.class);
-        when(mockServiceRef.getProperty("url"))
-                .thenReturn("jdbc:sqlserver://localhost:1433;databaseName=querydb");
-        when(mockServiceRef.getProperty("osgi.jdbc.driver.name"))
-                .thenReturn("Microsoft JDBC Driver for SQL Server");
-
-        Collection<ServiceReference<DataSource>> serviceRefs = Collections.singletonList(mockServiceRef);
-        when(bundleContext.getServiceReferences(eq(DataSource.class), anyString())).thenReturn(serviceRefs);
-
+    public void testConfigure_WithSqlServerDataSource() {
         // Act
-        settingsRestController.activate(bundleContext);
+        settingsRestController.configure(TEST_VERSION, "jdbc:sqlserver://localhost:1433;databaseName=querydb", "Microsoft JDBC Driver for SQL Server");
 
         // Assert
         Map<String, String> sysInfo = settingsRestController.getSystemInformation();
@@ -412,14 +266,4 @@ public class SettingsRestControllerTest {
     // Helper methods
     // ========================================
 
-    private void setupWithDataSource() throws Exception {
-        ServiceReference<DataSource> mockServiceRef = mock(ServiceReference.class);
-        when(mockServiceRef.getProperty("url")).thenReturn(TEST_DATASOURCE_URL);
-        when(mockServiceRef.getProperty("osgi.jdbc.driver.name")).thenReturn(TEST_DATASOURCE_TYPE);
-
-        Collection<ServiceReference<DataSource>> serviceRefs = Collections.singletonList(mockServiceRef);
-        when(bundleContext.getServiceReferences(eq(DataSource.class), anyString())).thenReturn(serviceRefs);
-
-        settingsRestController.activate(bundleContext);
-    }
 }

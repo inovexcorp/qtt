@@ -1,5 +1,7 @@
 package com.inovexcorp.queryservice.sparqi.controller;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.SparqiMetricRecord;
 import com.inovexcorp.queryservice.persistence.SparqiMetricService;
 import com.inovexcorp.queryservice.persistence.SparqiMetricsSummary;
@@ -12,20 +14,17 @@ import com.inovexcorp.queryservice.sparqi.model.TestGenerationResponse;
 import com.inovexcorp.queryservice.sparqi.session.SparqiSession;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -35,16 +34,15 @@ import java.util.Map;
  * Provides endpoints for managing conversation sessions and sending messages.
  */
 @Slf4j
-@JaxrsResource
 @Path("/api/sparqi")
-@Component(immediate = true, service = SparqiController.class)
+@ApplicationScoped
 public class SparqiController {
 
-    @Reference
-    private SparqiService sparqiService;
+    @Inject
+    SparqiService sparqiService;
 
-    @Reference
-    private SparqiMetricService sparqiMetricService;
+    @Inject
+    SparqiMetricService sparqiMetricService;
 
     /**
      * Provides the health status of the SPARQi service.

@@ -1,11 +1,12 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.util.PasswordEncryptionService;
-import org.apache.aries.jpa.template.EmConsumer;
-import org.apache.aries.jpa.template.EmFunction;
-import org.apache.aries.jpa.template.JpaTemplate;
-import org.apache.aries.jpa.template.TransactionType;
+import com.inovexcorp.queryservice.persistence.jpa.EmConsumer;
+import com.inovexcorp.queryservice.persistence.jpa.EmFunction;
+import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
+import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -13,8 +14,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -117,7 +118,7 @@ public class DataSourceServiceImplTest {
     @Test
     public void testDeleteAll_Success() {
         // Arrange
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(entityManager.createQuery("delete from Datasources")).thenReturn(query);
 
         doAnswer(invocation -> {

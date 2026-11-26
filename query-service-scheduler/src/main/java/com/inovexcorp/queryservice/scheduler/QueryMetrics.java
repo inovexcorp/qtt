@@ -1,38 +1,32 @@
 package com.inovexcorp.queryservice.scheduler;
 
+import jakarta.annotation.PostConstruct;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import io.quarkus.scheduler.Scheduled;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.metrics.MetricsScraper;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.karaf.scheduler.Job;
-import org.apache.karaf.scheduler.JobContext;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Modified;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.metatype.annotations.Designate;
 
 @Slf4j
-@Component(name = "com.inovexcorp.queryservice.scheduler.QueryMetrics",
-        immediate = true,
-        property = {
-                "scheduler.name=QueryMetrics",
-                "scheduler.concurrent:Boolean=false"
-        },
-        configurationPolicy = ConfigurationPolicy.REQUIRE
-)
-@Designate(ocd = MetricsConfig.class)
+@ApplicationScoped
 public class QueryMetrics implements Job {
 
-    @Reference
-    private MetricsScraper metricsScraper;
+    @Inject
+    MetricsScraper metricsScraper;
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
-    @Activate
-    @Modified
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.scheduler.QueryMetrics";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(MetricsConfig.class, CONFIG_PID));
+    }
+
     public void activate(final MetricsConfig config) {
         log.info("QueryMetrics activated");
     }
@@ -47,5 +41,12 @@ public class QueryMetrics implements Job {
                 throw new IllegalStateException(e);
             }
         }
+    }
+
+    /** Trigger: cron from {@code com.inovexcorp.queryservice.scheduler.QueryMetrics.scheduler.expression}; overlapping runs are skipped (scheduler.concurrent=false). */
+    @Scheduled(identity = "QueryMetrics", cron = "${com.inovexcorp.queryservice.scheduler.QueryMetrics.scheduler.expression:0 0/1 * * * ?}",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void scheduled() {
+        execute(null);
     }
 }

@@ -1,7 +1,7 @@
 package com.inovexcorp.queryservice.scheduler;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.persistence.MetricService;
-import org.apache.karaf.scheduler.JobContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

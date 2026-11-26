@@ -1,12 +1,13 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.MetricRecord;
-import org.apache.aries.jpa.template.EmConsumer;
-import org.apache.aries.jpa.template.EmFunction;
-import org.apache.aries.jpa.template.JpaTemplate;
-import org.apache.aries.jpa.template.TransactionType;
+import com.inovexcorp.queryservice.persistence.jpa.EmConsumer;
+import com.inovexcorp.queryservice.persistence.jpa.EmFunction;
+import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
+import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -15,8 +16,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -84,7 +85,7 @@ public class MetricServiceImplTest {
     public void testDeleteOldRecords_Success() {
         // Arrange
         int minutesToLive = 60;
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(entityManager.createQuery(anyString())).thenReturn(query);
         when(query.setParameter(eq("cutoffTimestamp"), any(LocalDateTime.class))).thenReturn(query);
 
@@ -110,7 +111,7 @@ public class MetricServiceImplTest {
         int minutesToLive = 120;
         LocalDateTime beforeExecution = LocalDateTime.now().minusMinutes(minutesToLive);
 
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(entityManager.createQuery(anyString())).thenReturn(query);
         when(query.setParameter(eq("cutoffTimestamp"), any(LocalDateTime.class))).thenReturn(query);
 
@@ -264,7 +265,7 @@ public class MetricServiceImplTest {
     public void testDeleteOldRecords_ZeroMinutes() {
         // Arrange
         int minutesToLive = 0;
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(entityManager.createQuery(anyString())).thenReturn(query);
         when(query.setParameter(eq("cutoffTimestamp"), any(LocalDateTime.class))).thenReturn(query);
 
@@ -285,7 +286,7 @@ public class MetricServiceImplTest {
     public void testDeleteOldRecords_LargeMinutesValue() {
         // Arrange
         int minutesToLive = 10080; // 7 days
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(entityManager.createQuery(anyString())).thenReturn(query);
         when(query.setParameter(eq("cutoffTimestamp"), any(LocalDateTime.class))).thenReturn(query);
 

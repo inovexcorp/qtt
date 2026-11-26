@@ -1,20 +1,20 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.LayerAssociations;
 import com.inovexcorp.queryservice.persistence.LayerService;
-import org.apache.aries.jpa.template.JpaTemplate;
-import org.apache.aries.jpa.template.TransactionType;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
+import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
+import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 
 import java.util.List;
 
-@Component(immediate = true, service = LayerService.class)
+@ApplicationScoped
 public class LayerServiceImpl implements LayerService {
 
-    @Reference(target = "(osgi.unit.name=qtt-pu)")
-    private JpaTemplate jpa;
+    @Inject
+    JpaTemplate jpa;
 
     @Override
     public void add(LayerAssociations layerAssociations) {

@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.metrics.MetricObject;
 import com.inovexcorp.queryservice.metrics.MetricsScraper;
@@ -20,8 +21,8 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;

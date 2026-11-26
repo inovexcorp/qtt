@@ -1,5 +1,7 @@
 package com.inovexcorp.queryservice.testing.api;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inovexcorp.queryservice.testing.model.TestExecuteRequest;
 import com.inovexcorp.queryservice.testing.model.TestExecuteResponse;
@@ -9,16 +11,13 @@ import com.inovexcorp.queryservice.testing.model.TemplateVariable;
 import com.inovexcorp.queryservice.testing.service.RouteTestExecutor;
 import com.inovexcorp.queryservice.testing.util.FreemarkerVariableExtractor;
 import lombok.extern.slf4j.Slf4j;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.Map;
 
@@ -26,13 +25,12 @@ import java.util.Map;
  * REST API endpoint for route testing functionality
  */
 @Slf4j
-@Component(service = RouteTestingEndpoint.class, immediate = true)
-@JaxrsResource
+@ApplicationScoped
 @Path("/api/testing")
 public class RouteTestingEndpoint {
 
-    @Reference
-    private RouteTestExecutor routeTestExecutor;
+    @Inject
+    RouteTestExecutor routeTestExecutor;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 

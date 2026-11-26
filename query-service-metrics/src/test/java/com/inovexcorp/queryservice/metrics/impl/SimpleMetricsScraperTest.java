@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.metrics.impl;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.metrics.MetricObject;
 import com.inovexcorp.queryservice.persistence.MetricRecord;

@@ -115,7 +115,7 @@ class CacheCheckProcessorTest {
         verify(message).setBody(cachedResult);
         verify(exchange).setProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, true);
         verify(exchange).setProperty(CacheCheckProcessor.COALESCING_LEADER_PROPERTY, false);
-        verify(exchange).setProperty(Exchange.ROUTE_STOP, true);
+        verify(exchange).setRouteStop(true);
     }
 
     // ========== Cache Miss with Coalescing Tests ==========
@@ -138,7 +138,7 @@ class CacheCheckProcessorTest {
         // Assert
         verify(exchange).setProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, false);
         verify(exchange).setProperty(CacheCheckProcessor.COALESCING_LEADER_PROPERTY, true);
-        verify(exchange, never()).setProperty(eq(Exchange.ROUTE_STOP), anyBoolean());
+        verify(exchange, never()).setRouteStop(anyBoolean());
     }
 
     @Test
@@ -165,7 +165,7 @@ class CacheCheckProcessorTest {
         verify(exchange).setProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, true);
         verify(exchange).setProperty(CacheCheckProcessor.COALESCED_HIT_PROPERTY, true);
         verify(exchange).setProperty(CacheCheckProcessor.COALESCING_LEADER_PROPERTY, false);
-        verify(exchange).setProperty(Exchange.ROUTE_STOP, true);
+        verify(exchange).setRouteStop(true);
     }
 
     @Test
@@ -195,7 +195,7 @@ class CacheCheckProcessorTest {
         // Assert - should use cached result from retry check
         verify(message).setBody(cachedResult);
         verify(exchange).setProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, true);
-        verify(exchange).setProperty(Exchange.ROUTE_STOP, true);
+        verify(exchange).setRouteStop(true);
         // Should NOT force leadership since cache hit on retry
         verify(coalescingService, never()).forceLeadership(anyString());
     }
@@ -259,7 +259,7 @@ class CacheCheckProcessorTest {
         // Assert - should use cached result from retry check
         verify(message).setBody(cachedResult);
         verify(exchange).setProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, true);
-        verify(exchange).setProperty(Exchange.ROUTE_STOP, true);
+        verify(exchange).setRouteStop(true);
     }
 
     @Test
@@ -341,7 +341,7 @@ class CacheCheckProcessorTest {
         verify(exchange).setProperty(CacheCheckProcessor.CACHE_HIT_PROPERTY, false);
         verify(exchange).setProperty(CacheCheckProcessor.COALESCING_LEADER_PROPERTY, false);
         // Route should continue (fail-open behavior)
-        verify(exchange, never()).setProperty(eq(Exchange.ROUTE_STOP), eq(true));
+        verify(exchange, never()).setRouteStop(true);
     }
 
     // ========== Cache Key Tests ==========

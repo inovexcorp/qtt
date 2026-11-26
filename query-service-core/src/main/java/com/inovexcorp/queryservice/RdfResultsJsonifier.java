@@ -9,11 +9,12 @@ import org.eclipse.rdf4j.rio.RDFWriter;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.helpers.JSONLDMode;
 import org.eclipse.rdf4j.rio.helpers.JSONLDSettings;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Deactivate;
-import org.osgi.service.metatype.annotations.Designate;
+import io.quarkus.arc.Unremovable;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.enterprise.context.ApplicationScoped;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import jakarta.inject.Named;
 
 import java.io.InputStream;
 import java.io.StringWriter;
@@ -23,9 +24,9 @@ import java.io.Writer;
  * Camel {@link Processor} that will take the RDF on a camel exchange and convert it into JSON-LD.
  */
 @Slf4j
-@Component(name = "com.inovexcorp.queryservice.jsonldSerializer", service = RdfResultsJsonifier.class, immediate = true,
-        configurationPolicy = ConfigurationPolicy.REQUIRE)
-@Designate(ocd = RDFSerializerConfig.class)
+@ApplicationScoped
+@Unremovable
+@Named(RdfResultsJsonifier.BEAN_REFERENCE)
 public class RdfResultsJsonifier implements Processor {
 
     public static final String BEAN_REFERENCE = "RdfResultsJsonifier";
@@ -72,7 +73,13 @@ public class RdfResultsJsonifier implements Processor {
         return rdfWriter;
     }
 
-    @Activate
+    public static final String CONFIG_PID = "com.inovexcorp.queryservice.jsonldSerializer";
+
+    @PostConstruct
+    void init() {
+        initialize(OsgiConfig.load(RDFSerializerConfig.class, CONFIG_PID));
+    }
+
     public void initialize(final RDFSerializerConfig config) {
         this.baseUri = config.baseUri();
         this.jsonldMode = JSONLDMode.valueOf(config.jsonLdMode());
@@ -82,7 +89,7 @@ public class RdfResultsJsonifier implements Processor {
         log.info("Starting RDF Results Serializer bean: {}", config);
     }
 
-    @Deactivate
+    @PreDestroy
     public void stop() {
         log.info("Stopping RDF Results Serializer bean...");
     }

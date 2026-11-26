@@ -32,7 +32,8 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
 
     private static final String TEMPLATE_NAME_FORMAT = "%s.ftl";
     private static final String FREEMARKER_TEMPLATE_URI = "freemarker:file:%s?lazyStartProducer=true";
-    private static final String JETTY_COMPONENT_URL = "jetty:http://0.0.0.0:8888/%s?%s";
+    /** Query endpoints are served by Netty HTTP on their own port (Jetty under Karaf). */
+    static final String QUERY_ENDPOINT_URL = "netty-http:http://0.0.0.0:8888/%s?%s";
 
     private final String layerUris;
     private final CamelRouteTemplate camelRouteTemplate;
@@ -119,9 +120,9 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
                 .setBody(constant("{\"error\": \"Backend datasource unavailable\", \"status\": \"DOWN\", \"message\": \"The datasource for this route is currently unreachable. Please check datasource health status.\"}"));
 
-        // From the jetty route template
+        // From the query endpoint (Netty HTTP on port 8888)
         String routeParams = normalizeRouteParams(camelRouteTemplate.getRouteParams());
-        from(String.format(JETTY_COMPONENT_URL, camelRouteTemplate.getRouteId(), routeParams))
+        from(String.format(QUERY_ENDPOINT_URL, camelRouteTemplate.getRouteId(), routeParams))
                 // Set the route ID.
                 .routeId(camelRouteTemplate.getRouteId())
                 // Check datasource status before processing
@@ -141,7 +142,7 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
                 // Use a String for the body -- JSON
             .convertBodyTo(String.class)
                 // Use freemarker template.
-            .to(templateFileBuffer(camelRouteTemplate))
+            .process(renderTemplate(camelRouteTemplate))
                 // Check cache for existing result
             .process(new CacheCheckProcessor(cacheService, camelRouteTemplate, cacheKeyPrefix, layerUris))
                 // Only proceed to Anzo if cache miss
@@ -190,6 +191,15 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
             .replace("\r", "\\r")
             .replace("\t", "\\t")
             + "\"";
+    }
+
+    /**
+     * Writes the template to the templates directory (kept for operators who inspect it) and returns the processor
+     * that renders it from memory.
+     */
+    private FreemarkerTemplateProcessor renderTemplate(CamelRouteTemplate camelRouteTemplate) throws IOException {
+        templateFileBuffer(camelRouteTemplate);
+        return new FreemarkerTemplateProcessor(camelRouteTemplate.getRouteId(), camelRouteTemplate.getTemplateContent());
     }
 
     private String templateFileBuffer(CamelRouteTemplate camelRouteTemplate) throws IOException {

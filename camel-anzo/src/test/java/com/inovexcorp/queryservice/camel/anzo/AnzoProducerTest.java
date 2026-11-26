@@ -421,4 +421,14 @@ class AnzoProducerTest {
                 false
         );
     }
+
+    /** The query header must not carry line breaks (Netty rejects such responses; Jetty folded them to spaces). */
+    @Test
+    void testHeaderSafeFoldsLineBreaks() {
+        assertThat(AnzoProducer.headerSafe("PREFIX a: <x>\nCONSTRUCT {}\r\nWHERE {}"))
+                .isEqualTo("PREFIX a: <x> CONSTRUCT {}  WHERE {}")
+                .doesNotContain("\n", "\r");
+        assertThat(AnzoProducer.headerSafe("single line")).isEqualTo("single line");
+        assertThat(AnzoProducer.headerSafe(null)).isNull();
+    }
 }

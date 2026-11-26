@@ -87,10 +87,10 @@ public class CacheCheckProcessor implements Processor {
                 exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
 
                 long duration = System.currentTimeMillis() - startTime;
-                log.info("Cache HIT for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
+                log.debug("Cache HIT for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
 
                 // Set a flag to skip the Anzo producer and RDF jsonifier
-                exchange.setProperty(Exchange.ROUTE_STOP, true);
+                exchange.setRouteStop(true);
             } else {
                 // Cache miss - check for request coalescing
                 RequestCoalescingService coalescingService = cacheService.getCoalescingService();
@@ -119,10 +119,10 @@ public class CacheCheckProcessor implements Processor {
                             exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
 
                             long duration = System.currentTimeMillis() - startTime;
-                            log.info("Coalesced HIT for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
+                            log.debug("Coalesced HIT for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
 
                             // Stop the route - we have the result
-                            exchange.setProperty(Exchange.ROUTE_STOP, true);
+                            exchange.setRouteStop(true);
                         } else {
                             // Leader failed or timed out - check cache again before proceeding
                             // The original leader may have succeeded and stored in cache after our timeout
@@ -134,9 +134,9 @@ public class CacheCheckProcessor implements Processor {
                                 exchange.setProperty(COALESCING_LEADER_PROPERTY, false);
 
                                 long duration = System.currentTimeMillis() - startTime;
-                                log.info("Cache HIT on retry for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
+                                log.debug("Cache HIT on retry for route '{}' ({}ms)", routeTemplate.getRouteId(), duration);
 
-                                exchange.setProperty(Exchange.ROUTE_STOP, true);
+                                exchange.setRouteStop(true);
                             } else {
                                 // Still a cache miss - force leadership takeover
                                 // This atomically removes any stale in-flight request and registers us as leader

@@ -1,0 +1,28 @@
+{
+  "head" : {
+    "vars" : [
+      "title",
+      "layer",
+      "layerActive"
+    ]
+  },
+  "results" : {
+    "bindings" : [
+      {
+        "layer" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Layer/67c99b630d494b4da6dc5a0a11cb717e"
+        },
+        "layerActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        },
+        "title" : {
+          "type" : "literal",
+          "value" : "07-29-26 Test model"
+        }
+      }
+    ]
+  }
+}

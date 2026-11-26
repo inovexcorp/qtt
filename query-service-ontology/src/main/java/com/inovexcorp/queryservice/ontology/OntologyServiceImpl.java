@@ -1,5 +1,9 @@
 package com.inovexcorp.queryservice.ontology;
 
+import jakarta.annotation.PostConstruct;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
@@ -19,12 +23,6 @@ import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.resultio.TupleQueryResultParser;
 import org.eclipse.rdf4j.query.resultio.helpers.QueryResultCollector;
 import org.eclipse.rdf4j.query.resultio.sparqljson.SPARQLResultsJSONParserFactory;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Modified;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.metatype.annotations.Designate;
 
 import java.io.InputStream;
 import java.time.Instant;
@@ -39,18 +37,16 @@ import java.util.stream.Collectors;
  * Implementation of the OntologyService with Caffeine-based caching.
  */
 @Slf4j
-@Designate(ocd = OntologyServiceConfig.class)
-@Component(name = "com.inovexcorp.queryservice.ontology", immediate = true, service = OntologyService.class,
-        configurationPolicy = ConfigurationPolicy.REQUIRE)
+@ApplicationScoped
 public class OntologyServiceImpl implements OntologyService {
 
     private static final int DEFAULT_LIMIT = 100;
     private static final int MAX_LIMIT = 1000;
 
-    @Reference
+    @Inject
     RouteService routeService;
 
-    @Reference
+    @Inject
     LayerService layerService;
 
     private Cache<String, List<OntologyElement>> ontologyCache;
@@ -60,14 +56,18 @@ public class OntologyServiceImpl implements OntologyService {
     private int queryTimeout;
     private int maxResults;
 
-    @Activate
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.ontology";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(OntologyServiceConfig.class, CONFIG_PID));
+    }
+
     public void activate(final OntologyServiceConfig config) {
         log.info("Activating OntologyService with cache TTL: {} minutes, max entries: {}",
                 config.cacheTtlMinutes(), config.cacheMaxEntries());
         configure(config);
     }
-
-    @Modified
     public void modified(final OntologyServiceConfig config) {
         log.info("OntologyService configuration modified");
         configure(config);

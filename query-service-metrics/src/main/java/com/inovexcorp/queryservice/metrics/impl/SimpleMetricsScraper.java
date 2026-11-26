@@ -1,5 +1,7 @@
 package com.inovexcorp.queryservice.metrics.impl;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.metrics.MetricObject;
@@ -10,8 +12,6 @@ import com.inovexcorp.queryservice.persistence.RouteService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.api.management.mbean.ManagedRouteMBean;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
 
 import javax.management.MBeanServer;
 import javax.management.MBeanServerInvocationHandler;
@@ -24,7 +24,7 @@ import java.util.Optional;
  * Simple implementation of the {@link MetricsScraper} interface.
  */
 @Slf4j
-@Component(immediate = true, service = MetricsScraper.class)
+@ApplicationScoped
 public class SimpleMetricsScraper implements MetricsScraper {
 
     /**
@@ -35,20 +35,20 @@ public class SimpleMetricsScraper implements MetricsScraper {
     /**
      * Context manager for managing routes.
      */
-    @Reference
-    private ContextManager contextManager;
+    @Inject
+    ContextManager contextManager;
 
     /**
      * Route service for persisting route metrics.
      */
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
     /**
      * Metric service for persisting metric data.
      */
-    @Reference
-    private MetricService metricService;
+    @Inject
+    MetricService metricService;
 
     /**
      * Persists the metric data for a specified route.

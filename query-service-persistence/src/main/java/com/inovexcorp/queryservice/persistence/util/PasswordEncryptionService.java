@@ -1,11 +1,9 @@
 package com.inovexcorp.queryservice.persistence.util;
 
+import jakarta.annotation.PostConstruct;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Modified;
-import org.osgi.service.metatype.annotations.Designate;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
@@ -30,13 +28,7 @@ import java.util.Base64;
  * If encryption is disabled, passwords are stored in plain text.
  */
 @Slf4j
-@Component(
-        service = PasswordEncryptionService.class,
-        immediate = true,
-        configurationPolicy = ConfigurationPolicy.REQUIRE,
-        configurationPid = "com.inovexcorp.queryservice.persistence.encryption"
-)
-@Designate(ocd = PasswordEncryptionConfig.class)
+@ApplicationScoped
 public class PasswordEncryptionService {
 
     private String algorithm;
@@ -50,14 +42,18 @@ public class PasswordEncryptionService {
     private boolean encryptionEnabled;
     private SecureRandom secureRandom;
 
-    @Activate
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.persistence.encryption";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(PasswordEncryptionConfig.class, CONFIG_PID));
+    }
+
     public void activate(PasswordEncryptionConfig config) {
         configure(config);
         log.info("PasswordEncryptionService activated with encryption {}",
                 encryptionEnabled ? "ENABLED" : "DISABLED");
     }
-
-    @Modified
     public void modified(PasswordEncryptionConfig config) {
         configure(config);
         log.info("PasswordEncryptionService configuration updated with encryption {}",

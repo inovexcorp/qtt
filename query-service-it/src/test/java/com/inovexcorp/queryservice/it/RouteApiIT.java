@@ -69,10 +69,9 @@ class RouteApiIT {
         assertRoundTrip(template);
     }
 
-    /** Non-Latin text survives a save/load round-trip (on SQL Server this is a known issue, see KnownIssuesIT). */
+    /** Non-Latin text survives a save/load round-trip on every database (SQL Server lost it under Karaf). */
     @Test
     void templateRoundTripPreservesNonLatinCharacters() {
-        org.junit.jupiter.api.Assumptions.assumeFalse("mssql".equals(DB), "known issue on SQL Server");
         assertRoundTrip(TEMPLATE + "\n# 日本語 Ελληνικά русский\n");
     }
 

@@ -1,10 +1,10 @@
 package com.inovexcorp.queryservice.scheduler;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.metrics.MetricsScraper;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.RouteService;
-import org.apache.karaf.scheduler.JobContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

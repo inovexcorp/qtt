@@ -146,18 +146,59 @@ def rss_mb():
     return round(val * {"kb": 1 / 1000, "kib": 1 / 1024, "mb": 1, "mib": 1, "gb": 1000, "gib": 1024}[unit], 1)
 
 
-def ab(url, seconds, concurrency):
-    out = sh(["ab", "-k", "-q", "-t", str(seconds), "-n", "10000000", "-c", str(concurrency), url], check=False)
-    rps = float(re.search(r"Requests per second:\s+([\d.]+)", out).group(1))
-    failed = int(re.search(r"Failed requests:\s+(\d+)", out).group(1))
-    non2xx = re.search(r"Non-2xx responses:\s+(\d+)", out)
-    pct = dict(re.findall(r"^\s+(\d+)%\s+(\d+)", out, re.M))
-    # ab counts responses whose length differs from the first one as "failed"; only the other kinds are errors.
-    kinds = re.search(r"\(Connect: (\d+), Receive: (\d+), Length: (\d+), Exceptions: (\d+)\)", out)
-    errors = sum(int(kinds.group(i)) for i in (1, 2, 4)) if kinds else (failed if failed else 0)
-    return {"rps": rps, "p50_ms": int(pct.get("50", 0)), "p95_ms": int(pct.get("95", 0)),
-            "p99_ms": int(pct.get("99", 0)), "length_varied": int(kinds.group(3)) if kinds else 0,
-            "errors": errors, "non2xx": int(non2xx.group(1)) if non2xx else 0}
+def load(url, seconds, concurrency):
+    """Closed-loop load with scripts/tools/LoadGen.java (ApacheBench miscounts chunked keep-alive responses)."""
+    out = sh(["java", os.path.join(ROOT, "scripts", "tools", "LoadGen.java"), url, str(seconds), str(concurrency)])
+    r = json.loads(out.strip().splitlines()[-1])
+    return {"rps": r["rps"], "p50_ms": r["p50_ms"], "p95_ms": r["p95_ms"], "p99_ms": r["p99_ms"],
+            "errors": r["non2xx"] + r["bad_length"] + r["exceptions"], "requests": r["requests"]}
+
+
+def write_table(results):
+    md = os.path.join(ROOT, "docs", "perf", "measurements.md")
+    with open(md, "w") as f:
+        f.write("# QTT measurements\n\nProduced by `scripts/measure.py`; raw results in `results/`. Conditions: podman, "
+                "QTT limited to 2 CPUs / 2 GB, PostgreSQL, Redis, mock Anzo (WireMock), 25 seeded routes, 10 cold "
+                "starts; load from `scripts/tools/LoadGen.java` with 8 concurrent keep-alive clients for 30 s against "
+                "an uncached route (every request calls the mock Anzo) and a cached route.\n\n"
+                "| Label | Commit | Image MB | Image gz MB | Layers | API ready ms (median, min-max) "
+                "| First query ms (median) | RSS idle MB | RSS after load MB | Uncached rps / p50 / p95 ms "
+                "| Cached rps / p50 / p95 ms | Note |\n"
+                "|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+        for res in results:
+            u, c = res["load_uncached"], res["load_cached"]
+            f.write(f"| {res['label']} | {res['commit']} | {res['image_bytes'] / 1e6:.0f} | {res['image_gzip_bytes'] / 1e6:.0f} "
+                    f"| {res['layers']} | {res['api_ready_ms_median']:.0f} ({res['api_ready_ms_min']}-{res['api_ready_ms_max']}) "
+                    f"| {res['first_query_ms_median']:.0f} | {res['rss_idle_mb']} | {res['rss_after_load_mb']} "
+                    f"| {u['rps']:.0f} / {u['p50_ms']:.1f} / {u['p95_ms']:.1f} | {c['rps']:.0f} / {c['p50_ms']:.1f} / {c['p95_ms']:.1f} "
+                    f"| {res['note']} |\n")
+
+
+def all_results():
+    d = os.path.join(ROOT, "docs", "perf", "results")
+    rs = [json.load(open(os.path.join(d, n))) for n in os.listdir(d) if n.endswith(".json")]
+    return sorted(rs, key=lambda r: r["date"])
+
+
+def load_only(args):
+    slug = re.sub(r"[^a-z0-9-]+", "-", args.label.lower())
+    path = os.path.join(ROOT, "docs", "perf", "results", slug + ".json")
+    res = json.load(open(path))
+    stack("up", args.image)
+    try:
+        seed()
+        wait_until(lambda: http("GET", QUERY + "/perf-route-01", timeout=10)[0] == 200, 120)
+        load(QUERY + "/perf-route-02", 15, args.concurrency)
+        res["load_uncached"] = load(QUERY + "/perf-route-02", args.load_seconds, args.concurrency)
+        load(QUERY + "/perf-route-00", 10, args.concurrency)
+        res["load_cached"] = load(QUERY + "/perf-route-00", args.load_seconds, args.concurrency)
+        res["rss_after_load_mb"] = rss_mb()
+        res["load_remeasured"] = datetime.datetime.now().isoformat(timespec="seconds")
+    finally:
+        stack("down", args.image)
+    json.dump(res, open(path, "w"), indent=2)
+    write_table(all_results())
+    print(json.dumps(res, indent=2))
 
 
 def main():
@@ -168,8 +209,12 @@ def main():
     ap.add_argument("--load-seconds", type=int, default=30)
     ap.add_argument("--concurrency", type=int, default=8)
     ap.add_argument("--note", default="")
+    ap.add_argument("--load-only", action="store_true",
+                    help="re-measure only load and RSS-after-load for an existing label (keeps image/startup numbers)")
     args = ap.parse_args()
 
+    if args.load_only:
+        return load_only(args)
     commit = sh("git rev-parse --short HEAD", check=False)
     dirty = bool(sh("git status --porcelain", check=False))
     print(f"[measure] {args.label}: image metrics", file=sys.stderr)
@@ -192,10 +237,10 @@ def main():
         time.sleep(30)
         res["rss_idle_mb"] = rss_mb()
         # warm-up, then measured runs
-        ab(QUERY + "/perf-route-02", 10, args.concurrency)
-        res["load_uncached"] = ab(QUERY + "/perf-route-02", args.load_seconds, args.concurrency)
-        ab(QUERY + "/perf-route-00", 5, args.concurrency)
-        res["load_cached"] = ab(QUERY + "/perf-route-00", args.load_seconds, args.concurrency)
+        load(QUERY + "/perf-route-02", 15, args.concurrency)
+        res["load_uncached"] = load(QUERY + "/perf-route-02", args.load_seconds, args.concurrency)
+        load(QUERY + "/perf-route-00", 10, args.concurrency)
+        res["load_cached"] = load(QUERY + "/perf-route-00", args.load_seconds, args.concurrency)
         res["rss_after_load_mb"] = rss_mb()
     finally:
         stack("down", args.image)
@@ -204,23 +249,7 @@ def main():
     slug = re.sub(r"[^a-z0-9-]+", "-", args.label.lower())
     with open(os.path.join(ROOT, "docs", "perf", "results", slug + ".json"), "w") as f:
         json.dump(res, f, indent=2)
-    md = os.path.join(ROOT, "docs", "perf", "measurements.md")
-    if not os.path.exists(md):
-        with open(md, "w") as f:
-            f.write("# QTT measurements\n\nProduced by `scripts/measure.py`; raw results in `results/`. "
-                    "Conditions: podman, QTT limited to 2 CPUs / 2 GB, PostgreSQL, Redis, mock Anzo, "
-                    "25 seeded routes, 10 cold starts, `ab` keep-alive with 8 concurrent clients for 30 s.\n\n"
-                    "| Label | Commit | Image MB | Image gz MB | Layers | API ready ms (median, min-max) "
-                    "| First query ms (median) | RSS idle MB | RSS after load MB | Uncached rps / p50 / p95 ms "
-                    "| Cached rps / p50 / p95 ms | Note |\n"
-                    "|---|---|---|---|---|---|---|---|---|---|---|---|\n")
-    u, c = res["load_uncached"], res["load_cached"]
-    with open(md, "a") as f:
-        f.write(f"| {args.label} | {res['commit']} | {res['image_bytes'] / 1e6:.0f} | {res['image_gzip_bytes'] / 1e6:.0f} "
-                f"| {res['layers']} | {res['api_ready_ms_median']:.0f} ({res['api_ready_ms_min']}-{res['api_ready_ms_max']}) "
-                f"| {res['first_query_ms_median']:.0f} | {res['rss_idle_mb']} | {res['rss_after_load_mb']} "
-                f"| {u['rps']:.0f} / {u['p50_ms']} / {u['p95_ms']} | {c['rps']:.0f} / {c['p50_ms']} / {c['p95_ms']} "
-                f"| {args.note} |\n")
+    write_table(all_results())
     print(json.dumps(res, indent=2))
 
 

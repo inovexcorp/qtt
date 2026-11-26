@@ -1,5 +1,7 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.cache.CacheService;
 import com.inovexcorp.queryservice.cache.NoOpCacheService;
@@ -20,20 +22,16 @@ import com.inovexcorp.queryservice.routebuilder.CamelRouteTemplateBuilder;
 import com.inovexcorp.queryservice.health.HealthCheckConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.component.annotations.ReferenceCardinality;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,9 +40,8 @@ import java.util.Map;
  * Controller class responsible for managing data sources in a system.
  */
 @Slf4j
-@JaxrsResource
 @Path("/api/datasources")
-@Component(immediate = true, service = DataSourcesController.class)
+@ApplicationScoped
 public class DataSourcesController {
 
     /**
@@ -63,32 +60,32 @@ public class DataSourcesController {
 
     private static final String DATASOURCE_NOT_FOUND = "Datasource with id: %s not found";
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
-    @Reference
-    private DataSourceService dataSourceService;
+    @Inject
+    DataSourceService dataSourceService;
 
-    @Reference
-    private LayerService layerService;
+    @Inject
+    LayerService layerService;
 
-    @Reference
-    private ContextManager contextManager;
+    @Inject
+    ContextManager contextManager;
 
-    @Reference
-    private CamelKarafComponent camelKarafComponent;
+    @Inject
+    CamelKarafComponent camelKarafComponent;
 
-    @Reference
-    private HealthChecker healthChecker;
+    @Inject
+    HealthChecker healthChecker;
 
-    @Reference
-    private DatasourceHealthService datasourceHealthService;
+    @Inject
+    DatasourceHealthService datasourceHealthService;
 
-    @Reference(cardinality = ReferenceCardinality.OPTIONAL)
-    private volatile HealthCheckConfigService healthCheckConfigService;
+    @Inject
+    HealthCheckConfigService healthCheckConfigService;
 
-    @Reference(cardinality = ReferenceCardinality.OPTIONAL)
-    private volatile CacheService cacheService;
+    @Inject
+    CacheService cacheService;
 
     private CacheService getEffectiveCacheService() {
         return cacheService != null ? cacheService : new NoOpCacheService();

@@ -3,7 +3,7 @@ package com.inovexcorp.queryservice.persistence;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Data
@@ -27,7 +27,7 @@ public class MetricRecord {
     private String uptime;
     private LocalDateTime timestamp;
 
-    @ManyToOne(cascade = {javax.persistence.CascadeType.MERGE})
+    @ManyToOne(cascade = {jakarta.persistence.CascadeType.MERGE})
     @JoinColumn(name = "route_id")
     private CamelRouteTemplate route;
 
