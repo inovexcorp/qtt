@@ -92,6 +92,20 @@ Measurement here is a rough startup and size number from the spike app, enough t
 
 Exit: a written decision per spike, and your go or no-go on Phases 4 to 7.
 
+### Phase 3 results (2026-11-26)
+
+| Spike | Result |
+|---|---|
+| 1. Runtime-added routes, blocking work | Camel `netty-http` consumers can be added and removed at runtime; `httpMethodRestrict` gives 405, unknown paths 404. Blocking processing runs on Netty's consumer executor: 20 concurrent requests that each block 1 s complete in 1.3 s. |
+| 2. Separate query port | `netty-http` runs its own server, so query endpoints stay on 8888 with the UI/API on 8443/8080. (There is no Camel Quarkus Jetty extension; `platform-http` would share the main port.) Query parameters still become template headers, request headers are still echoed, and the port closes when the last route is removed, all as under Jetty. |
+| 3. Database chosen at runtime | Hibernate's dialect is fixed at build time, so the application defines one persistence unit per database (Derby, PostgreSQL, SQL Server) over the same entities; a config source activates the one matching `DB_URL`. Quarkus dropped its Derby extension after 3.23, so Derby uses the plain driver (10.16.1.1, the newest for Java 17) with Hibernate's community Derby dialect. |
+| 4. Data from 1.x opens unchanged | `scripts/upgrade_check.sh`: data written by the Karaf image (Hibernate 5, Derby 10.14) is read and served by the Quarkus image (Hibernate 7, Derby 10.16 soft upgrade) on Derby, PostgreSQL and SQL Server. The first run found two Hibernate 7 issues (a cascading orphan delete on route deletion, fixed in `RouteServiceImpl.delete`) and one Netty issue (line breaks in the `anzo.query` header), both fixed with unit tests before the check passed. |
+| 5. Native image | Moved to Phase 8. Embedded Derby has no Quarkus extension, which already rules out native for Derby users. |
+
+Decision: go. Quarkus 3.40.1.2 (newest platform release with a Camel BOM), Camel 4.22, Java 17, JVM mode.
+
+Deviations from the mapping table above: SPARQi keeps the plain LangChain4j OpenAI client (its manual tool loop needs no CDI model wiring), Redis keeps Lettuce, and configuration keeps the OSGi PIDs and property names (`OsgiConfig` loads the former metatype interfaces from MicroProfile Config) so every environment variable and default carries over unchanged.
+
 ## Phase 4: Quarkus foundation, persistence and management API
 
 New module `qtt-quarkus` alongside the Karaf modules, which keep building until Phase 6.

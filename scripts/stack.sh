@@ -14,6 +14,7 @@
 #   QTT_REDIS   true | false                   (default false)
 #   QTT_CPUS / QTT_MEMORY  container limits    (default 2 / 2g)
 #   QTT_EXTRA_ENV  extra "-e K=V" args for the QTT container
+#   QTT_DATA_VOLUME  named volume mounted at /opt/qtt/data (keeps the Derby database across app containers)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -87,6 +88,7 @@ start_app() {
   local args=()
   while IFS= read -r kv; do [[ -n "$kv" ]] && args+=(-e "$kv"); done < <(db_args)
   if [[ "$QTT_REDIS" == "true" ]]; then args+=(-e REDIS_ENABLED=true -e REDIS_HOST=qtt-it-redis); fi
+  if [[ -n "${QTT_DATA_VOLUME:-}" ]]; then args+=(-v "$QTT_DATA_VOLUME:/opt/qtt/data"); fi
   # shellcheck disable=SC2086
   $ENGINE run -d --name $APP --network $NET --cpus "$QTT_CPUS" --memory "$QTT_MEMORY" \
     -p $API_PORT:8443 -p $QUERY_PORT:8888 ${args[@]+"${args[@]}"} \
@@ -147,6 +149,7 @@ case "${1:-}" in
   down) cmd_down ;;
   restart) cmd_restart ;;
   start-app) $ENGINE rm -f $APP >/dev/null 2>&1 || true; start_app ;;
+  swap-app) $ENGINE rm -f $APP >/dev/null 2>&1 || true; start=$(now_ms); start_app; wait_ready "$start" ;;
   logs) $ENGINE logs -f $APP ;;
   it) shift; cmd_it "$@" ;;
   restart-it) cmd_restart_it ;;
