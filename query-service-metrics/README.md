@@ -50,7 +50,7 @@ The concrete implementation of `MetricsScraper` that uses JMX to access Camel ro
 - Wraps `ManagedRouteMBean` instances from the JMX server
 - Converts MBean data to `MetricObject` instances
 - Handles cases where routes don't have registered MBeans (returns empty Optional)
-- OSGi Declarative Services component (`@Component(immediate = true)`)
+- CDI bean (`@ApplicationScoped`) with dependencies injected via `@Inject`
 
 **Code Flow:**
 1. Construct JMX ObjectName for the target route
@@ -124,13 +124,13 @@ The metrics module depends on the persistence layer for:
 The scheduler module uses `MetricsScraper` to implement automated metric collection:
 
 ```java
-@Component(name = "com.inovexcorp.queryservice.scheduler.QueryMetrics")
+@ApplicationScoped
 public class QueryMetrics implements Job {
-    @Reference
-    private MetricsScraper metricsScraper;
+    @Inject
+    MetricsScraper metricsScraper;
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
     @Override
     public void execute(JobContext context) {
@@ -138,10 +138,18 @@ public class QueryMetrics implements Job {
             metricsScraper.persistRouteMetricData(route.getRouteId());
         }
     }
+
+    @Scheduled(identity = "QueryMetrics",
+            cron = "${com.inovexcorp.queryservice.scheduler.QueryMetrics.scheduler.expression:0 0/1 * * * ?}",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void scheduled() {
+        execute(null);
+    }
 }
 ```
 
-Configuration file: `com.inovexcorp.queryservice.scheduler.QueryMetrics.cfg`
+Schedule property: `com.inovexcorp.queryservice.scheduler.QueryMetrics.scheduler.expression` in `application.properties`
+(simplified excerpt above; exceptions are wrapped in the real job)
 
 #### With query-service-core
 
@@ -156,7 +164,7 @@ Depends on `ContextManager` for accessing the Camel context:
 ```
 ┌─────────────────────┐
 │  Camel Route        │ (Running, processing exchanges)
-│  (Jetty → Template) │
+│ (Netty → Template)  │
 └──────────┬──────────┘
            │ Exposes metrics via
            │ ManagedRouteMBean
@@ -218,26 +226,18 @@ Cron Schedule → QueryMetrics.execute()
               Database populated with periodic snapshots
 ```
 
-## OSGi Configuration
+## Packaging and CDI
 
-### Bundle Manifest
+The module is a plain jar with a Jandex index, so Quarkus discovers its beans when `query-service-app` is built.
 
-**Symbolic Name:** `com.inovexcorp.queryservice.query-service-metrics`
+**Package:** `com.inovexcorp.queryservice.metrics` (interfaces and data models)
 
-**Exported Packages:**
-- `com.inovexcorp.queryservice.metrics` (includes interfaces and data models)
+**CDI Beans:**
+- `SimpleMetricsScraper` (`@ApplicationScoped`), injectable as `MetricsScraper`
+- Dependencies (`ContextManager`, `RouteService`, `MetricService`) injected via `@Inject`
 
-**Imported Packages:**
-- `com.inovexcorp.queryservice` (core utilities)
-- `com.inovexcorp.queryservice.persistence` (JPA entities and services)
-- `org.apache.camel.*` (Camel context and management APIs)
-- `javax.management` (JMX APIs)
-- OSGi standard packages
-
-**Declarative Services:**
-- `SimpleMetricsScraper` registered as `MetricsScraper` service
-- Component activated immediately (`immediate = true`)
-- Dependencies injected via `@Reference` annotations
+**JMX:** route MBeans are registered because `query-service-app` sets `camel.main.jmxEnabled=true`; the scraper reads
+them from the platform MBean server in the same JVM.
 
 ## Dependencies
 
@@ -255,6 +255,16 @@ Cron Schedule → QueryMetrics.execute()
         <artifactId>query-service-persistence</artifactId>
     </dependency>
 
+    <!-- Camel -->
+    <dependency>
+        <groupId>org.apache.camel</groupId>
+        <artifactId>camel-management-api</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.camel</groupId>
+        <artifactId>camel-api</artifactId>
+    </dependency>
+
     <!-- Testing -->
     <dependency>
         <groupId>junit</groupId>
@@ -269,7 +279,7 @@ Cron Schedule → QueryMetrics.execute()
 </dependencies>
 ```
 
-Note: Apache Camel and JMX dependencies are provided by the OSGi runtime (Karaf).
+Note: JMX (`javax.management`) is part of the JDK. Abbreviated; see `pom.xml` for the full list.
 
 ## Testing
 
@@ -317,10 +327,10 @@ mvn test -Dtest=SimpleMetricsScraperTest
 ### Programmatic Metric Collection
 
 ```java
-@Component
+@ApplicationScoped
 public class MyComponent {
-    @Reference
-    private MetricsScraper metricsScraper;
+    @Inject
+    MetricsScraper metricsScraper;
 
     public void collectMetricsForRoute(String routeId) throws MalformedObjectNameException {
         // Get current metrics without persisting
@@ -343,13 +353,13 @@ public class MyComponent {
 ### Accessing Historical Metrics
 
 ```java
-@Component
+@ApplicationScoped
 public class MetricsAnalyzer {
-    @Reference
-    private MetricService metricService;
+    @Inject
+    MetricService metricService;
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
     public void analyzeRoutePerformance(String routeId) {
         CamelRouteTemplate route = routeService.getRoute(routeId);
@@ -418,31 +428,25 @@ Thrown by `persistRouteMetricData()` when route metrics cannot be retrieved:
 
 ### Metrics Not Being Collected
 
-1. **Check if route MBean is registered:**
-   ```bash
-   # In Karaf console
-   jmx:mbean org.apache.camel:context=*,type=routes,name="your-route-id"
-   ```
+1. **Check that Camel JMX is enabled:**
+   - `camel.main.jmxEnabled=true` must remain set in `application.properties`; without it no route MBeans exist
 
 2. **Verify route is started:**
-   ```bash
-   # In Karaf console
-   camel:route-list
-   ```
+   - Routes page in the UI, or `GET /queryrest/api/routes/{routeId}`
 
 3. **Check scheduler configuration:**
-   - File: `etc/com.inovexcorp.queryservice.scheduler.QueryMetrics.cfg`
-   - Ensure schedule is active and valid
+   - Property: `com.inovexcorp.queryservice.scheduler.QueryMetrics.scheduler.expression`
+   - Ensure the cron expression is valid
 
 4. **Review logs for exceptions:**
    ```bash
-   log:tail | grep -i metric
+   docker logs qtt 2>&1 | grep -i metric
    ```
 
 ### Missing Historical Data
 
 1. **Check metric cleanup settings:**
-   - File: `etc/com.inovexcorp.queryservice.scheduler.CleanMetrics.cfg`
+   - Property: `com.inovexcorp.queryservice.scheduler.CleanMetrics.minutesToLive`
    - Ensure TTL is appropriate for your retention needs
 
 2. **Verify database connectivity:**
@@ -476,7 +480,7 @@ Returns `Optional<MetricObject>` rather than null to make absence of metrics exp
 
 `MetricsScraper` interface separates contract from implementation:
 - Allows for alternative implementations (e.g., mock for testing, remote scraping)
-- Supports OSGi service registry for loose coupling
+- Supports CDI injection by interface for loose coupling
 - Facilitates dependency injection
 
 ### Data Transfer Object (DTO) Pattern

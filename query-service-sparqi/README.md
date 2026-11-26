@@ -48,7 +48,26 @@ SPARQi employs a three-level caching architecture for optimal performance:
 
 ## Configuration
 
-Configuration file: `etc/com.inovexcorp.queryservice.sparqi.cfg`
+Configuration file: `query-service-app/src/main/resources/application.properties`, read via `OsgiConfig`. The
+properties below are shown without their `com.inovexcorp.queryservice.sparqi.` prefix (e.g.
+`com.inovexcorp.queryservice.sparqi.llmBaseUrl`). The main ones are bound to environment variables:
+
+| Property                 | Environment Variable       |
+|--------------------------|----------------------------|
+| `enableSparqi`           | `SPARQI_ENABLED`           |
+| `llmBaseUrl`             | `SPARQI_LLM_BASE_URL`      |
+| `llmApiKey`              | `SPARQI_LLM_API_KEY`       |
+| `llmModelName`           | `SPARQI_LLM_MODEL`         |
+| `llmTimeout`             | `SPARQI_LLM_TIMEOUT`       |
+| `llmTemperature`         | `SPARQI_LLM_TEMPERATURE`   |
+| `llmMaxTokens`           | `SPARQI_LLM_MAX_TOKENS`    |
+| `sessionTimeoutMinutes`  | `SPARQI_SESSION_TIMEOUT`   |
+| `maxConversationHistory` | `SPARQI_MAX_CONVO_HISTORY` |
+| `metricsEnabled`         | `SPARQI_METRICS_ENABLED`   |
+| `inputTokenCostPer1M`    | `SPARQI_INPUT_TOKEN_COST`  |
+| `outputTokenCostPer1M`   | `SPARQI_OUTPUT_TOKEN_COST` |
+
+Configuration is read at startup; restart QTT after changing it.
 
 ### LLM Provider Configuration
 
@@ -88,10 +107,10 @@ maxConversationHistory=50
 
 ### Personality Customization
 
-```properties
-# Define SPARQi's behavior
-sparqiPersonality=friendly and helpful SPARQL expert who loves to teach
-```
+SPARQi's behaviour comes from its prompt templates; override them with
+`com.inovexcorp.queryservice.sparqi.systemPromptTemplate` (and `welcomeMessageTemplate`,
+`testGenerationSystemPromptTemplate`, `testGenerationUserMessageTemplate`) in application.properties or as `-D` system
+properties.
 
 ## REST API
 
@@ -355,45 +374,20 @@ mvn clean install
 ### Run
 
 ```bash
-cd query-service-distribution/target/assembly
-bin/karaf
+SPARQI_ENABLED=true \
+SPARQI_LLM_BASE_URL=https://api.openai.com/v1 \
+SPARQI_LLM_API_KEY=sk-... \
+SPARQI_LLM_MODEL=gpt-4o-mini \
+make run
 ```
+
+(or pass the same variables to the container with `-e`).
 
 ### Verify SPARQi is Running
 
-**Quick Verification (from assembly directory):**
-
 ```bash
-# Run the verification script
-./verify-sparqi.sh
-```
-
-**Manual Verification:**
-
-```bash
-# Check feature status
-karaf@root()> feature:list | grep sparqi
-
-# Check bundle status
-karaf@root()> bundle:list | grep sparqi
-
 # Test health endpoint
 curl -k https://localhost:8443/queryrest/api/sparqi/health
-```
-
-**If Bundle Resolution Fails:**
-
-If you encounter OSGi resolution errors like:
-```
-missing requirement: osgi.wiring.package; filter:="(osgi.wiring.package=dev.langchain4j.model.chat)"
-```
-
-See the comprehensive [TROUBLESHOOTING.md](TROUBLESHOOTING.md) guide, or use the manual installation script:
-
-```bash
-# From the SPARQi module directory
-cat install-sparqi-manually.sh
-# Copy commands into running Karaf shell
 ```
 
 ## Troubleshooting
@@ -402,7 +396,7 @@ cat install-sparqi-manually.sh
 
 1. **Check configuration**:
    ```bash
-   cat etc/com.inovexcorp.queryservice.sparqi.cfg
+   docker exec qtt env | grep SPARQI_
    ```
 
 2. **Verify LLM endpoint is reachable**:
@@ -412,39 +406,19 @@ cat install-sparqi-manually.sh
    curl https://api.openai.com/v1/models -H "Authorization: Bearer $OPENAI_API_KEY"
    ```
 
-3. **Check Karaf logs**:
+3. **Check QTT logs**:
    ```bash
-   tail -f data/log/karaf.log
+   docker logs -f qtt
    ```
-
-### Bundle Resolution Errors
-
-If you see OSGi resolution errors:
-
-```bash
-# Check bundle state
-karaf@root()> bundle:list | grep sparqi
-
-# View detailed error
-karaf@root()> bundle:diag <bundle-id>
-
-# Try refreshing bundles
-karaf@root()> refresh
-```
 
 ### API Connection Issues
 
 1. **Verify service is enabled**:
-   ```properties
-   enableSparqi=true
-   ```
-
-2. **Check if service is registered**:
    ```bash
-   karaf@root()> service:list | grep SparqiService
+   SPARQI_ENABLED=true
    ```
 
-3. **Test with health endpoint**:
+2. **Test with health endpoint**:
    ```bash
    curl -k https://localhost:8443/queryrest/api/sparqi/health
    ```
@@ -871,7 +845,6 @@ This transparency helps you understand the generation process and trust the resu
 
 ## Future Enhancements
 
-- **LangGraph4j Workflows**: Multi-step agent workflows with specialized tools
 - **Template Validation**: Syntax checking and query validation tool
 - **Query Execution**: Tool to test queries and preview results
 - **Query Explanation**: Tool to explain existing SPARQL queries
@@ -888,14 +861,12 @@ mvn test -pl query-service-sparqi
 
 ### Debugging
 
-Add to Karaf startup:
+Run QTT in Quarkus dev mode (run `make build` once first):
 ```bash
-export KARAF_DEBUG=true
-export JAVA_DEBUG_PORT=5005
-bin/karaf debug
+make dev
 ```
 
-Then attach your IDE debugger to port 5005.
+Dev mode listens for a debugger on port 5005; attach your IDE debugger there.
 
 ## License
 

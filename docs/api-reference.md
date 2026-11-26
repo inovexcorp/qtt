@@ -2,7 +2,7 @@
 
 QTT provides comprehensive RESTful APIs for all functionality.
 
-**Base URL:** `http://localhost:8080/queryrest/api`
+**Base URL:** `https://localhost:8443/queryrest/api` (or over plain HTTP: `http://localhost:8080/queryrest/api`)
 
 **Authentication:** Currently no authentication (HTTP only)
 

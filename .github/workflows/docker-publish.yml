@@ -65,15 +65,14 @@ jobs:
           echo "Building project version ${{ steps.version.outputs.version }}"
           mvn clean install -DskipTests
 
-      - name: Verify Dockerfile exists
+      - name: Verify application build exists
         run: |
-          DOCKERFILE="query-service-distribution/target/assembly/Dockerfile"
-          if [ -f "$DOCKERFILE" ]; then
-            echo "Dockerfile found at: $DOCKERFILE"
-            echo "Dockerfile contents:"
-            cat "$DOCKERFILE"
+          APP="query-service-app/target/quarkus-app/quarkus-run.jar"
+          if [ -f "$APP" ]; then
+            echo "Quarkus application found at: $APP"
+            cat query-service-app/src/main/docker/Dockerfile.jvm
           else
-            echo "ERROR: Dockerfile not found at $DOCKERFILE"
+            echo "ERROR: Quarkus application not found at $APP"
             exit 1
           fi
 
@@ -86,20 +85,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image with fabric8 plugin
+      - name: Build Docker image
         run: |
-          echo "Building Docker image: docker.io/inovexis/qtt:${{ steps.version.outputs.version }}"
-          mvn -pl query-service-distribution docker:build
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Building Docker image: docker.io/inovexis/qtt:$VERSION"
+          docker build -f query-service-app/src/main/docker/Dockerfile.jvm \
+            -t docker.io/inovexis/qtt:$VERSION -t docker.io/inovexis/qtt:latest query-service-app
 
       - name: Tag and push Docker images
         run: |
           VERSION="${{ steps.version.outputs.version }}"
 
-          # The fabric8 plugin already built the image with both tags
-          # Now we need to push them
+          # The build step tagged the image with both tags; push them
           echo "Pushing version tag: docker.io/inovexis/qtt:$VERSION"
           docker push docker.io/inovexis/qtt:$VERSION
 

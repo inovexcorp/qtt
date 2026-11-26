@@ -19,7 +19,7 @@ docker pull docker.io/inovexis/qtt:latest
 ```bash
 docker run -d \
   --name qtt \
-  -p 8080:8080 \
+  -p 8443:8443 \
   -p 8888:8888 \
   docker.io/inovexis/qtt:latest
 ```
@@ -29,7 +29,7 @@ docker run -d \
 ```bash
 docker run -d \
   --name qtt \
-  -p 8080:8080 \
+  -p 8443:8443 \
   -p 8888:8888 \
   -e API_BASE_URL=http://localhost:8888 \
   -e DB_DRIVER_NAME=derby \
@@ -38,9 +38,12 @@ docker run -d \
 
 ### Step 3: Access the Application
 
-- **Web UI**: http://localhost:8080
-- **API Base**: http://localhost:8080/queryrest/api/
+- **Web UI**: https://localhost:8443
+- **API Base**: https://localhost:8443/queryrest/api/
 - **Query Endpoints**: http://localhost:8888/{route-id}
+
+The image ships with a self-signed certificate (see [SSL/TLS Configuration](#ssltls-configuration)). The UI and API
+are also served over plain HTTP on port 8080 if you publish it (`-p 8080:8080`).
 
 **Note**: Typically you'll want to use a reverse proxy to expose the application to the outside world.
 
@@ -54,7 +57,7 @@ docker ps
 docker logs qtt
 
 # Check API health
-curl -k http://localhost:8080/queryrest/api/settings
+curl -k https://localhost:8443/queryrest/api/settings
 ```
 
 ## Quick Start with Podman
@@ -91,7 +94,7 @@ podman pull docker.io/inovexis/qtt:latest
 # Rootless mode (recommended)
 podman run -d \
   --name qtt \
-  -p 8080:8080 \
+  -p 8443:8443 \
   -p 8888:8888 \
   docker.io/inovexis/qtt:latest
 ```
@@ -99,7 +102,7 @@ podman run -d \
 **With volume mount for persistent data:**
 
 ```bash
-podman run -d --name qtt -p 8080:8080 -p 8888:8888 -v qtt-data:/opt/qtt/data:Z docker.io/inovexis/qtt:latest
+podman run -d --name qtt -p 8443:8443 -p 8888:8888 -v qtt-data:/opt/qtt/data:Z docker.io/inovexis/qtt:latest
 ```
 
 **Note**: The `:Z` flag is important for SELinux systems (RHEL, CentOS, Fedora) to properly label the volume.
@@ -152,7 +155,7 @@ services:
       DB_PASSWORD: SecurePassword123
       API_BASE_URL: http://localhost:8888
     ports:
-      - "8080:8080"
+      - "8443:8443"
       - "8888:8888"
     networks:
       - qtt-network
@@ -203,7 +206,7 @@ services:
       DB_PASSWORD: "VerySecure123!"
       API_BASE_URL: http://localhost:8888
     ports:
-      - "8080:8080"
+      - "8443:8443"
       - "8888:8888"
     networks:
       - qtt-network
@@ -287,7 +290,7 @@ services:
       CACHE_FAIL_OPEN: "true"
       CACHE_STATS_ENABLED: "true"
     ports:
-      - "8080:8080"
+      - "8443:8443"
       - "8888:8888"
     networks:
       - qtt-network
@@ -360,7 +363,7 @@ Podman supports Kubernetes-style pods for grouping containers:
 ```bash
 # Create a pod with port mappings
 podman pod create --name qtt-pod \
-  -p 8080:8080 \
+  -p 8443:8443 \
   -p 8888:8888 \
   -p 5432:5432
 
@@ -400,7 +403,7 @@ SSL configuration via environment variables:
 ```bash
 docker run -d \
   --name qtt \
-  -p 8080:8080 \
+  -p 8443:8443 \
   -p 8888:8888 \
   -v /path/to/keystore.jks:/opt/qtt/etc/custom-keystore:ro \
   -e KEYSTORE=/opt/qtt/etc/custom-keystore \
@@ -408,7 +411,9 @@ docker run -d \
   docker.io/inovexis/qtt:latest
 ```
 
-The `run.sh` startup script automatically updates the PAX Web configuration with your keystore settings.
+`KEYSTORE` is the path of a JKS keystore inside the container and `PASSWORD` its password. Without them, QTT uses the
+bundled self-signed keystore at `/opt/qtt/etc/keystore`. The container runs as uid 1001, so the mounted keystore must
+be readable by that user.
 
 ### Generating a Self-Signed Certificate
 
@@ -430,15 +435,18 @@ keytool -genkey \
 |---------------------------|----------------------|--------------------|
 | `/opt/qtt/data/database`  | Derby database files | Yes                |
 | `/opt/qtt/data/templates` | Freemarker templates | Yes                |
-| `/opt/qtt/data/log`       | Application logs     | Optional           |
-| `/opt/qtt/etc`            | Configuration files  | Optional           |
+| `/opt/qtt/etc/keystore`   | Default TLS keystore | No                 |
+
+Logs go to the console; read them with `docker logs qtt` / `podman logs qtt`.
+
+The container runs as the non-root user `qtt` (uid 1001), so mounted volumes must be writable by that user.
 
 ### Docker Volume Mounting
 
 ```bash
 docker run -d \
   --name qtt \
-  -p 8080:8080 \
+  -p 8443:8443 \
   -p 8888:8888 \
   -v qtt-data:/opt/qtt/data \
   -v qtt-templates:/opt/qtt/data/templates \
@@ -450,7 +458,7 @@ docker run -d \
 ```bash
 podman run -d \
   --name qtt \
-  -p 8080:8080 \
+  -p 8443:8443 \
   -p 8888:8888 \
   -v qtt-data:/opt/qtt/data:Z \
   -v qtt-templates:/opt/qtt/data/templates:Z \
@@ -459,19 +467,41 @@ podman run -d \
 
 ## Port Configuration
 
-| Port | Protocol | Purpose                 | Configurable                |
-|------|----------|-------------------------|-----------------------------|
-| 8080 | HTTP     | JAX-RS API and Web UI   | Yes (org.ops4j.pax.web.cfg) |
-| 8888 | HTTP     | Dynamic query endpoints | Yes (Jetty configuration)   |
+| Port | Protocol | Purpose                                    |
+|------|----------|--------------------------------------------|
+| 8443 | HTTPS    | REST API and Web UI                        |
+| 8080 | HTTP     | REST API and Web UI (plain HTTP)           |
+| 8888 | HTTP     | Dynamic query endpoints (Camel Netty HTTP) |
 
-To change ports, edit the Jetty endpoint configuration in your route templates or override the PAX Web configuration.
+To expose QTT on other host ports, change the host side of the `-p` mapping (for example `-p 443:8443`).
+
+## Upgrading from QTT 1.x
+
+QTT now runs on Camel Quarkus instead of Apache Karaf. Environment variables, ports, URLs and the REST API are
+unchanged, so an existing deployment upgrades by switching the image:
+
+- **Derby**: mount the same `/opt/qtt/data` volume. The container now runs as uid 1001, while the 1.x container ran
+  as root, so hand the volume over to that user once before starting the new image:
+
+  ```bash
+  docker run --rm -u 0 -v qtt-data:/opt/qtt/data --entrypoint chown docker.io/inovexis/qtt:latest -R 1001:1001 /opt/qtt/data
+  ```
+
+  The embedded Derby is now version 10.16; it opens databases created by 1.x (Derby 10.14) in soft-upgrade mode.
+- **PostgreSQL / SQL Server**: the existing database is reused as is. On SQL Server the template column is converted
+  from `varchar(max)` to `nvarchar(max)` at first start, so non-Latin template text is stored correctly from then on
+  (text that was already stored as `?` cannot be recovered).
+- **Configuration**: settings that were edited in `etc/*.cfg` files under Karaf are now set with environment
+  variables or Java system properties (see the [Configuration Reference](configuration.md)). Changes require a
+  restart.
+- **Logs**: QTT logs to the console instead of `data/log/karaf.log`.
 
 ## Docker vs Podman Command Reference
 
 | Action           | Docker                                                                             | Podman                                                                             |
 |------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
 | Pull image       | `docker pull docker.io/inovexis/qtt:latest`                                        | `podman pull docker.io/inovexis/qtt:latest`                                        |
-| Run container    | `docker run -d --name qtt -p 8080:8080 -p 8888:8888 docker.io/inovexis/qtt:latest` | `podman run -d --name qtt -p 8080:8080 -p 8888:8888 docker.io/inovexis/qtt:latest` |
+| Run container    | `docker run -d --name qtt -p 8443:8443 -p 8888:8888 docker.io/inovexis/qtt:latest` | `podman run -d --name qtt -p 8443:8443 -p 8888:8888 docker.io/inovexis/qtt:latest` |
 | List containers  | `docker ps`                                                                        | `podman ps`                                                                        |
 | View logs        | `docker logs qtt`                                                                  | `podman logs qtt`                                                                  |
 | Follow logs      | `docker logs -f qtt`                                                               | `podman logs -f qtt`                                                               |
@@ -482,7 +512,7 @@ To change ports, edit the Jetty endpoint configuration in your route templates o
 | Volume mount     | `docker run -v qtt-data:/opt/qtt/data ...`                                         | `podman run -v qtt-data:/opt/qtt/data:Z ...`                                       |
 | Compose up       | `docker compose up -d`                                                             | `podman-compose up -d`                                                             |
 | Compose down     | `docker compose down`                                                              | `podman-compose down`                                                              |
-| Create pod       | N/A                                                                                | `podman pod create --name qtt-pod -p 8080:8080`                                    |
+| Create pod       | N/A                                                                                | `podman pod create --name qtt-pod -p 8443:8443`                                    |
 | Generate systemd | N/A                                                                                | `podman generate systemd --name qtt --files --new`                                 |
 
 **Key Differences:**

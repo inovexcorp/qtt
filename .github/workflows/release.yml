@@ -118,9 +118,11 @@ jobs:
         if: steps.check-snapshot.outputs.is_snapshot == 'true'
         id: artifacts
         run: |
-          # Find the distribution tar.gz and zip files
-          DIST_TAR=$(find query-service-distribution/target -name "*.tar.gz" -type f | head -n 1)
-          DIST_ZIP=$(find query-service-distribution/target -name "*.zip" -type f | head -n 1)
+          # Package the runnable Quarkus application (run with: java -jar quarkus-app/quarkus-run.jar)
+          VERSION="${{ steps.release-version.outputs.version }}"
+          ( cd query-service-app/target && tar -czf qtt-$VERSION.tar.gz quarkus-app && zip -qr qtt-$VERSION.zip quarkus-app )
+          DIST_TAR=query-service-app/target/qtt-$VERSION.tar.gz
+          DIST_ZIP=query-service-app/target/qtt-$VERSION.zip
 
           echo "tar_file=$DIST_TAR" >> $GITHUB_OUTPUT
           echo "zip_file=$DIST_ZIP" >> $GITHUB_OUTPUT
@@ -226,15 +228,13 @@ jobs:
           echo "Building project version ${{ steps.version.outputs.version }}"
           mvn clean install -DskipTests
 
-      - name: Verify Dockerfile exists
+      - name: Verify application build exists
         run: |
-          DOCKERFILE="query-service-distribution/target/assembly/Dockerfile"
-          if [ -f "$DOCKERFILE" ]; then
-            echo "Dockerfile found at: $DOCKERFILE"
-            echo "Dockerfile contents:"
-            cat "$DOCKERFILE"
+          APP="query-service-app/target/quarkus-app/quarkus-run.jar"
+          if [ -f "$APP" ]; then
+            echo "Quarkus application found at: $APP"
           else
-            echo "ERROR: Dockerfile not found at $DOCKERFILE"
+            echo "ERROR: Quarkus application not found at $APP"
             exit 1
           fi
 
@@ -247,20 +247,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image with fabric8 plugin
+      - name: Build Docker image
         run: |
-          echo "Building Docker image: docker.io/inovexis/qtt:${{ steps.version.outputs.version }}"
-          mvn -pl query-service-distribution docker:build
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Building Docker image: docker.io/inovexis/qtt:$VERSION"
+          docker build -f query-service-app/src/main/docker/Dockerfile.jvm \
+            -t docker.io/inovexis/qtt:$VERSION -t docker.io/inovexis/qtt:latest query-service-app
 
       - name: Tag and push Docker images
         run: |
           VERSION="${{ steps.version.outputs.version }}"
 
-          # The fabric8 plugin already built the image with both tags
-          # Now we need to push them
+          # The build step tagged the image with both tags; push them
           echo "Pushing version tag: docker.io/inovexis/qtt:$VERSION"
           docker push docker.io/inovexis/qtt:$VERSION
 

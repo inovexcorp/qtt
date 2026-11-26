@@ -1,17 +1,17 @@
 # query-service-persistence
 
-JPA-based persistence layer for the Query Translation Tool (QTT), providing database storage for routes, datasources, layers, and performance metrics. Built as an OSGi bundle for Apache Karaf deployment with support for multiple database backends.
+JPA-based persistence layer for the Query Translation Tool (QTT), providing database storage for routes, datasources, layers, and performance metrics. Built as a plain library jar (with a Jandex index) for the Camel Quarkus application, with support for multiple database backends.
 
 ## Overview
 
-The **query-service-persistence** module provides the data access layer for QTT, managing four core entities: routes (Camel route templates), datasources (Anzo connection configurations), layer associations (graphmart layers), and metrics (route performance data). It uses JPA 2.0 with Hibernate as the provider and Apache Aries JPA for OSGi integration.
+The **query-service-persistence** module provides the data access layer for QTT, managing four core entities: routes (Camel route templates), datasources (Anzo connection configurations), layer associations (graphmart layers), and metrics (route performance data). It uses Jakarta Persistence with Hibernate ORM 7 (via the Quarkus Hibernate ORM extension) as the provider.
 
 ### Key Features
 
-- **JPA 2.0 Entities**: Well-defined domain model with relationships
+- **Jakarta Persistence Entities**: Well-defined domain model with relationships
 - **Multi-Database Support**: Derby (embedded), PostgreSQL, and SQL Server
-- **OSGi Service Layer**: Service interfaces with declarative services implementations
-- **Transaction Management**: JTA transactions via Apache Aries JPA Template
+- **CDI Service Layer**: Service interfaces with `@ApplicationScoped` implementations
+- **Transaction Management**: Quarkus transactions via the module's `JpaTemplate` interface
 - **Schema Management**: Automatic schema updates via Hibernate DDL
 - **Performance Tracking**: Time-series metrics storage with TTL-based cleanup
 - **Camel URL Generation**: Dynamic `anzo://` URI generation from datasource configs
@@ -35,24 +35,32 @@ query-service-persistence/
 │   ├── DataSourceService.java       (Service interface)
 │   ├── LayerService.java            (Service interface)
 │   ├── MetricService.java           (Service interface)
-│   └── impl/
-│       ├── RouteServiceImpl.java
-│       ├── DataSourceServiceImpl.java
-│       ├── LayerServiceImpl.java
-│       └── MetricServiceImpl.java
+│   ├── impl/
+│   │   ├── RouteServiceImpl.java
+│   │   ├── DataSourceServiceImpl.java
+│   │   ├── LayerServiceImpl.java
+│   │   └── MetricServiceImpl.java
+│   └── jpa/
+│       ├── JpaTemplate.java         (Transaction template interface)
+│       ├── QuarkusJpaTemplate.java  (Quarkus implementation)
+│       ├── TransactionType.java
+│       ├── EmConsumer.java
+│       └── EmFunction.java
 └── src/main/resources/
-    └── META-INF/
-        └── persistence.xml          (JPA configuration)
+    └── db/migration/                (SQL migration scripts)
 ```
+
+There is no `persistence.xml`: the persistence units are configured in `query-service-app`'s
+`application.properties` (see [Database Configuration](#database-configuration)).
 
 ### Technology Stack
 
 | Component            | Version     | Purpose                                        |
 |----------------------|-------------|------------------------------------------------|
-| **JPA API**          | 2.2         | Persistence specification                      |
-| **Hibernate**        | 5.6.7.Final | JPA provider (OSGi-provided)                   |
-| **Apache Aries JPA** | 2.7.3       | OSGi JPA integration & transactions            |
-| **Jackson**          | 2.13.3      | JSON serialization annotations                 |
+| **Jakarta Persistence** | 3.2      | Persistence specification                      |
+| **Hibernate ORM**    | 7.x         | JPA provider (via `quarkus-hibernate-orm`)     |
+| **Quarkus Narayana** | (Quarkus)   | Transactions (`QuarkusTransaction`)            |
+| **Jackson**          | 2.x         | JSON serialization annotations                 |
 | **Lombok**           | Latest      | Code generation (getters/setters/constructors) |
 
 ---
@@ -347,22 +355,30 @@ MetricRecord metric = new MetricRecord(
 
 ### Service Architecture
 
-All service implementations use Apache Aries JPA Template for transaction management:
+All service implementations are CDI beans that use the module's `JpaTemplate` interface
+(`com.inovexcorp.queryservice.persistence.jpa`) for transaction management. It mirrors the Aries JPA template API the
+services were originally written against:
 
 ```java
-@Component(immediate = true, service = XxxService.class)
+@ApplicationScoped
 public class XxxServiceImpl implements XxxService {
 
-    @Reference(target = "(osgi.unit.name=qtt-pu)")
-    private JpaTemplate jpa;
+    @Inject
+    JpaTemplate jpa;
 
-    // Service methods
+    // Service methods, e.g.
+    // jpa.tx(TransactionType.Required, em -> em.merge(entity));
+    // return jpa.txExpr(TransactionType.Supports, em -> em.find(Entity.class, id));
 }
 ```
 
+`QuarkusJpaTemplate` implements it with `QuarkusTransaction.joiningExisting()` and the `EntityManager` of the
+active persistence unit (`derby`, `postgresql` or `mssql`, selected from `DB_URL`).
+
 **Transaction Types**:
-- `TransactionType.Required`: Create new transaction or join existing (for writes)
-- `TransactionType.Supports`: Use existing transaction if available (for reads)
+- `TransactionType.Required`: Join the current transaction or start a new one (for writes)
+- `TransactionType.Supports`: Join the current transaction if there is one; otherwise run in a new one (reads need an
+  open session)
 
 ---
 
@@ -558,47 +574,49 @@ metricService.deleteOldRecords(1440);  // Delete records older than 24 hours
 
 ### Persistence Unit Configuration
 
-**File**: `src/main/resources/META-INF/persistence.xml`
+**File**: `query-service-app/src/main/resources/application.properties`
 
-```xml
-<persistence-unit name="qtt-pu" transaction-type="JTA">
-    <description>The persistence unit for the Query Templating Tool</description>
-    <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
-    <jta-data-source>osgi:service/javax.sql.DataSource</jta-data-source>
-    <properties>
-        <!-- Automatically update schema on entity changes -->
-        <property name="hibernate.hbm2ddl.auto" value="update"/>
+Because Hibernate's dialect is fixed when Quarkus builds the application, one datasource and persistence unit is
+configured per supported database (`derby`, `postgresql`, `mssql`). At startup the one matching `DB_URL` (or
+`QTT_DB_KIND`) is activated and the others are switched off. For example, PostgreSQL:
 
-        <!-- PostgreSQL LOB support (prevents connection issues) -->
-        <property name="hibernate.jdbc.lob.non_contextual_creation" value="true"/>
-    </properties>
-</persistence-unit>
+```properties
+quarkus.datasource.postgresql.db-kind=postgresql
+quarkus.datasource.postgresql.jdbc.url=${qtt.db.url}
+quarkus.datasource.postgresql.username=${DB_USER:user}
+quarkus.datasource.postgresql.password=${DB_PASSWORD:password}
+quarkus.datasource.postgresql.jdbc.max-size=10
+quarkus.hibernate-orm.postgresql.datasource=postgresql
+quarkus.hibernate-orm.postgresql.packages=com.inovexcorp.queryservice.persistence
+quarkus.hibernate-orm.postgresql.schema-management.strategy=update
+# PostgreSQL LOB support
+quarkus.hibernate-orm.postgresql.unsupported-properties."hibernate.jdbc.lob.non_contextual_creation"=true
 ```
 
 **Key Configuration**:
-- **Persistence Unit Name**: `qtt-pu` (referenced by all service implementations)
-- **Transaction Type**: JTA (Java Transaction API for OSGi)
-- **Data Source**: Resolved via OSGi service registry
+- **Persistence Units**: `derby`, `postgresql`, `mssql` (one active; `QuarkusJpaTemplate` uses the active one)
+- **Transactions**: Quarkus (Narayana JTA) via `QuarkusTransaction`
+- **Data Source**: Agroal connection pool configured by `quarkus.datasource.<kind>.*`
 - **Schema Management**: `update` mode (creates tables on first run, updates on changes)
+- **SQL Server**: at first start, the `routes.templateContent` column of a database created by QTT 1.x is converted
+  from `varchar(max)` to `nvarchar(max)` so non-Latin template text is preserved
 
 ---
 
 ### Supported Databases
 
-The persistence module supports three database backends, configured via environment variables in Karaf:
+The persistence module supports three database backends, selected by the `DB_URL` prefix (`jdbc:derby:`,
+`jdbc:postgresql:`, `jdbc:sqlserver:`) and configured via environment variables:
 
 #### 1. Apache Derby (Default)
 
 **Embedded database, no separate server required**
 
-**Configuration** (`query-service-distribution/src/main/resources/etc/`):
-```properties
-# org.ops4j.datasource-qtt-datasource.cfg
-osgi.jdbc.driver.name=derby
-url=jdbc:derby:data/database;create=true
-user=user
-password=password
-dataSourceName=qtt-datasource
+**Configuration** (the default):
+```bash
+DB_URL="jdbc:derby:data/database;create=true"
+DB_USER=user
+DB_PASSWORD=password
 ```
 
 **Pros**: Zero setup, portable, perfect for development
@@ -611,13 +629,10 @@ dataSourceName=qtt-datasource
 **Production-ready relational database**
 
 **Configuration**:
-```properties
-# org.ops4j.datasource-qtt-datasource.cfg
-osgi.jdbc.driver.name=PostgreSQL JDBC Driver
-url=jdbc:postgresql://localhost:5432/qtt_db
-user=qtt_user
-password=secure_password
-dataSourceName=qtt-datasource
+```bash
+DB_URL="jdbc:postgresql://localhost:5432/qtt_db"
+DB_USER=qtt_user
+DB_PASSWORD=secure_password
 ```
 
 **Setup**:
@@ -644,13 +659,10 @@ psql qtt_db -c "GRANT ALL PRIVILEGES ON DATABASE qtt_db TO qtt_user;"
 **Enterprise database for Windows environments**
 
 **Configuration**:
-```properties
-# org.ops4j.datasource-qtt-datasource.cfg
-osgi.jdbc.driver.name=Microsoft JDBC Driver for SQL Server
-url=jdbc:sqlserver://localhost:1433;databaseName=qtt_db
-user=sa
-password=YourStrong!Passw0rd
-dataSourceName=qtt-datasource
+```bash
+DB_URL="jdbc:sqlserver://localhost:1433;databaseName=qtt_db"
+DB_USER=sa
+DB_PASSWORD='YourStrong!Passw0rd'
 ```
 
 **Setup**:
@@ -687,10 +699,11 @@ Hibernate automatically manages the database schema:
 
 **Manual Schema Management**:
 
-To change Hibernate DDL mode, update `persistence.xml`:
-```xml
-<!-- Options: validate, update, create, create-drop -->
-<property name="hibernate.hbm2ddl.auto" value="validate"/>
+To change the schema management mode, set the persistence unit's property in `application.properties` (or override
+it at startup):
+```properties
+# Options include: none, validate, update, create, drop-and-create
+quarkus.hibernate-orm.<kind>.schema-management.strategy=validate
 ```
 
 ---
@@ -804,7 +817,7 @@ public void buildRoute(CamelRouteTemplate template) {
     );
 
     // Create dynamic Camel route
-    from("jetty:http://0.0.0.0:8888/" + template.getRouteId())
+    from("netty-http:http://0.0.0.0:8888/" + template.getRouteId())
         .routeId(template.getRouteId())
         .convertBodyTo(String.class)
         .to("freemarker:file:" + templatePath)
@@ -818,7 +831,7 @@ public void buildRoute(CamelRouteTemplate template) {
 GET http://localhost:8888/findPerson?name=John
 
 # Flow:
-# 1. Jetty receives request
+# 1. Camel Netty HTTP receives request
 # 2. Freemarker template processes parameters → SPARQL query
 # 3. Anzo component executes query (using datasource config)
 # 4. RdfResultsJsonifier converts RDF/XML → JSON-LD
@@ -975,36 +988,11 @@ public void testGenerateCamelUrl_BasicFormat() {
 
 ---
 
-### OSGi Bundle Deployment
+### Packaging
 
-The module builds as an OSGi bundle for deployment to Apache Karaf.
-
-**Bundle Metadata**:
-- **Symbolic Name**: `com.inovexcorp.queryservice.query-service-persistence`
-- **Exported Package**: `com.inovexcorp.queryservice.persistence`
-- **Service Components**: Auto-registered via `@Component` annotations
-- **Dynamic Imports**: `org.apache.aries.jpa.template` (for JPA integration)
-
-**Install in Karaf**:
-```bash
-# From Karaf console
-karaf@root()> bundle:install mvn:com.inovexcorp.queryservice/query-service-persistence/1.0.33-SNAPSHOT
-Bundle ID: 124
-
-karaf@root()> bundle:start 124
-```
-
-**Verify Services**:
-```bash
-# Check OSGi services are registered
-karaf@root()> service:list | grep -E "(RouteService|DataSourceService|LayerService|MetricService)"
-
-# Should show:
-# com.inovexcorp.queryservice.persistence.RouteService
-# com.inovexcorp.queryservice.persistence.DataSourceService
-# com.inovexcorp.queryservice.persistence.LayerService
-# com.inovexcorp.queryservice.persistence.MetricService
-```
+The module is a plain jar with a Jandex index, so Quarkus discovers its entities and CDI beans when
+`query-service-app` is built. The services (`RouteService`, `DataSourceService`, `LayerService`, `MetricService`, ...)
+are `@ApplicationScoped` beans that other modules inject with `@Inject`.
 
 ---
 
@@ -1043,12 +1031,12 @@ The persistence module supports **AES-256-GCM encryption** for datasource passwo
 
 **Development**:
 ```bash
-# Set environment variables before starting Karaf
+# Set environment variables before starting QTT
 export PASSWORD_ENCRYPTION_KEY="my-dev-encryption-key-change-in-production"
 export PASSWORD_ENCRYPTION_SALT="my-dev-salt-change-in-production"
 
-# Start Karaf
-./query-service-distribution/target/apache-karaf-*/bin/karaf
+# Start QTT
+make run
 ```
 
 **Production** (Docker/Kubernetes):
@@ -1087,15 +1075,6 @@ spec:
             name: qtt-encryption-secrets
 ```
 
-**Systemd Service**:
-```ini
-# /etc/systemd/system/qtt.service
-[Service]
-Environment="PASSWORD_ENCRYPTION_KEY=production-key"
-Environment="PASSWORD_ENCRYPTION_SALT=production-salt"
-ExecStart=/opt/qtt/bin/karaf server
-```
-
 #### Verification
 
 Check the logs on startup to confirm encryption status:
@@ -1119,9 +1098,6 @@ If you have existing datasources with plain text passwords:
    ```bash
    # Via REST API
    PUT /queryrest/api/datasources/{id}
-
-   # Or via Karaf console
-   karaf@root()> datasource:update <datasourceId>
    ```
 4. **Verify encryption** - check database to confirm passwords are now Base64-encoded encrypted values
 
@@ -1169,81 +1145,47 @@ If you have existing datasources with plain text passwords:
 
 ### JPA Configuration
 
-The persistence unit is configured via OSGi Config Admin in Karaf.
-
-**Datasource Configuration File**:
-`query-service-distribution/src/main/resources/etc/org.ops4j.datasource-qtt-datasource.cfg`
-
-```properties
-# Database driver name (matches JDBC driver in Karaf)
-osgi.jdbc.driver.name=derby
-
-# JDBC connection URL
-url=jdbc:derby:data/database;create=true
-
-# Database credentials
-user=user
-password=password
-
-# Datasource name (must match persistence.xml reference)
-dataSourceName=qtt-datasource
-
-# Connection pool settings (optional)
-pool.maxSize=20
-pool.minSize=5
-```
+The datasources and persistence units are configured in `query-service-app/src/main/resources/application.properties`
+(see [Persistence Unit Configuration](#persistence-unit-configuration)).
 
 **Environment Variable Support**:
 
-The distribution uses variable substitution for flexible deployment:
-
 ```properties
-osgi.jdbc.driver.name=${env:DB_DRIVER_NAME:-derby}
-url=${env:DB_URL:-jdbc:derby:data/database;create=true}
-user=${env:DB_USER:-user}
-password=${env:DB_PASSWORD:-password}
+qtt.db.url=${DB_URL:jdbc:derby:data/database;create=true}
+quarkus.datasource.<kind>.username=${DB_USER:user}
+quarkus.datasource.<kind>.password=${DB_PASSWORD:password}
 ```
+
+`DB_DRIVER_NAME` no longer selects the driver; it is still accepted and shown as the database type in the Settings
+page. `QTT_DB_KIND` (`derby`, `postgresql` or `mssql`) overrides the detection from `DB_URL`.
 
 **Setting Environment Variables**:
 ```bash
-# Before starting Karaf
-export DB_DRIVER_NAME="PostgreSQL JDBC Driver"
+# Before starting QTT
 export DB_URL="jdbc:postgresql://db.example.com:5432/qtt_prod"
 export DB_USER="qtt_prod_user"
 export DB_PASSWORD="secure_password"
 
-# Start Karaf
-./query-service-distribution/target/apache-karaf-*/bin/karaf
+# Start QTT
+make run
 ```
 
 ---
 
 ### Hibernate Configuration
 
-Hibernate properties can be customized in `persistence.xml`:
+Hibernate settings are Quarkus properties per persistence unit, set in `application.properties` (or overridden with
+system properties / environment variables). The ones QTT sets:
 
-```xml
-<properties>
-    <!-- Schema management: validate, update, create, create-drop -->
-    <property name="hibernate.hbm2ddl.auto" value="update"/>
+```properties
+# Schema management
+quarkus.hibernate-orm.<kind>.schema-management.strategy=update
 
-    <!-- PostgreSQL LOB configuration -->
-    <property name="hibernate.jdbc.lob.non_contextual_creation" value="true"/>
+# PostgreSQL LOB configuration
+quarkus.hibernate-orm.postgresql.unsupported-properties."hibernate.jdbc.lob.non_contextual_creation"=true
 
-    <!-- SQL logging (development only) -->
-    <property name="hibernate.show_sql" value="false"/>
-    <property name="hibernate.format_sql" value="false"/>
-
-    <!-- Connection pool settings -->
-    <property name="hibernate.c3p0.min_size" value="5"/>
-    <property name="hibernate.c3p0.max_size" value="20"/>
-    <property name="hibernate.c3p0.timeout" value="300"/>
-
-    <!-- Performance tuning -->
-    <property name="hibernate.jdbc.batch_size" value="20"/>
-    <property name="hibernate.order_inserts" value="true"/>
-    <property name="hibernate.order_updates" value="true"/>
-</properties>
+# Connection pool size
+quarkus.datasource.<kind>.jdbc.max-size=10
 ```
 
 ---
@@ -1252,48 +1194,22 @@ Hibernate properties can be customized in `persistence.xml`:
 
 ### Common Issues
 
-#### 1. Bundle Not Starting
+#### 1. Application Fails to Start with a Database Error
 
-**Symptom**: `INSTALLED` state instead of `ACTIVE`
+**Symptom**: QTT stops during startup with a datasource or Hibernate error
 
 **Causes**:
-- Missing JPA provider bundle (Hibernate)
-- Missing JDBC driver bundle
-- Persistence unit not found
+- `DB_URL` does not start with `jdbc:derby:`, `jdbc:postgresql:` or `jdbc:sqlserver:` (or `QTT_DB_KIND` is invalid)
+- Database not reachable or wrong credentials
+- The Derby database directory is not writable (the container runs as uid 1001)
 
 **Solutions**:
 ```bash
-# Check bundle dependencies
-karaf@root()> bundle:diag 124
+# Check the database settings
+docker exec qtt env | grep -E 'DB_|QTT_DB_KIND'
 
-# Install Hibernate bundles
-karaf@root()> feature:install hibernate
-
-# Install JDBC driver
-karaf@root()> bundle:install mvn:org.apache.derby/derby/10.15.2.0
-```
-
----
-
-#### 2. Datasource Not Found
-
-**Symptom**: `Cannot find DataSource: qtt-datasource`
-
-**Causes**:
-- Datasource config file missing
-- Incorrect `dataSourceName` in config
-- JDBC driver not installed
-
-**Solutions**:
-```bash
-# Check datasource config exists
-ls -la etc/org.ops4j.datasource-qtt-datasource.cfg
-
-# Verify datasource name matches persistence.xml
-grep dataSourceName etc/org.ops4j.datasource-qtt-datasource.cfg
-
-# Install PAX JDBC features
-karaf@root()> feature:install pax-jdbc-config pax-jdbc-derby
+# Check the startup log
+docker logs qtt
 ```
 
 ---
@@ -1319,8 +1235,8 @@ psql -c "DROP DATABASE qtt_db; CREATE DATABASE qtt_db;"
 # Option 2: Manually fix schema
 # Connect to database and compare with entity definitions
 
-# Option 3: Change DDL mode to recreate (CAUTION: data loss)
-# Edit persistence.xml: hibernate.hbm2ddl.auto = create-drop
+# Option 3: Change schema management to recreate (CAUTION: data loss)
+# Set quarkus.hibernate-orm.<kind>.schema-management.strategy=drop-and-create
 ```
 
 ---
@@ -1330,19 +1246,12 @@ psql -c "DROP DATABASE qtt_db; CREATE DATABASE qtt_db;"
 **Symptom**: `Transaction not active` or `Transaction rolled back`
 
 **Causes**:
-- JTA transaction manager not available
-- Incorrect transaction type in service methods
+- Database work done outside `JpaTemplate.tx(...)` / `txExpr(...)`
 - Exception thrown without proper handling
 
 **Solutions**:
 ```bash
-# Check transaction manager is running
-karaf@root()> service:list javax.transaction.TransactionManager
-
-# Install Aries transaction features
-karaf@root()> feature:install aries-transaction
-
-# Review service method transaction annotations
+# Run all EntityManager work inside jpa.tx(...) / jpa.txExpr(...)
 # Ensure writes use TransactionType.Required
 # Ensure reads use TransactionType.Supports
 ```
@@ -1382,31 +1291,15 @@ List<MetricRecord> metrics = em.createQuery(
 
 ### Enable Debug Logging
 
-**Log4j2 Configuration**:
-```properties
-# query-service-distribution/src/main/resources/etc/org.ops4j.pax.logging.cfg
+Set log levels with environment variables (or the equivalent `-Dquarkus.log.category."...".level=DEBUG` system
+properties) and restart:
 
+```bash
 # Persistence module logging
-log4j2.logger.persistence.name = com.inovexcorp.queryservice.persistence
-log4j2.logger.persistence.level = DEBUG
+QUARKUS_LOG_CATEGORY__COM_INOVEXCORP_QUERYSERVICE_PERSISTENCE__LEVEL=DEBUG
 
 # Hibernate SQL logging
-log4j2.logger.hibernate_sql.name = org.hibernate.SQL
-log4j2.logger.hibernate_sql.level = DEBUG
-
-# JPA transaction logging
-log4j2.logger.aries_jpa.name = org.apache.aries.jpa
-log4j2.logger.aries_jpa.level = DEBUG
-```
-
-**Karaf Console**:
-```bash
-# Set log level dynamically
-karaf@root()> log:set DEBUG com.inovexcorp.queryservice.persistence
-karaf@root()> log:set DEBUG org.hibernate.SQL
-
-# View logs in real-time
-karaf@root()> log:tail
+QUARKUS_LOG_CATEGORY__ORG_HIBERNATE_SQL__LEVEL=DEBUG
 ```
 
 ---
@@ -1520,7 +1413,7 @@ List<MetricRecord> getAllMetrics()
 **DO**:
 - Test schema updates on dev environment first
 - Backup database before deploying entity changes
-- Use `hibernate.hbm2ddl.auto=validate` in production (after initial setup)
+- Consider `quarkus.hibernate-orm.<kind>.schema-management.strategy=validate` in production (after initial setup)
 - Document schema changes in release notes
 
 **DON'T**:
@@ -1536,18 +1429,17 @@ List<MetricRecord> getAllMetrics()
 
 | Dependency                     | Version     | Scope    | Purpose                   |
 |--------------------------------|-------------|----------|---------------------------|
-| **JPA API**                    | 2.2         | compile  | JPA specification         |
-| **Hibernate Core**             | 5.6.7.Final | provided | JPA provider (from Karaf) |
-| **Aries JPA API**              | 2.7.3       | compile  | OSGi JPA integration      |
-| **Jackson Annotations**        | 2.13.3      | compile  | JSON serialization        |
-| **OSGi Component Annotations** | Latest      | provided | Declarative services      |
+| **quarkus-hibernate-orm**      | (Quarkus)   | compile  | Hibernate ORM 7, Jakarta Persistence, transactions |
+| **query-service-core**         | (project)   | compile  | `OsgiConfig`              |
+| **Jackson Annotations**        | (BOM)       | compile  | JSON serialization        |
 
 ### Test
 
 | Dependency       | Version | Purpose           |
 |------------------|---------|-------------------|
-| **JUnit**        | 4.13.2  | Unit testing      |
-| **Mockito Core** | 4.11.0  | Mocking framework |
+| **JUnit**        | 4 and 5 (BOM) | Unit testing      |
+| **Mockito Core** | (BOM)         | Mocking framework |
+| **AssertJ**      | (BOM)         | Assertions        |
 
 ### Maven Coordinates
 
@@ -1555,7 +1447,7 @@ List<MetricRecord> getAllMetrics()
 <dependency>
     <groupId>com.inovexcorp.queryservice</groupId>
     <artifactId>query-service-persistence</artifactId>
-    <version>1.0.33-SNAPSHOT</version>
+    <version>2.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -1572,10 +1464,9 @@ List<MetricRecord> getAllMetrics()
 
 ## Additional Resources
 
-- [JPA 2.2 Specification](https://jcp.org/en/jsr/detail?id=338)
-- [Hibernate ORM Documentation](https://hibernate.org/orm/documentation/5.6/)
-- [Apache Aries JPA](https://aries.apache.org/modules/jpa.html)
-- [OSGi Declarative Services](https://enroute.osgi.org/services/org.osgi.service.component.html)
+- [Jakarta Persistence](https://jakarta.ee/specifications/persistence/)
+- [Quarkus Hibernate ORM Guide](https://quarkus.io/guides/hibernate-orm)
+- [Hibernate ORM Documentation](https://hibernate.org/orm/documentation/)
 - [Apache Derby Documentation](https://db.apache.org/derby/docs/)
 - [PostgreSQL JPA Guide](https://www.postgresql.org/docs/current/jpa.html)
 

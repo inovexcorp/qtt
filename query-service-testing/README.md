@@ -215,15 +215,18 @@ The module depends on:
 - `camel-anzo`: Anzo component for SPARQL execution
 - `query-service-route-builder`: Test route creation (`TestRouteService`)
 
-### OSGi Services
+### Packaging and CDI Beans
 
-Exported packages:
+The module is a plain jar with a Jandex index, so Quarkus discovers its beans and REST resources when
+`query-service-app` is built.
+
+Packages:
 - `com.inovexcorp.queryservice.testing.model`: Request/response models
 - `com.inovexcorp.queryservice.testing.util`: Variable extraction utilities
 
-OSGi component registration:
-- `RouteTestingEndpoint` → JAX-RS resource at `/api/testing`
-- `RouteTestExecutor` → Service component
+CDI beans (`@ApplicationScoped`, dependencies injected with `@Inject`):
+- `RouteTestingEndpoint` → Jakarta REST resource at `/api/testing`
+- `RouteTestExecutor` → Service bean
 
 ## UI Integration
 

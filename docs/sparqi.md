@@ -376,7 +376,7 @@ curl -X GET "http://localhost:8080/queryrest/api/sparqi/health"
 
 - Verify `SPARQI_ENABLED=true`
 - Check health endpoint: `/api/sparqi/health`
-- Review Karaf logs: `docker logs qtt | grep sparqi`
+- Review QTT logs: `docker logs qtt | grep sparqi`
 
 **LLM timeouts:**
 

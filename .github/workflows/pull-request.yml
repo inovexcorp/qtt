@@ -77,5 +77,5 @@ jobs:
           echo "- **Errors**: ${TOTAL_ERRORS:-0}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Angular Tests" >> $GITHUB_STEP_SUMMARY
-          echo "Angular tests (24 specs) are executed via Maven frontend-maven-plugin during the build." >> $GITHUB_STEP_SUMMARY
+          echo "Angular tests are executed via Maven frontend-maven-plugin during the build." >> $GITHUB_STEP_SUMMARY
           echo "Check the Maven build logs above for Angular test results." >> $GITHUB_STEP_SUMMARY

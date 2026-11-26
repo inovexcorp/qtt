@@ -2,13 +2,13 @@
 # Query Service Makefile
 # ==============================================================================
 
-.PHONY: help build build_no_web refresh_bundles build_docker \
-        run build_and_run stop postgres_run mssql_run \
+.PHONY: help build build_no_web build_docker \
+        run dev build_and_run stop postgres_run mssql_run \
         destroy_docker run_docker logs_docker \
         start_redis start_postgres start_mssql \
         stop_redis stop_postgres stop_mssql stop_databases \
         logs_redis logs_postgres logs_mssql \
-        clean test
+        clean test it gate measure
 
 # ------------------------------------------------------------------------------
 # Variables
@@ -23,8 +23,15 @@ COMPOSE := $(ENGINE) compose
 # Define common Maven options: use 2 threads per core
 MAVEN := mvn -T 2C
 
-# Define the target directory for the query service distribution
-DIST_DIR := query-service-distribution/target
+# The Quarkus application module and its build output
+APP_DIR := query-service-app
+RUN_DIR := $(APP_DIR)/target
+RUN_JAR := quarkus-app/quarkus-run.jar
+IMAGE := inovexis/qtt
+
+# Local runs work in query-service-app/target (the Derby database and templates go to ./data there) and use the
+# bundled development keystore unless KEYSTORE is set.
+LOCAL_KEYSTORE := ../src/main/etc/keystore
 
 # Detect operating system and set platform-specific variables
 ifeq ($(OS),Windows_NT)
@@ -32,15 +39,10 @@ ifeq ($(OS),Windows_NT)
     # Force cmd.exe as shell on Windows (choco make uses bash by default)
     SHELL := cmd.exe
     .SHELLFLAGS := /c
-    KARAF_BIN := $(DIST_DIR)/assembly/bin/karaf.bat
-    KARAF_STOP := $(DIST_DIR)/assembly/bin/stop.bat
-    # Use backslash for Windows path in existence checks
-    DIST_CHECK_PATH := $(subst /,\,$(DIST_DIR))\assembly
+    RUN_CHECK_PATH := $(subst /,\,$(RUN_DIR))\quarkus-app\quarkus-run.jar
 else
     DETECTED_OS := Unix
-    KARAF_BIN := $(DIST_DIR)/assembly/bin/karaf
-    KARAF_STOP := $(DIST_DIR)/assembly/bin/stop
-    DIST_CHECK_PATH := $(DIST_DIR)/assembly
+    RUN_CHECK_PATH := $(RUN_DIR)/$(RUN_JAR)
 endif
 
 # ==============================================================================
@@ -52,21 +54,21 @@ help:
 	@echo "================================"
 	@echo ""
 	@echo "Build Targets:"
-	@echo "  make build              - Build entire project with Maven"
-	@echo "  make build_no_web       - Build excluding query-service-web module"
-	@echo "  make refresh_bundles    - Rebuild bundles (excludes web and distribution)"
-	@echo "  make build_docker       - Build Docker image"
+	@echo "  make build              - Build entire project with Maven (Java and Angular tests included)"
+	@echo "  make build_no_web       - Build excluding query-service-web (uses the last installed UI build)"
+	@echo "  make build_docker       - Build the container image $(IMAGE):latest"
 	@echo ""
 	@echo "Local Run Targets:"
-	@echo "  make run                - Run Karaf (builds if needed)"
-	@echo "  make build_and_run      - Build then run Karaf"
-	@echo "  make stop               - Stop running Karaf instance"
-	@echo "  make postgres_run       - Start PostgreSQL and run Karaf with PostgreSQL config"
-	@echo "  make mssql_run          - Start MSSQL and run Karaf with MSSQL config"
+	@echo "  make run                - Run QTT (builds if needed); UI and API on https://localhost:8443"
+	@echo "  make dev                - Run QTT in Quarkus dev mode (live reload; run 'make build' once first)"
+	@echo "  make build_and_run      - Build then run QTT"
+	@echo "  make stop               - Stop a QTT started with 'make run'"
+	@echo "  make postgres_run       - Start PostgreSQL and run QTT against it"
+	@echo "  make mssql_run          - Start MSSQL and run QTT against it"
 	@echo ""
 	@echo "Docker Targets:"
 	@echo "  make destroy_docker     - Remove QTT container"
-	@echo "  make run_docker         - Build and run QTT in Docker"
+	@echo "  make run_docker         - Build and run QTT in a container"
 	@echo "  make logs_docker        - View QTT container logs"
 	@echo ""
 	@echo "Database Targets:"
@@ -81,9 +83,14 @@ help:
 	@echo "  make logs_postgres      - View PostgreSQL logs"
 	@echo "  make logs_mssql         - View MSSQL logs"
 	@echo ""
+	@echo "Test Targets:"
+	@echo "  make test               - Run Maven unit tests"
+	@echo "  make it                 - Run the black-box regression suite against $(IMAGE):latest (Derby)"
+	@echo "  make gate               - Full regression gate: all databases, Redis, restart, UI, TLS"
+	@echo "  make measure            - Measure image size, cold start, memory and throughput (LABEL=name)"
+	@echo ""
 	@echo "Utility Targets:"
 	@echo "  make clean              - Remove build artifacts"
-	@echo "  make test               - Run Maven tests"
 	@echo "  make help               - Show this help message"
 
 # ==============================================================================
@@ -98,111 +105,94 @@ build:
 build_no_web:
 	$(MAVEN) -pl '!query-service-web' clean install
 
-# Refresh bundles by building all modules except query-service-web and query-service-distribution
-refresh_bundles:
-	$(MAVEN) -pl '!query-service-web,!query-service-distribution' clean install
-
-# Build the Docker image for query-service-distribution after running a full Maven build
+# Build the container image (JVM mode) after a full Maven build
 build_docker: build
-	$(MAVEN) -pl query-service-distribution docker:build
+	$(ENGINE) build -f $(APP_DIR)/src/main/docker/Dockerfile.jvm -t $(IMAGE):latest $(APP_DIR)
 
 # ==============================================================================
 # Local Run Targets
 # ==============================================================================
 
-# Run the service: if the distribution is already built, simply launch Karaf; otherwise, build first
+# Run the service: build first if the application has not been built
 run:
 ifeq ($(DETECTED_OS),Windows)
-	@if not exist "$(DIST_CHECK_PATH)" ( \
-		echo Distribution not found. Building... & \
+	@if not exist "$(RUN_CHECK_PATH)" ( \
+		echo Application not found. Building... & \
 		$(MAKE) build \
 	)
-	@if exist .env ( for /f "usebackq tokens=1,* delims==" %%A in (".env") do @set "%%A=%%B" ) & "$(KARAF_BIN)"
+	@if exist .env ( for /f "usebackq tokens=1,* delims==" %%A in (".env") do @set "%%A=%%B" ) & \
+	cd $(RUN_DIR) && set "KEYSTORE=$(LOCAL_KEYSTORE)" && java -jar $(RUN_JAR)
 else
-	@if [ ! -d $(DIST_DIR)/assembly/ ]; then \
-		echo "Distribution not found. Building..."; \
+	@if [ ! -f $(RUN_CHECK_PATH) ]; then \
+		echo "Application not found. Building..."; \
 		$(MAKE) build; \
 	fi
-	set -a; [ -f .env ] && . .env; set +a; $(KARAF_BIN)
+	set -a; [ -f .env ] && . ./.env; set +a; cd $(RUN_DIR) && KEYSTORE=$${KEYSTORE:-$(LOCAL_KEYSTORE)} java -jar $(RUN_JAR)
 endif
 
-# Build the project with Maven, then launch Karaf
+# Quarkus dev mode (needs the other modules installed: run 'make build' once)
+dev:
+	mvn -pl $(APP_DIR) quarkus:dev -Dquarkus.http.ssl.certificate.key-store-file=src/main/etc/keystore
+
+# Build the project with Maven, then launch QTT
 build_and_run: build run
 
-# Stop the running Karaf instance
+# Stop a QTT started with 'make run'
 stop:
 ifeq ($(DETECTED_OS),Windows)
-	@if exist "$(KARAF_STOP)" ( \
-		echo Stopping Karaf... & \
-		"$(KARAF_STOP)" \
-	) else ( \
-		echo Karaf stop script not found. Is the distribution built? \
-	)
+	@echo Stop QTT with Ctrl+C in the window where it runs.
 else
-	@if [ -f $(KARAF_STOP) ]; then \
-		echo "Stopping Karaf..."; \
-		$(KARAF_STOP); \
-	else \
-		echo "Karaf stop script not found. Is the distribution built?"; \
-	fi
+	@pkill -f '$(RUN_JAR)' && echo "Stopped QTT" || echo "QTT is not running"
 endif
 
-# Run with PostgreSQL: start PostgreSQL container, then run Karaf with PostgreSQL configuration
+# Run with PostgreSQL: start PostgreSQL container, then run QTT against it
 postgres_run: start_postgres
-	@echo "Starting Karaf with PostgreSQL configuration..."
+	@echo "Starting QTT with PostgreSQL configuration..."
 ifeq ($(DETECTED_OS),Windows)
-	@if not exist "$(DIST_CHECK_PATH)" ( \
-		echo Distribution not found. Building... & \
+	@if not exist "$(RUN_CHECK_PATH)" ( \
+		echo Application not found. Building... & \
 		$(MAKE) build \
 	)
-	@echo Setting PostgreSQL environment variables...
-	@set "DB_DRIVER_NAME=PostgreSQL JDBC Driver" & \
-	set "DB_URL=jdbc:postgresql://localhost:5432/qtt" & \
+	@set "DB_URL=jdbc:postgresql://localhost:5432/qtt" & \
 	set "DB_USER=postgres" & \
 	set "DB_PASSWORD=verYs3cret" & \
 	if exist .env ( for /f "usebackq tokens=1,* delims==" %%A in (".env") do @set "%%A=%%B" ) & \
-	"$(KARAF_BIN)"
+	cd $(RUN_DIR) && set "KEYSTORE=$(LOCAL_KEYSTORE)" && java -jar $(RUN_JAR)
 else
-	@if [ ! -d $(DIST_DIR)/assembly/ ]; then \
-		echo "Distribution not found. Building..."; \
+	@if [ ! -f $(RUN_CHECK_PATH) ]; then \
+		echo "Application not found. Building..."; \
 		$(MAKE) build; \
 	fi
-	@echo "Setting PostgreSQL environment variables..."
-	@export DB_DRIVER_NAME="PostgreSQL JDBC Driver"; \
-	export DB_URL="jdbc:postgresql://localhost:5432/qtt"; \
+	@export DB_URL="jdbc:postgresql://localhost:5432/qtt"; \
 	export DB_USER="postgres"; \
 	export DB_PASSWORD="verYs3cret"; \
 	set -a; [ -f .env ] && . ./.env; set +a; \
-	$(KARAF_BIN)
+	cd $(RUN_DIR) && KEYSTORE=$${KEYSTORE:-$(LOCAL_KEYSTORE)} java -jar $(RUN_JAR)
 endif
 
-# Run with MSSQL: start MSSQL container, then run Karaf with MSSQL configuration
+# Run with MSSQL: start MSSQL container, then run QTT against it
 mssql_run: start_mssql
-	@echo "Starting Karaf with MSSQL configuration..."
+	@echo "Starting QTT with MSSQL configuration..."
 ifeq ($(DETECTED_OS),Windows)
-	@if not exist "$(DIST_CHECK_PATH)" ( \
-		echo Distribution not found. Building... & \
+	@if not exist "$(RUN_CHECK_PATH)" ( \
+		echo Application not found. Building... & \
 		$(MAKE) build \
 	)
-	@echo Setting MSSQL environment variables...
-	@set "DB_DRIVER_NAME=Microsoft JDBC Driver for SQL Server" & \
-	set "DB_URL=jdbc:sqlserver://localhost:1433;databaseName=qtt;encrypt=true;trustServerCertificate=true" & \
+	@set "DB_URL=jdbc:sqlserver://localhost:1433;databaseName=qtt;encrypt=true;trustServerCertificate=true" & \
 	set "DB_USER=sa" & \
 	set "DB_PASSWORD=verYs3cret" & \
 	if exist .env ( for /f "usebackq tokens=1,* delims==" %%A in (".env") do @set "%%A=%%B" ) & \
-	"$(KARAF_BIN)"
+	cd $(RUN_DIR) && set "KEYSTORE=$(LOCAL_KEYSTORE)" && java -jar $(RUN_JAR)
 else
-	@if [ ! -d $(DIST_DIR)/assembly/ ]; then \
-		echo "Distribution not found. Building..."; \
+	@if [ ! -f $(RUN_CHECK_PATH) ]; then \
+		echo "Application not found. Building..."; \
 		$(MAKE) build; \
 	fi
-	@echo "Setting MSSQL environment variables..."
-	@export DB_DRIVER_NAME="Microsoft JDBC Driver for SQL Server"; \
-	export DB_URL="jdbc:sqlserver://localhost:1433;databaseName=qtt;encrypt=true;trustServerCertificate=true"; \
+	@export DB_URL="jdbc:sqlserver://localhost:1433;databaseName=qtt;encrypt=true;trustServerCertificate=true"; \
 	export DB_USER="sa"; \
 	export DB_PASSWORD="verYs3cret"; \
 	set -a; [ -f .env ] && . ./.env; set +a; \
-	$(KARAF_BIN)
+	cd $(RUN_DIR) && KEYSTORE=$${KEYSTORE:-$(LOCAL_KEYSTORE)} java -jar $(RUN_JAR)
 endif
 
 # ==============================================================================
@@ -213,11 +203,11 @@ endif
 destroy_docker:
 	-$(ENGINE) container rm -f qtt
 
-# Build the Docker image and run the container in detached mode, mapping required ports
+# Build the image and run the container in detached mode, mapping required ports
 run_docker: destroy_docker build_docker
-	$(ENGINE) run -d --name qtt -p 8443:8443 -p 8888:8888 inovexis/qtt:latest
+	$(ENGINE) run -d --name qtt -p 8443:8443 -p 8888:8888 $(IMAGE):latest
 
-# View logs from the QTT Docker container
+# View logs from the QTT container
 logs_docker:
 	$(ENGINE) logs -f qtt
 
@@ -273,6 +263,20 @@ logs_mssql:
 clean:
 	$(MAVEN) clean
 
-# Run tests
+# Run unit tests
 test:
 	$(MAVEN) test
+
+# Black-box regression suite against a fresh test stack (Derby, no Redis)
+it:
+	QTT_IMAGE=$(IMAGE):latest scripts/stack.sh up
+	-scripts/stack.sh it
+	scripts/stack.sh down
+
+# Full regression gate (all databases, Redis, restart, UI, TLS); see docs/quarkus-migration-plan.md
+gate:
+	scripts/gate.sh $(IMAGE):latest
+
+# Measure the image; results go to docs/perf/
+measure:
+	python3 scripts/measure.py --image $(IMAGE):latest --label "$${LABEL:-local}"

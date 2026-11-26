@@ -20,7 +20,7 @@ This module is responsible for:
 Routes follow this standard pattern:
 
 ```
-HTTP Request (Jetty)
+HTTP Request (Camel Netty HTTP, port 8888)
   → Datasource Status Check
   → Freemarker Template Processing (SPARQL generation)
   → Cache Check (optional)
@@ -35,13 +35,14 @@ HTTP Request (Jetty)
 #### 1. CamelKarafComponent
 **Location**: `CamelKarafComponent.java`
 
-The main OSGi component that:
-- Creates and manages the Camel context (`OsgiDefaultCamelContext`)
-- Loads all routes from the database on activation
-- Configures template directory location
-- Registers the Camel context as an OSGi service
+An `@ApplicationScoped` CDI bean (the name is historical) that:
+- Uses the application's single Camel context, provided by Camel Quarkus and injected with `@Inject`
+- Loads all routes from the database at startup (observes the Quarkus `StartupEvent`) and removes them on shutdown
+- Configures template directory location (creating it if needed)
+- Binds `RdfResultsJsonifier` in the Camel registry
 
-**Configuration**: `com.inovexcorp.queryservice.routebuilder.cfg`
+**Configuration**: `com.inovexcorp.queryservice.routebuilder.templateLocation` in `application.properties`
+(read via `OsgiConfig`)
 - `templateLocation`: Directory path for Freemarker template files
 
 #### 2. CamelRouteTemplateBuilder
@@ -299,20 +300,17 @@ POST /api/routes/clone/myRoute
 
 ## Configuration
 
-### OSGi Configuration Files
+### Application Properties
 
-Located in `query-service-distribution/src/main/resources/etc/`:
+Set in `query-service-app/src/main/resources/application.properties` (read via `OsgiConfig`; property names keep the
+former OSGi PID prefixes):
 
-**`com.inovexcorp.queryservice.routebuilder.cfg`**:
 ```properties
-# Location where Freemarker templates are stored
-templateLocation=/path/to/templates
-```
+# Location where Freemarker templates are stored (relative to the working directory, /opt/qtt in containers)
+com.inovexcorp.queryservice.routebuilder.templateLocation=data/templates/
 
-**`com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController.cfg`**:
-```properties
 # Base URL for route endpoints (returned in API responses)
-baseUrl=http://localhost:8888
+com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController.baseUrl=${API_BASE_URL:http://localhost:8888}
 ```
 
 ### Environment Variables
@@ -336,11 +334,14 @@ Relevant to this module (managed by other modules but impact route behavior):
 - **camel-anzo**: Custom Camel component for Anzo connectivity
 
 ### External Dependencies
-- **Apache Camel 3.20.5**: Route building, processors, components
-- **Camel Jetty**: HTTP endpoint exposure (port 8888)
+- **Apache Camel 4 (Camel Quarkus)**: Route building, processors, components
+- **Camel Netty HTTP**: HTTP endpoint exposure (port 8888)
 - **Camel Freemarker**: Template processing
-- **JAX-RS**: REST API implementation
-- **OSGi Declarative Services**: Component lifecycle and dependency injection
+- **Quarkus REST (Jakarta REST)**: REST API implementation
+- **CDI (Quarkus ArC)**: Bean lifecycle and dependency injection
+
+The Camel components used at runtime (`netty-http`, `freemarker`, management) come from the Camel Quarkus extensions
+in `query-service-app`; this module uses them only in tests.
 - **Lombok**: Boilerplate reduction
 - **JSON**: JSON processing for request/response
 
@@ -395,17 +396,16 @@ Unit tests use **Mockito** for mocking services:
 - `RouteManagementServiceImplTest`: Service layer
 - `RoutesControllerTest`, `DataSourcesControllerTest`, etc.: REST controllers
 
-### OSGi Bundle
+### Packaging
 
-This module is packaged as an OSGi bundle using `maven-bundle-plugin`:
-- **Bundle-SymbolicName**: `com.inovexcorp.queryservice.query-service-route-builder`
-- **Service-Component**: Uses OSGi Declarative Services annotations
+This module is a plain jar with a Jandex index (`jandex-maven-plugin`), so Quarkus discovers its CDI beans and REST
+resources when `query-service-app` is built.
 
 ### Common Issues
 
 **Issue**: Routes not loading on startup
 - **Cause**: Invalid `templateLocation` configuration
-- **Fix**: Verify path in `com.inovexcorp.queryservice.routebuilder.cfg` exists and is writable
+- **Fix**: Verify `com.inovexcorp.queryservice.routebuilder.templateLocation` points to a writable directory
 
 **Issue**: Cache not working
 - **Cause**: Redis unavailable or `REDIS_ENABLED=false`
@@ -423,15 +423,14 @@ This module is packaged as an OSGi bundle using `maven-bundle-plugin`:
 
 ### Camel Context Registration
 
-The module registers the Camel context as an OSGi service:
-```java
-serviceRegistration = bundleContext.registerService(CamelContext.class, camelContext, null);
-```
+The application has a single Camel context, created by Camel Quarkus and named `query-service-route-builder` (via
+`camel.context.name` in `application.properties`). `BasicContextManager` exposes it through the `ContextManager`
+interface.
 
 Other modules can inject this context via:
 ```java
-@Reference
-private ContextManager contextManager;
+@Inject
+ContextManager contextManager;
 
 CamelContext ctx = contextManager.getDefaultContext();
 ```

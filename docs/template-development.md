@@ -373,11 +373,14 @@ OPTIONAL { ?person foaf:mbox ?email . }  # Only if truly optional
 
 **Check Generated SPARQL:**
 
-Enable Karaf logging to see the generated SPARQL queries:
+Enable DEBUG logging for `com.inovexcorp.queryservice` to see the generated SPARQL queries. Log levels are set at
+startup (see [Troubleshooting](troubleshooting.md#log-levels)):
 
 ```bash
-# In Karaf console
-log:set DEBUG com.inovexcorp.queryservice
+# Start QTT with DEBUG logging for QTT's own classes
+docker run -d --name qtt \
+  -e QUARKUS_LOG_CATEGORY__COM_INOVEXCORP_QUERYSERVICE__LEVEL=DEBUG \
+  ...
 
 # View logs
 docker logs -f qtt

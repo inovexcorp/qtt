@@ -1,10 +1,11 @@
 # Query Service Web
 
-An Angular-based web interface for the Query Service, packaged as an OSGi bundle for deployment in Apache Karaf.
+An Angular-based web interface for the Query Service, packaged as a jar of static resources that the Quarkus
+application (`query-service-app`) serves.
 
 ## Overview
 
-Query Service Web is a single-page application (SPA) built with Angular that provides a user interface for managing query routes, datasources, and monitoring metrics. The application is uniquely packaged as an OSGi bundle, allowing it to be deployed directly into an Apache Karaf container alongside the backend services.
+Query Service Web is a single-page application (SPA) built with Angular that provides a user interface for managing query routes, datasources, and monitoring metrics. The build places the compiled application under `META-INF/resources` in the module's jar; `query-service-app` depends on the jar, and Quarkus serves those files at `/` alongside the REST API.
 
 **Key Features:**
 - Routes management with Freemarker template editing
@@ -16,27 +17,25 @@ Query Service Web is a single-page application (SPA) built with Angular that pro
 
 ## Architecture
 
-### OSGi HTTP Whiteboard Integration
+### Static Resources in Quarkus
 
-The Angular application is served through OSGi's HTTP Whiteboard pattern using two key components:
+The module contains no Java code. The Angular build output is written to `target/classes/META-INF/resources`, which
+Quarkus serves as static content from the classpath. `query-service-app` adds a small `SpaFallback` route that serves
+`index.html` for UI paths that are not files (anything outside `/queryrest` whose last path segment has no
+extension).
 
-1. **`WebResources.java`**: Registers the compiled Angular application (`/build` directory) as static web resources
-2. **`QueryServiceContextHelper.java`**: Custom servlet context that handles SPA routing by redirecting all non-file requests to `index.html`
-
-This architecture allows the Angular SPA to:
-- Be deployed as a native OSGi bundle
+This allows the Angular SPA to:
+- Ship inside the single QTT application, with no separate web server
 - Use hash-based routing (`/#/routes`, `/#/metrics`, etc.)
-- Coexist with JAX-RS REST endpoints in the same Karaf container
-- Be hot-reloaded when the bundle is updated
+- Share the HTTP server (ports 8443 HTTPS and 8080 HTTP) with the REST endpoints under `/queryrest`
 
 ### Application Flow
 
 ```
-User Request → Karaf HTTP Service → OSGi HTTP Whiteboard
+User Request → Quarkus HTTP server (8443 / 8080)
                                      ↓
-                          QueryServiceContextHelper
-                                     ↓
-                    WebResources (serves /build/*)
+                 Static resources (META-INF/resources/*)
+                 or SpaFallback → index.html
                                      ↓
                               Angular SPA
                                      ↓
@@ -62,10 +61,9 @@ User Request → Karaf HTTP Service → OSGi HTTP Whiteboard
 - **Angular CLI**: 18.2.0
 - **TypeScript**: 5.5.0
 
-### OSGi Integration
-- **OSGi Core**: Declarative Services
-- **Pax Web**: 8.0.11 - HTTP Whiteboard implementation
-- **Maven Bundle Plugin**: OSGi bundle packaging
+### Packaging
+- **frontend-maven-plugin**: Runs npm install, tests and build during the Maven build
+- **Jar packaging**: Build output under `META-INF/resources`, served by `query-service-app`
 
 ## Project Structure
 
@@ -73,9 +71,6 @@ User Request → Karaf HTTP Service → OSGi HTTP Whiteboard
 query-service-web/
 ├── src/
 │   ├── main/
-│   │   ├── java/com/inovexcorp/queryservice/web/
-│   │   │   ├── WebResources.java           # OSGi HTTP Whiteboard resource registration
-│   │   │   └── QueryServiceContextHelper.java  # SPA routing handler
 │   │   └── resources/
 │   │       └── public/                      # Angular application root
 │   │           ├── app/
@@ -155,17 +150,21 @@ The `pom.xml` uses the `frontend-maven-plugin` to automate the Node.js/Angular b
    - Installs dependencies from `package.json`
    - Uses `--legacy-peer-deps` for compatibility
 
-3. **ng build** (prepare-package phase)
-   - Compiles Angular application with Angular CLI
-   - Outputs to `target/classes/build/`
+3. **npm test** (prepare-package phase)
+   - Runs the Karma unit tests in headless Chrome with code coverage
 
-4. **Bundle Packaging** (package phase)
-   - Maven Bundle Plugin packages the build output into an OSGi bundle
-   - Includes both Angular assets and Java OSGi classes
+4. **ng build** (prepare-package phase)
+   - Compiles Angular application with Angular CLI
+   - Outputs to `target/classes/META-INF/resources/`
+
+5. **Jar Packaging** (package phase)
+   - The build output is packaged into the module's jar
 
 ### Build Output
 
-The compiled application is placed in `target/classes/build/` which becomes part of the OSGi bundle's classpath. The `WebResources` component then exposes this directory at the root HTTP path (`/`).
+The compiled application is placed in `target/classes/META-INF/resources/`, so it ends up under
+`META-INF/resources` in the jar. Quarkus serves that classpath directory at the root HTTP path (`/`) of
+`query-service-app`.
 
 ## Development Setup
 
@@ -287,52 +286,30 @@ Tests are located alongside components with `.spec.ts` extension.
 
 ## Deployment
 
-### As Part of Full Distribution
+### As Part of the QTT Application
 
-The web bundle is automatically included in the Karaf distribution:
+The web jar is a dependency of `query-service-app` and is included in the application and container image:
 
 ```bash
 # From project root
-mvn clean install
+make build
 
-# Run the distribution
-cd query-service-distribution/target/assembly
-bin/start
+# Run the application
+make run
 ```
 
 The web UI will be available at:
-- Production: http://localhost:8181/ (Karaf HTTP port)
-- The exact port depends on your Karaf HTTP configuration
+- https://localhost:8443/ (HTTPS)
+- http://localhost:8080/ (plain HTTP)
 
-### Manual Bundle Deployment
-
-Deploy the web bundle to a running Karaf instance:
-
-```bash
-# Copy the bundle
-cp query-service-web/target/query-service-web-*.jar \
-   $KARAF_HOME/deploy/
-
-# Or install via Karaf console
-karaf@root()> bundle:install -s mvn:com.inovexcorp.queryservice/query-service-web/1.0.39-SNAPSHOT
-```
-
-### Verify Deployment
-
-Check bundle status in Karaf console:
-
-```bash
-karaf@root()> bundle:list | grep web
-```
-
-You should see the bundle in "Active" state.
+There is no separate deployment of the web module; rebuild `query-service-app` (or the image) to pick up UI changes.
 
 ## Configuration
 
 ### Build Configuration
 
 **angular.json**: Angular CLI build configuration
-- Output path: `target/classes/build`
+- Output path: `target/classes/META-INF/resources`
 - Source root: `src/main/resources/public`
 - Custom webpack config for Monaco Editor
 
@@ -350,7 +327,7 @@ You should see the bundle in "Active" state.
 The Angular application adapts to the backend environment:
 
 - **API Base URL**: Determined by backend configuration (`/queryrest/api/`)
-- **Hash Routing**: Enabled for OSGi compatibility
+- **Hash Routing**: Enabled (`useHash: true`)
 - **Environment Files**: `environment.ts` (dev) and `environment.prod.ts` (prod)
 
 ## Development Notes
@@ -358,9 +335,9 @@ The Angular application adapts to the backend environment:
 ### Why Hash Routing?
 
 The application uses hash-based routing (`/#/routes`) instead of HTML5 push-state routing because:
-1. OSGi HTTP Whiteboard serves static resources
+1. Quarkus serves the UI as static resources
 2. Hash routing doesn't require server-side URL rewriting
-3. The `QueryServiceContextHelper` handles SPA routing by serving `index.html` for non-file requests
+3. As a fallback, `SpaFallback` in `query-service-app` serves `index.html` for non-file UI paths
 
 ### Monaco Editor Integration
 
@@ -401,23 +378,14 @@ npm install --legacy-peer-deps
 mvn clean install
 ```
 
-### Bundle Not Active in Karaf
-
-**Problem**: Web bundle shows "Installed" but not "Active"
-
-**Solution**:
-1. Check Karaf logs: `log:tail`
-2. Verify Pax Web is installed: `bundle:list | grep pax-web`
-3. Check for missing dependencies: `bundle:diag <bundle-id>`
-
 ### Cannot Access Web UI
 
-**Problem**: http://localhost:8181 shows 404
+**Problem**: https://localhost:8443 shows 404
 
 **Solution**:
-1. Verify web bundle is active: `bundle:list | grep web`
-2. Check HTTP service port: `config:property-get org.osgi.service.http.port`
-3. Check Pax Web configuration: `config:list | grep pax.web`
+1. Check that the web jar contains the build: `unzip -l query-service-web/target/query-service-web-*.jar | grep META-INF/resources/index.html`
+2. Rebuild `query-service-app` after rebuilding the web module (or use `make build`)
+3. Check the QTT console log for startup errors
 
 ### Dev Server Proxy Errors
 
@@ -443,7 +411,7 @@ mvn clean install
 - **query-service-persistence**: JPA entities for routes/datasources
 - **query-service-metrics**: JMX metrics collection
 - **query-service-cache**: Redis caching layer
-- **query-service-distribution**: Karaf assembly including this web bundle
+- **query-service-app**: Quarkus application that serves this UI
 
 ## Contributing
 
@@ -453,4 +421,4 @@ When making changes to the web module:
 2. **Run tests**: `npm test` before committing
 3. **Update models**: Keep TypeScript interfaces in sync with backend DTOs
 4. **Build verification**: Run full Maven build before creating PR
-5. **Bundle test**: Deploy to Karaf and verify bundle activation
+5. **Application test**: Run `make run` and check the UI at https://localhost:8443

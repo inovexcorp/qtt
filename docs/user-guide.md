@@ -8,13 +8,14 @@ This tutorial walks you through creating your first query route from start to fi
 
 ### Prerequisites
 
-- QTT is running and accessible at http://localhost:8080
+- QTT is running and accessible at https://localhost:8443 (or over plain HTTP at http://localhost:8080)
 - You have access to an Altair Graph Studio graph database instance
 - Basic familiarity with SPARQL and RDF
 
 ### Step 1: Access the Web UI
 
-1. Open your browser and navigate to: **http://localhost:8080/**
+1. Open your browser and navigate to: **https://localhost:8443/** (accept the self-signed certificate warning if
+   you use the default keystore)
 2. You should see the Query Templating Tool dashboard
 
 ### Step 2: Create Your First Datasource
@@ -375,7 +376,7 @@ The Settings page displays system information and statistics.
 
 - **Version**: Application version number
 - **System Uptime**: Formatted uptime duration
-- **Database Type**: Active database driver (Derby/PostgreSQL/SQL Server)
+- **Database Type**: Database driver name as configured by `DB_DRIVER_NAME` (Derby/PostgreSQL/SQL Server)
 - **Remote Database Address**: JDBC connection URL
 
 #### Application Stats Card

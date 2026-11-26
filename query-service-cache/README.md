@@ -45,7 +45,7 @@ Production implementation using [Lettuce](https://lettuce.io/) Redis client.
 - GZIP compression for cached values (configurable)
 - Statistics tracking (hits, misses, errors, evictions)
 - Fail-open error handling
-- OSGi Declarative Services integration
+- CDI bean (`@ApplicationScoped`); configuration loaded in `@PostConstruct` via `OsgiConfig`
 
 **Key Components:**
 ```
@@ -67,7 +67,7 @@ Fallback implementation when Redis is disabled or unavailable. Returns empty res
 | `CacheKey`    | Builds consistent cache keys using SHA-256 hashing         |
 | `CacheStats`  | Statistics: hits, misses, errors, evictions, key count     |
 | `CacheInfo`   | Connection details: enabled, connected, host, port, config |
-| `CacheConfig` | OSGi configuration metadata                                |
+| `CacheConfig` | Configuration annotation type (read via `OsgiConfig`)      |
 
 ## Camel Route Integration
 
@@ -152,7 +152,9 @@ Where `hash = SHA-256(query + "|" + graphmartUri + "|" + layerUris)`
 
 ## Configuration
 
-Configuration is managed via OSGi Config Admin in `com.inovexcorp.queryservice.cache.cfg`.
+Configuration is read from `application.properties` (in `query-service-app`) via `OsgiConfig`. Property names are
+prefixed with `com.inovexcorp.queryservice.cache.` (e.g. `com.inovexcorp.queryservice.cache.redis.enabled`), and each
+is bound to the environment variable shown. Changes require a restart.
 
 ### Global Configuration Properties
 
@@ -195,12 +197,12 @@ Routes can override cache behavior in the `CamelRouteTemplate` entity:
 ### Configuration File Location
 
 ```
-query-service-distribution/src/main/resources/etc/com.inovexcorp.queryservice.cache.cfg
+query-service-app/src/main/resources/application.properties
 ```
 
-After installation, configuration is available in:
-```
-$KARAF_HOME/etc/com.inovexcorp.queryservice.cache.cfg
+For example:
+```properties
+com.inovexcorp.queryservice.cache.redis.enabled=${REDIS_ENABLED:false}
 ```
 
 ## Features
@@ -421,22 +423,19 @@ curl https://localhost:8443/queryrest/api/routes/cache/info
 |-----------------------------------------------|-------------|-------------------------|
 | `io.lettuce:lettuce-core`                     | 6.8.1       | Async Redis client      |
 | `org.apache.commons:commons-pool2`            | 2.12.1      | Connection pooling      |
-| `com.github.ben-manes.caffeine:caffeine`      | 2.9.3       | In-memory stats caching |
+| `com.github.ben-manes.caffeine:caffeine`      | 3.2.4       | In-memory stats caching |
 | `com.fasterxml.jackson.core:jackson-databind` | (inherited) | JSON serialization      |
+| `query-service-core`                          | (project)   | `OsgiConfig`            |
 
-### OSGi Dependencies
-
-- `org.osgi.service.component.annotations` - Declarative Services
-- `org.osgi.service.metatype.annotations` - Configuration metadata
+The module is a plain jar with a Jandex index, so Quarkus discovers `RedisCacheService` as a CDI bean.
 
 ### Test Dependencies
 
 | Dependency                          | Version | Purpose                 |
 |-------------------------------------|---------|-------------------------|
-| `org.junit.jupiter:junit-jupiter`   | 5.9.3   | Test framework          |
-| `org.mockito:mockito-core`          | 5.3.1   | Mocking framework       |
-| `org.assertj:assertj-core`          | 3.24.2  | Fluent assertions       |
-| `org.testcontainers:testcontainers` | 1.19.0  | Redis integration tests |
+| `org.junit.jupiter:junit-jupiter`   | (BOM)   | Test framework          |
+| `org.mockito:mockito-core`          | (BOM)   | Mocking framework       |
+| `org.assertj:assertj-core`          | (BOM)   | Fluent assertions       |
 
 ## Testing
 
@@ -452,21 +451,8 @@ Located in `src/test/java/com/inovexcorp/queryservice/cache/`:
 
 ### Integration Tests
 
-Full integration tests use **Testcontainers** to spin up a real Redis instance:
-
-```java
-@Container
-static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
-    .withExposedPorts(6379);
-```
-
-**Test Coverage:**
-- Connection establishment and pooling
-- Get/put/delete operations
-- Pattern matching and bulk deletion
-- Compression/decompression
-- Statistics tracking
-- Error handling and fail-open behavior
+Redis behavior against a real Redis instance is covered by the black-box regression suite (`query-service-it`),
+which `scripts/gate.sh` runs on Derby + Redis and PostgreSQL + Redis stacks.
 
 ### Running Tests
 
@@ -633,7 +619,7 @@ redis-cli KEYS "qtt:cache:*" | wc -l
 
 **Checks:**
 1. Verify Redis is running: `redis-cli PING` → `PONG`
-2. Check configuration: `redis.enabled=true`
+2. Check configuration: `REDIS_ENABLED=true`
 3. Verify route has `cacheEnabled=true`
 4. Check logs for connection errors
 
@@ -651,7 +637,7 @@ redis-cli KEYS "qtt:cache:*" | wc -l
 **Symptoms:** Timeout errors in logs
 
 **Solutions:**
-1. Increase `redis.pool.maxTotal`
+1. Increase `REDIS_POOL_MAX_TOTAL`
 2. Check for connection leaks (should be none with try-with-resources)
 3. Verify Redis performance with `redis-cli INFO stats`
 
@@ -660,7 +646,7 @@ redis-cli KEYS "qtt:cache:*" | wc -l
 **Symptoms:** GZIP decompression exceptions
 
 **Solutions:**
-1. Verify all instances use same `cache.compressionEnabled` setting
+1. Verify all instances use same `CACHE_COMPRESSION_ENABLED` setting
 2. Clear cache after changing compression setting: `DELETE /api/routes/cache`
 
 ## License
@@ -671,4 +657,4 @@ Copyright (c) 2024 Cambridge Semantics Inc.
 
 **Module:** query-service-cache
 **Package:** `com.inovexcorp.queryservice.cache`
-**Bundle:** `com.inovexcorp.queryservice.query-service-cache`
+**Artifact:** `com.inovexcorp.queryservice:query-service-cache`

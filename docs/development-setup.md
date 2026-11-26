@@ -29,38 +29,57 @@ make build_no_web
 make build_docker
 ```
 
-### Configuration Before Building
+The build produces a Quarkus application in `query-service-app/target/quarkus-app/`. `make build_docker` packages it
+into the container image `inovexis/qtt:latest` using `query-service-app/src/main/docker/Dockerfile.jvm`.
 
-Configure the template location before building.
+### Configuration
 
-Edit `query-service-distribution/src/main/resources/etc/com.inovexcorp.queryservice.routebuilder.cfg`:
+The application configuration is `query-service-app/src/main/resources/application.properties` (see the
+[Configuration Reference](configuration.md)). For example, the template location:
 
 ```properties
-templateLocation=data/templates/
+com.inovexcorp.queryservice.routebuilder.templateLocation=data/templates/
 ```
 
-This path is relative to the Karaf home directory (`/opt/qtt` in containers).
+This path is relative to the working directory: `query-service-app/target` for `make run`, `/opt/qtt` in containers.
 
 ## Makefile Commands Reference
 
 ### Build Commands
 
-| Command                | Description                                     |
-|------------------------|-------------------------------------------------|
-| `make build`           | Build entire project with Maven                 |
-| `make build_no_web`    | Build excluding query-service-web module        |
-| `make refresh_bundles` | Rebuild bundles (excludes web and distribution) |
-| `make build_docker`    | Build Docker image                              |
+| Command             | Description                                                    |
+|---------------------|----------------------------------------------------------------|
+| `make build`        | Build entire project with Maven (Java and Angular tests)       |
+| `make build_no_web` | Build excluding query-service-web module (uses last UI build)  |
+| `make build_docker` | Build the container image `inovexis/qtt:latest`                |
 
 ### Local Run Commands
 
-| Command              | Description                                           |
-|----------------------|-------------------------------------------------------|
-| `make run`           | Run Karaf (builds if needed, uses Derby by default)   |
-| `make build_and_run` | Build then run Karaf                                  |
-| `make postgres_run`  | Start PostgreSQL and run Karaf with PostgreSQL config |
-| `make mssql_run`     | Start MSSQL and run Karaf with MSSQL config           |
-| `make stop`          | Stop running Karaf instance                           |
+| Command              | Description                                                         |
+|----------------------|---------------------------------------------------------------------|
+| `make run`           | Run QTT (builds if needed, uses Derby by default)                   |
+| `make dev`           | Run QTT in Quarkus dev mode with live reload (`make build` first)   |
+| `make build_and_run` | Build then run QTT                                                  |
+| `make postgres_run`  | Start PostgreSQL and run QTT with PostgreSQL config                 |
+| `make mssql_run`     | Start MSSQL and run QTT with MSSQL config                           |
+| `make stop`          | Stop a QTT started with `make run`                                  |
+
+`make run` starts `query-service-app/target/quarkus-app/quarkus-run.jar` from `query-service-app/target` (so the
+Derby database and templates go to `query-service-app/target/data`) with the bundled development keystore. The UI is
+at https://localhost:8443. Because `make build` runs `mvn clean install`, it deletes that local Derby database and
+its templates. To run it by hand:
+
+```bash
+cd query-service-app/target && java -jar quarkus-app/quarkus-run.jar
+```
+
+### Container Commands
+
+| Command               | Description                                   |
+|-----------------------|-----------------------------------------------|
+| `make run_docker`     | Build the image and run it as container `qtt` |
+| `make logs_docker`    | Follow the `qtt` container logs               |
+| `make destroy_docker` | Remove the `qtt` container                    |
 
 ### Database Management Commands
 
@@ -79,11 +98,27 @@ This path is relative to the Karaf home directory (`/opt/qtt` in containers).
 
 ### Utility Commands
 
-| Command      | Description                         |
-|--------------|-------------------------------------|
-| `make clean` | Remove build artifacts              |
-| `make test`  | Run Maven tests                     |
-| `make help`  | Show help message with all commands |
+| Command        | Description                                                                 |
+|----------------|-----------------------------------------------------------------------------|
+| `make clean`   | Remove build artifacts                                                      |
+| `make test`    | Run Maven tests                                                             |
+| `make it`      | Run the black-box regression suite against `inovexis/qtt:latest` (Derby)   |
+| `make gate`    | Full regression gate: all databases, Redis, restart, UI, TLS                |
+| `make measure` | Measure image size, cold start, memory and throughput                       |
+| `make help`    | Show help message with all commands                                         |
+
+### Regression Tests
+
+`query-service-it` is an HTTP-only regression suite (JUnit 5 + RestAssured) that runs against a running QTT stack.
+`scripts/stack.sh up` starts QTT with a mock Anzo (and optionally Redis, PostgreSQL or SQL Server, selected with
+`QTT_DB` and `QTT_REDIS`); then run the suite with:
+
+```bash
+mvn -Pit -pl query-service-it verify
+```
+
+`make it` does both for the Derby stack. `scripts/gate.sh` (`make gate`) runs the suite on Derby, Derby + Redis,
+PostgreSQL + Redis and SQL Server, plus restart, UI, TLS and real-Anzo checks.
 
 ## Recommended Setup: PostgreSQL + Redis
 
@@ -128,7 +163,7 @@ This command:
 1. Starts PostgreSQL container if not already running
 2. Sets PostgreSQL environment variables automatically
 3. Sources your `.env` file if present (for Redis or other config)
-4. Launches Karaf with the configured settings
+4. Launches QTT with the configured settings
 
 ### Step 4: Enable Redis Caching (Optional)
 
@@ -153,20 +188,20 @@ make postgres_run
 ### Step 5: Verify Installation
 
 ```bash
-# Check Karaf is running
-# Access Web UI at: http://localhost:8080
+# Check QTT is running
+# Access Web UI at: https://localhost:8443
 
 # Check API
-curl http://localhost:8080/queryrest/api/settings
+curl -k https://localhost:8443/queryrest/api/settings
 
 # Check cache info (if Redis enabled)
-curl http://localhost:8080/queryrest/api/routes/cache/info
+curl -k https://localhost:8443/queryrest/api/routes/cache/info
 ```
 
 ### Step 6: Stopping Services
 
 ```bash
-# Stop Karaf
+# Stop QTT
 make stop
 
 # Stop database containers
@@ -206,21 +241,23 @@ make logs_postgres
 
 # View Redis logs
 make logs_redis
-
-# View Karaf logs (in separate terminal)
-tail -f query-service-distribution/target/assembly/data/log/karaf.log
 ```
+
+QTT logs to the console of the terminal running `make run` / `make postgres_run`. For more detail, start it with
+e.g. `QUARKUS_LOG_CATEGORY__COM_INOVEXCORP__LEVEL=DEBUG make run`.
 
 ### Rebuild after code changes
 
 ```bash
 # For backend changes (faster, skips Angular build)
-make refresh_bundles
+make build_no_web
 
-# Restart Karaf
+# Restart QTT
 make stop
 make postgres_run
 ```
+
+Alternatively, `make dev` runs QTT in Quarkus dev mode, which reloads application changes without a restart.
 
 ### Start containers individually
 
@@ -243,9 +280,10 @@ qtt/
 ├── query-service-metrics/         # JMX metrics collection
 ├── query-service-cache/           # Redis caching layer
 ├── query-service-sparqi/          # AI assistant
-├── query-service-feature/         # Karaf feature descriptor
-├── query-service-distribution/    # Complete Karaf distribution
 ├── query-service-web/             # Angular frontend
+├── query-service-app/             # Camel Quarkus application and container image
+├── query-service-it/              # Black-box HTTP regression suite
+├── scripts/                       # Test stack, regression gate and measurement scripts
 ├── Makefile                       # Build and run commands
 ├── compose.yml                    # Docker Compose for dependencies
 └── docs/                          # Documentation

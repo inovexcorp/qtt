@@ -4,8 +4,9 @@ This guide covers all configuration options for QTT.
 
 ## Environment Variables Reference
 
-All configuration values can be overridden using environment variables. The system follows the pattern:
-`$[env:VARIABLE_NAME;default=value]`
+All configuration values can be overridden using environment variables. The application configuration
+(`query-service-app/src/main/resources/application.properties`, packaged into the application) follows the pattern:
+`${VARIABLE_NAME:default}`
 
 ### Core Database Configuration
 
@@ -13,16 +14,22 @@ This configuration controls the database connection for the persistence layer.
 
 | Variable         | Default                                | Description            | Required |
 |------------------|----------------------------------------|------------------------|----------|
-| `DB_DRIVER_NAME` | `derby`                                | JDBC driver identifier | Optional |
 | `DB_URL`         | `jdbc:derby:data/database;create=true` | JDBC connection string | Optional |
 | `DB_USER`        | `user`                                 | Database username      | Optional |
 | `DB_PASSWORD`    | `password`                             | Database password      | Optional |
+| `QTT_DB_KIND`    | (detected from `DB_URL`)               | Database type override | Optional |
+| `DB_DRIVER_NAME` | `derby`                                | Database type label    | Optional |
 
-**Supported `DB_DRIVER_NAME` values:**
+**Database selection:** the database type is detected from the `DB_URL` prefix:
 
-- `derby` - Apache Derby (embedded)
-- `PostgreSQL JDBC Driver` - PostgreSQL
-- `Microsoft JDBC Driver for SQL Server` - SQL Server
+- `jdbc:derby:` - Apache Derby (embedded)
+- `jdbc:postgresql:` - PostgreSQL
+- `jdbc:sqlserver:` - SQL Server
+
+`QTT_DB_KIND` (`derby`, `postgresql` or `mssql`) overrides the detection. `DB_DRIVER_NAME` no longer selects the
+driver, but it is still accepted and its value is what the Settings page shows as the database type, so keep setting
+it (`derby`, `PostgreSQL JDBC Driver` or `Microsoft JDBC Driver for SQL Server`) if you want that display to be
+accurate.
 
 ### API Configuration
 
@@ -118,174 +125,143 @@ Configuration for AES-256-GCM encryption of datasource passwords stored in the d
 - **Environment Variables Only**: Never commit encryption keys to version control
 - **Key Rotation**: Periodically rotate encryption keys (requires re-encrypting all stored passwords)
 
-## Configuration Files in Distribution
+## Application Properties
 
-All configuration files are located in `/opt/qtt/etc/` (in containers) or
-`query-service-distribution/src/main/resources/etc/` (in source).
+All other settings live in `query-service-app/src/main/resources/application.properties`, which is packaged into the
+application. Property names keep the prefixes of the former `etc/*.cfg` files (for example,
+`com.inovexcorp.queryservice.cache.redis.enabled=${REDIS_ENABLED:false}`).
+
+Any property can be overridden without rebuilding:
+
+- **Java system property**: `-Dcom.inovexcorp.queryservice.scheduler.CleanMetrics.minutesToLive=60`
+- **Environment variable**: Quarkus maps a property name to an environment variable by replacing every character
+  that is not a letter or digit with `_` and upper-casing it, e.g.
+  `COM_INOVEXCORP_QUERYSERVICE_SCHEDULER_CLEANMETRICS_MINUTESTOLIVE=60`
+
+Configuration is read at startup; changes take effect after a restart.
 
 ### Core Service Configuration
 
-**`com.inovexcorp.queryservice.routebuilder.cfg`**
-
 ```properties
-# Freemarker template directory (relative to Karaf home)
-templateLocation=data/templates/
-```
-
-**`com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController.cfg`**
-
-```properties
+# Freemarker template directory (relative to the working directory, /opt/qtt in containers)
+com.inovexcorp.queryservice.routebuilder.templateLocation=data/templates/
 # API base URL exposed to UI
-baseUrl=$[env:API_BASE_URL;default=http://localhost:8888]
+com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController.baseUrl=${API_BASE_URL:http://localhost:8888}
 ```
 
 ### Database Configuration
 
-**`org.ops4j.datasource-qtt.cfg`**
+One datasource is configured per supported database; the one matching `DB_URL` (or `QTT_DB_KIND`) is activated at
+startup. For example, PostgreSQL:
 
 ```properties
-osgi.jdbc.driver.name=$[env:DB_DRIVER_NAME;default=derby]
-url=$[env:DB_URL;default=jdbc:derby:data/database;create=true]
-user=$[env:DB_USER;default=user]
-password=$[env:DB_PASSWORD;default=password]
-# Connection pool settings
-jdbc.pool.maxTotal=10
-jdbc.pool.maxIdle=10
-jdbc.pool.minIdle=10
-jdbc.factory.maxConnLifetimeMillis=-1
-pool=dbcp2
-xa=false
-dataSourceName=qtt-ds
+qtt.db.url=${DB_URL:jdbc:derby:data/database;create=true}
+quarkus.datasource.postgresql.jdbc.url=${qtt.db.url}
+quarkus.datasource.postgresql.username=${DB_USER:user}
+quarkus.datasource.postgresql.password=${DB_PASSWORD:password}
+# Connection pool size
+quarkus.datasource.postgresql.jdbc.max-size=10
 ```
 
 ### Scheduler Configuration
 
-**`com.inovexcorp.queryservice.scheduler.QueryMetrics.cfg`** - Schedule for metrics collection
-
 ```properties
 # Collect metrics every minute
-scheduler.expression=0 0/1 * * * ?
-scheduler.concurrent=false
-```
+com.inovexcorp.queryservice.scheduler.QueryMetrics.scheduler.expression=0 0/1 * * * ?
 
-**`com.inovexcorp.queryservice.scheduler.CleanMetrics.cfg`** - Schedule for metrics cleanup
+# Clean old metrics every minute, keeping metrics for 30 minutes
+com.inovexcorp.queryservice.scheduler.CleanMetrics.scheduler.expression=0 0/1 * * * ?
+com.inovexcorp.queryservice.scheduler.CleanMetrics.minutesToLive=30
 
-```properties
-# Clean old metrics every minute
-scheduler.expression=0 0/1 * * * ?
-scheduler.concurrent=false
-# Keep metrics for 30 minutes
-minutesToLive=30
-```
-
-**`com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.cfg`** - Schedule for datasource health checks
-
-```properties
-# Enable/disable health checks globally
-enabled=$[env:HEALTH_CHECK_ENABLED;default=true]
-# Cron expression for health check interval (default: every 2 hours)
-scheduler.expression=$[env:HEALTH_CHECK_INTERVAL_CRON;default=0 0/2 * * * ?]
-scheduler.concurrent=false
+# Datasource health checks
+com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.enabled=${HEALTH_CHECK_ENABLED:true}
+com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.scheduler.expression=${HEALTH_CHECK_INTERVAL_CRON:0 0/2 * * * ?}
 # Auto-stop routes after N consecutive failures (-1 = disabled)
-consecutiveFailureThreshold=$[env:HEALTH_CHECK_FAILURE_THRESHOLD;default=-1]
-```
+com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.consecutiveFailureThreshold=${HEALTH_CHECK_FAILURE_THRESHOLD:-1}
 
-**`com.inovexcorp.queryservice.scheduler.CleanHealthRecords.cfg`** - Schedule for health record cleanup
-
-```properties
-# Clean old health records daily at midnight
-scheduler.expression=0 0 0 * * ?
-scheduler.concurrent=false
-# Keep health records for 7 days
-daysToLive=7
+# Clean old health records daily at midnight, keeping them for 7 days
+com.inovexcorp.queryservice.scheduler.CleanHealthRecords.scheduler.expression=0 0 0 * * ?
+com.inovexcorp.queryservice.scheduler.CleanHealthRecords.daysToLive=7
 ```
 
 ### SPARQi Configuration
 
-**`com.inovexcorp.queryservice.sparqi.cfg`**
-
 ```properties
 # Enable/disable SPARQi
-enableSparqi=$[env:SPARQI_ENABLED;default=false]
+com.inovexcorp.queryservice.sparqi.enableSparqi=${SPARQI_ENABLED:false}
 # LLM provider configuration
-llmBaseUrl=$[env:SPARQI_LLM_BASE_URL]
-llmApiKey=$[env:SPARQI_LLM_API_KEY]
-llmModelName=$[env:SPARQI_LLM_MODEL]
+com.inovexcorp.queryservice.sparqi.llmBaseUrl=${SPARQI_LLM_BASE_URL:}
+com.inovexcorp.queryservice.sparqi.llmApiKey=${SPARQI_LLM_API_KEY:}
+com.inovexcorp.queryservice.sparqi.llmModelName=${SPARQI_LLM_MODEL:}
 # Performance tuning
-llmTimeout=$[env:SPARQI_LLM_TIMEOUT;default=90]
-llmTemperature=$[env:SPARQI_LLM_TEMPERATURE;default=0.7]
-llmMaxTokens=$[env:SPARQI_LLM_MAX_TOKENS;default=4000]
+com.inovexcorp.queryservice.sparqi.llmTimeout=${SPARQI_LLM_TIMEOUT:90}
+com.inovexcorp.queryservice.sparqi.llmTemperature=${SPARQI_LLM_TEMPERATURE:0.7}
+com.inovexcorp.queryservice.sparqi.llmMaxTokens=${SPARQI_LLM_MAX_TOKENS:4000}
 # Session management
-sessionTimeoutMinutes=$[env:SPARQI_SESSION_TIMEOUT;default=60]
-maxConversationHistory=$[env:SPARQI_MAX_CONVO_HISTORY;default=50]
+com.inovexcorp.queryservice.sparqi.sessionTimeoutMinutes=${SPARQI_SESSION_TIMEOUT:60}
+com.inovexcorp.queryservice.sparqi.maxConversationHistory=${SPARQI_MAX_CONVO_HISTORY:50}
 ```
 
 ### Cache Configuration
 
-**`com.inovexcorp.queryservice.cache.cfg`**
-
 ```properties
 # Redis Connection Settings
-redis.enabled=$[env:REDIS_ENABLED;default=false]
-redis.host=$[env:REDIS_HOST;default=localhost]
-redis.port=$[env:REDIS_PORT;default=6379]
-redis.password=$[env:REDIS_PASSWORD;default=]
-redis.database=$[env:REDIS_DATABASE;default=0]
-redis.timeout=$[env:REDIS_TIMEOUT;default=5000]
+com.inovexcorp.queryservice.cache.redis.enabled=${REDIS_ENABLED:false}
+com.inovexcorp.queryservice.cache.redis.host=${REDIS_HOST:localhost}
+com.inovexcorp.queryservice.cache.redis.port=${REDIS_PORT:6379}
+com.inovexcorp.queryservice.cache.redis.password=${REDIS_PASSWORD:}
+com.inovexcorp.queryservice.cache.redis.database=${REDIS_DATABASE:0}
+com.inovexcorp.queryservice.cache.redis.timeout=${REDIS_TIMEOUT:5000}
 # Redis Connection Pool Settings
-redis.pool.maxTotal=$[env:REDIS_POOL_MAX_TOTAL;default=20]
-redis.pool.maxIdle=$[env:REDIS_POOL_MAX_IDLE;default=10]
-redis.pool.minIdle=$[env:REDIS_POOL_MIN_IDLE;default=5]
+com.inovexcorp.queryservice.cache.redis.pool.maxTotal=${REDIS_POOL_MAX_TOTAL:20}
+com.inovexcorp.queryservice.cache.redis.pool.maxIdle=${REDIS_POOL_MAX_IDLE:10}
+com.inovexcorp.queryservice.cache.redis.pool.minIdle=${REDIS_POOL_MIN_IDLE:5}
 # Global Cache Settings
-cache.keyPrefix=$[env:CACHE_KEY_PREFIX;default=qtt:cache:]
-cache.defaultTtlSeconds=$[env:CACHE_DEFAULT_TTL;default=3600]
-cache.compressionEnabled=$[env:CACHE_COMPRESSION_ENABLED;default=true]
+com.inovexcorp.queryservice.cache.cache.keyPrefix=${CACHE_KEY_PREFIX:qtt:cache:}
+com.inovexcorp.queryservice.cache.cache.defaultTtlSeconds=${CACHE_DEFAULT_TTL:3600}
+com.inovexcorp.queryservice.cache.cache.compressionEnabled=${CACHE_COMPRESSION_ENABLED:true}
 # Cache Behavior
-cache.failOpen=$[env:CACHE_FAIL_OPEN;default=true]
-cache.statsEnabled=$[env:CACHE_STATS_ENABLED;default=true]
-cache.statsTtlSeconds=$[env:CACHE_STATS_TTL;default=5]
+com.inovexcorp.queryservice.cache.cache.failOpen=${CACHE_FAIL_OPEN:true}
+com.inovexcorp.queryservice.cache.cache.statsEnabled=${CACHE_STATS_ENABLED:true}
+com.inovexcorp.queryservice.cache.cache.statsTtlSeconds=${CACHE_STATS_TTL:5}
 ```
 
 ### Web Server Configuration
 
-**`org.ops4j.pax.web.cfg`**
-
 ```properties
-# HTTPS configuration
-org.osgi.service.http.secure.enabled=true
-org.osgi.service.http.port.secure=8080
+# Plain HTTP and HTTPS ports for the UI and REST API
+quarkus.http.port=8080
+quarkus.http.ssl-port=8443
 # SSL/TLS settings
-org.ops4j.pax.web.ssl.keystore=${karaf.etc}/keystore
-org.ops4j.pax.web.ssl.keystore.password=p@ssword1
-org.ops4j.pax.web.ssl.key.password=p@ssword1
-org.ops4j.pax.web.ssl.keystore.type=JKS
-org.ops4j.pax.web.ssl.clientauthneeded=false
-# Jetty thread pool
-org.ops4j.pax.web.server.maxThreads=200
-org.ops4j.pax.web.server.minThreads=10
-org.ops4j.pax.web.server.idleTimeout=30000
+quarkus.http.ssl.certificate.key-store-file=${KEYSTORE:etc/keystore}
+quarkus.http.ssl.certificate.key-store-password=${PASSWORD:p@ssword1}
+quarkus.http.ssl.certificate.key-store-file-type=JKS
 ```
+
+`KEYSTORE` is the path of a JKS keystore (default `etc/keystore`, i.e. `/opt/qtt/etc/keystore` in containers) and
+`PASSWORD` its password.
 
 **WARNING**: Default SSL passwords are insecure and MUST be changed for production deployments.
 
 ### Logging Configuration
 
-**`org.ops4j.pax.logging.cfg`**
+QTT logs to the console (in containers: `docker logs qtt` / `podman logs qtt`). Defaults:
 
 ```properties
 # Root logger level
-log4j2.rootLogger.level=INFO
-# Log file location
-log4j2.appender.rolling.fileName=${karaf.log}/karaf.log
-log4j2.appender.rolling.filePattern=${karaf.log}/karaf-%i.log
-# Rolling policy
-log4j2.appender.rolling.policies.size.size=16MB
-# Component-specific levels
-log4j2.logger.camel.level=INFO
-log4j2.logger.camel.name=org.apache.camel
-log4j2.logger.queryservice.level=INFO
-log4j2.logger.queryservice.name=com.inovexcorp.queryservice
+quarkus.log.level=INFO
+quarkus.log.category."org.hibernate".level=WARN
 ```
+
+Change levels with environment variables, either globally or per category:
+
+```bash
+QUARKUS_LOG_LEVEL=DEBUG
+QUARKUS_LOG_CATEGORY__COM_INOVEXCORP__LEVEL=DEBUG
+```
+
+or with system properties, e.g. `-Dquarkus.log.category."com.inovexcorp".level=DEBUG`. Per-query log lines (query
+duration, cache hits) are logged at DEBUG.
 
 ## Database Backend Configuration
 
@@ -378,6 +354,10 @@ DB_USER=qttuser
 DB_PASSWORD=SecurePassword123
 ```
 
+On SQL Server, a database created by QTT 1.x stores templates in a `varchar(max)` column; QTT converts it to
+`nvarchar(max)` automatically at first start so non-Latin template text is preserved. Text that was already stored as
+`?` cannot be recovered.
+
 ## Security Configuration
 
 ### Changing Default SSL Passwords
@@ -401,7 +381,7 @@ keytool -genkey \
 ```bash
 docker run -d \
   --name qtt \
-  -p 8080:8080 \
+  -p 8443:8443 \
   -p 8888:8888 \
   -v /path/to/keystore.jks:/opt/qtt/etc/custom-keystore:ro \
   -e KEYSTORE=/opt/qtt/etc/custom-keystore \
@@ -414,14 +394,11 @@ docker run -d \
 **Never hardcode credentials in configuration files.** Always use environment variables:
 
 ```bash
-# Use environment variables
-export DB_PASSWORD=$(cat /run/secrets/db_password)
-
-# Or Docker secrets
+# Read the secret from a file at start-up and pass it as an environment variable
+# (QTT does not support *_FILE variables)
 docker run -d \
   --name qtt \
-  --secret db_password \
-  -e DB_PASSWORD_FILE=/run/secrets/db_password \
+  -e DB_PASSWORD="$(cat ./secrets/db_password)" \
   docker.io/inovexis/qtt:latest
 ```
 
@@ -431,7 +408,7 @@ docker run -d \
 |-------------------------|--------------------|------------------------------|--------------|
 | Query Metrics           | `0 0/1 * * * ?`    | Every 1 minute               | Yes          |
 | Clean Metrics           | `0 0/1 * * * ?`    | Every 1 minute               | Yes          |
-| Datasource Health Check | `0 0/2 * * * ?`    | Every 2 hours (configurable) | Yes          |
+| Datasource Health Check | `0 0/2 * * * ?`    | Every 2 minutes (configurable) | Yes          |
 | Clean Health Records    | `0 0 0 * * ?`      | Daily at midnight            | Yes          |
 
 **Cron Format:** `second minute hour day month weekday`
@@ -445,24 +422,23 @@ docker run -d \
 
 ## Supported Database Drivers
 
-| Database     | Driver Name                            | JDBC URL Format                                    | Default Port   |
-|--------------|----------------------------------------|----------------------------------------------------|----------------|
-| Apache Derby | `derby`                                | `jdbc:derby:data/database;create=true`             | N/A (embedded) |
-| PostgreSQL   | `PostgreSQL JDBC Driver`               | `jdbc:postgresql://host:port/database`             | 5432           |
-| SQL Server   | `Microsoft JDBC Driver for SQL Server` | `jdbc:sqlserver://host:port;databaseName=database` | 1433           |
+| Database     | `QTT_DB_KIND` | JDBC URL Format                                    | Default Port   |
+|--------------|---------------|----------------------------------------------------|----------------|
+| Apache Derby | `derby`       | `jdbc:derby:data/database;create=true`             | N/A (embedded) |
+| PostgreSQL   | `postgresql`  | `jdbc:postgresql://host:port/database`             | 5432           |
+| SQL Server   | `mssql`       | `jdbc:sqlserver://host:port;databaseName=database` | 1433           |
 
 **Driver Versions (bundled):**
 
-- Derby: 10.14.2.0
-- PostgreSQL: 42.5.0
-- SQL Server: 9.4.1.jre11
+- Derby: 10.16.1.1 (opens databases created by Derby 10.14 in soft-upgrade mode)
+- PostgreSQL: 42.7.13
+- SQL Server: 13.4.0.jre11
 
 ## Port Reference
 
-| Port  | Protocol | Service          | Purpose                 | Exposed by Default |
-|-------|----------|------------------|-------------------------|--------------------|
-| 8080  | HTTP     | PAX Web          | JAX-RS API and Web UI   | Yes                |
-| 8888  | HTTP     | Camel Jetty      | Dynamic query endpoints | Yes                |
-| 5005  | TCP      | JVM Debug        | Remote debugging        | No                 |
-| 1099  | TCP      | JMX RMI Registry | Management              | No                 |
-| 44444 | TCP      | JMX RMI Server   | Management              | No                 |
+| Port  | Protocol | Service          | Purpose                     | Exposed by Default |
+|-------|----------|------------------|-----------------------------|--------------------|
+| 8443  | HTTPS    | Quarkus HTTP     | REST API and Web UI         | Yes                |
+| 8080  | HTTP     | Quarkus HTTP     | REST API and Web UI (plain) | Yes                |
+| 8888  | HTTP     | Camel Netty HTTP | Dynamic query endpoints     | Yes                |
+| 5005  | TCP      | JVM Debug        | Remote debugging (dev mode) | No                 |
