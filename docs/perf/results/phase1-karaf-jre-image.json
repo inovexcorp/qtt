@@ -1,0 +1,78 @@
+{
+  "label": "phase1-karaf-jre-image",
+  "image": "qtt:phase1",
+  "commit": "f52af70+dirty",
+  "date": "2026-11-26T16:32:37",
+  "note": "Temurin 17 JRE base, non-root, Monaco assets trimmed",
+  "image_bytes": 494928209,
+  "image_gzip_bytes": 248720260,
+  "layers": 14,
+  "cold_start": [
+    {
+      "api_ms": 8590,
+      "first_query_ms": 8717
+    },
+    {
+      "api_ms": 8577,
+      "first_query_ms": 8648
+    },
+    {
+      "api_ms": 8556,
+      "first_query_ms": 8646
+    },
+    {
+      "api_ms": 8986,
+      "first_query_ms": 9075
+    },
+    {
+      "api_ms": 10551,
+      "first_query_ms": 10649
+    },
+    {
+      "api_ms": 10398,
+      "first_query_ms": 10538
+    },
+    {
+      "api_ms": 10944,
+      "first_query_ms": 11019
+    },
+    {
+      "api_ms": 10229,
+      "first_query_ms": 10364
+    },
+    {
+      "api_ms": 9371,
+      "first_query_ms": 9425
+    },
+    {
+      "api_ms": 9328,
+      "first_query_ms": 9412
+    }
+  ],
+  "api_ready_ms_median": 9349.5,
+  "api_ready_ms_min": 8556,
+  "api_ready_ms_max": 10944,
+  "first_query_ms_median": 9418.5,
+  "first_query_ms_min": 8646,
+  "first_query_ms_max": 11019,
+  "rss_idle_mb": 818.8,
+  "load_uncached": {
+    "rps": 1845.99,
+    "p50_ms": 5,
+    "p95_ms": 11,
+    "p99_ms": 13,
+    "length_varied": 27690,
+    "errors": 0,
+    "non2xx": 0
+  },
+  "load_cached": {
+    "rps": 7339.39,
+    "p50_ms": 1,
+    "p95_ms": 3,
+    "p99_ms": 4,
+    "length_varied": 110091,
+    "errors": 0,
+    "non2xx": 0
+  },
+  "rss_after_load_mb": 856.3
+}

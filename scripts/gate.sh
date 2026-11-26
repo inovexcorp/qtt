@@ -20,7 +20,7 @@ rc=0
 record() { # name exit-code log
   local status=PASS; [[ $2 -ne 0 ]] && { status=FAIL; rc=1; }
   local counts; counts=$(grep -h -E 'Tests run: [0-9]+, Failures' "$3" 2>/dev/null | tail -1 | sed 's/^\[[A-Z]*\] //')
-  [[ -z "$counts" ]] && counts=$(grep -h -E 'passed$|pages clean$' "$3" 2>/dev/null | tail -1)
+  [[ -z "$counts" ]] && counts=$(grep -h -E 'passed$|pages clean$|FAILED' "$3" 2>/dev/null | tail -1)
   printf '%-4s %-38s %s\n' "$status" "$1" "$counts" | tee -a "$SUMMARY"
 }
 
@@ -55,5 +55,7 @@ if [[ -n "${ANZO_URL:-}" ]]; then
 fi
 podman logs qtt-it-app > "$LOGS/app-derby-true.log" 2>&1
 "$STACK" down
+"$ROOT/scripts/tls_check.sh" "$IMAGE" > "$LOGS/tls.log" 2>&1
+record "custom TLS keystore" $? "$LOGS/tls.log"
 echo "gate: $( [[ $rc -eq 0 ]] && echo PASSED || echo FAILED ) — $SUMMARY"
 exit $rc
