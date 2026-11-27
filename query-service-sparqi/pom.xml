@@ -18,6 +18,10 @@
         </dependency>
         <dependency>
             <groupId>com.inovexcorp.queryservice</groupId>
+            <artifactId>query-service-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.inovexcorp.queryservice</groupId>
             <artifactId>query-service-ontology</artifactId>
         </dependency>
         <dependency>

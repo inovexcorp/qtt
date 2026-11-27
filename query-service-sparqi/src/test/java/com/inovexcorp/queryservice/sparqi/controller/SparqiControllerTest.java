@@ -11,6 +11,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
+import java.util.Optional;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -80,7 +82,7 @@ public class SparqiControllerTest {
         when(sparqiService.startSession("test-route", "test-user"))
                 .thenReturn(mockSession);
 
-        Response response = controller.startSession("test-route", "test-user");
+        Response response = controller.startSession("test-route", "test-user", null);
 
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
         @SuppressWarnings("unchecked")
@@ -93,7 +95,7 @@ public class SparqiControllerTest {
 
     @Test
     public void testStartSession_MissingRouteId() {
-        Response response = controller.startSession(null, "test-user");
+        Response response = controller.startSession(null, "test-user", null);
 
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         @SuppressWarnings("unchecked")
@@ -104,7 +106,7 @@ public class SparqiControllerTest {
 
     @Test
     public void testStartSession_EmptyRouteId() {
-        Response response = controller.startSession("", "test-user");
+        Response response = controller.startSession("", "test-user", null);
 
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
     }
@@ -117,7 +119,7 @@ public class SparqiControllerTest {
         when(sparqiService.startSession("test-route", "anonymous"))
                 .thenReturn(mockSession);
 
-        Response response = controller.startSession("test-route", null);
+        Response response = controller.startSession("test-route", null, null);
 
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
         verify(sparqiService).startSession("test-route", "anonymous");
@@ -128,7 +130,7 @@ public class SparqiControllerTest {
         when(sparqiService.startSession(anyString(), anyString()))
                 .thenThrow(new SparqiException("Service not enabled"));
 
-        Response response = controller.startSession("test-route", "test-user");
+        Response response = controller.startSession("test-route", "test-user", null);
 
         assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
         @SuppressWarnings("unchecked")
@@ -146,7 +148,7 @@ public class SparqiControllerTest {
         SparqiController.MessageRequest request = new SparqiController.MessageRequest();
         request.setMessage("What is SPARQL?");
 
-        Response response = controller.sendMessage("session-123", request);
+        Response response = controller.sendMessage("session-123", request, null);
 
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         @SuppressWarnings("unchecked")
@@ -158,7 +160,7 @@ public class SparqiControllerTest {
 
     @Test
     public void testSendMessage_NullRequest() {
-        Response response = controller.sendMessage("session-123", null);
+        Response response = controller.sendMessage("session-123", null, null);
 
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         @SuppressWarnings("unchecked")
@@ -171,7 +173,7 @@ public class SparqiControllerTest {
         SparqiController.MessageRequest request = new SparqiController.MessageRequest();
         request.setMessage("");
 
-        Response response = controller.sendMessage("session-123", request);
+        Response response = controller.sendMessage("session-123", request, null);
 
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
     }
@@ -181,7 +183,7 @@ public class SparqiControllerTest {
         SparqiController.MessageRequest request = new SparqiController.MessageRequest();
         request.setMessage(null);
 
-        Response response = controller.sendMessage("session-123", request);
+        Response response = controller.sendMessage("session-123", request, null);
 
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
     }
@@ -194,7 +196,7 @@ public class SparqiControllerTest {
         SparqiController.MessageRequest request = new SparqiController.MessageRequest();
         request.setMessage("test");
 
-        Response response = controller.sendMessage("session-123", request);
+        Response response = controller.sendMessage("session-123", request, null);
 
         assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
     }
@@ -207,7 +209,7 @@ public class SparqiControllerTest {
         SparqiController.MessageRequest request = new SparqiController.MessageRequest();
         request.setMessage("test");
 
-        Response response = controller.sendMessage("session-123", request);
+        Response response = controller.sendMessage("session-123", request, null);
 
         assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
     }
@@ -226,7 +228,7 @@ public class SparqiControllerTest {
         SparqiController.MessageRequest request = new SparqiController.MessageRequest();
         request.setMessage("test");
 
-        Response response = controller.sendMessage("session-123", request);
+        Response response = controller.sendMessage("session-123", request, null);
 
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         @SuppressWarnings("unchecked")
@@ -244,7 +246,7 @@ public class SparqiControllerTest {
         when(sparqiService.getSessionHistory("session-123"))
                 .thenReturn(history);
 
-        Response response = controller.getHistory("session-123");
+        Response response = controller.getHistory("session-123", null);
 
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         @SuppressWarnings("unchecked")
@@ -257,7 +259,7 @@ public class SparqiControllerTest {
         when(sparqiService.getSessionHistory(anyString()))
                 .thenThrow(new SparqiException("Session not found"));
 
-        Response response = controller.getHistory("session-123");
+        Response response = controller.getHistory("session-123", null);
 
         assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
     }
@@ -267,7 +269,7 @@ public class SparqiControllerTest {
         when(sparqiService.getSessionHistory(anyString()))
                 .thenReturn(Collections.emptyList());
 
-        Response response = controller.getHistory("session-123");
+        Response response = controller.getHistory("session-123", null);
 
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         @SuppressWarnings("unchecked")
@@ -290,7 +292,7 @@ public class SparqiControllerTest {
         when(sparqiService.getSessionContext("session-123"))
                 .thenReturn(context);
 
-        Response response = controller.getContext("session-123");
+        Response response = controller.getContext("session-123", null);
 
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         SparqiContext body = (SparqiContext) response.getEntity();
@@ -303,14 +305,14 @@ public class SparqiControllerTest {
         when(sparqiService.getSessionContext(anyString()))
                 .thenThrow(new SparqiException("Session not found"));
 
-        Response response = controller.getContext("session-123");
+        Response response = controller.getContext("session-123", null);
 
         assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
     }
 
     @Test
     public void testTerminateSession() {
-        Response response = controller.terminateSession("session-123");
+        Response response = controller.terminateSession("session-123", null);
 
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         @SuppressWarnings("unchecked")
@@ -323,7 +325,7 @@ public class SparqiControllerTest {
     @Test
     public void testTerminateSession_NonExistent() {
         // Should not throw exception, just call service
-        Response response = controller.terminateSession("nonexistent");
+        Response response = controller.terminateSession("nonexistent", null);
 
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         verify(sparqiService).terminateSession("nonexistent");
@@ -335,5 +337,63 @@ public class SparqiControllerTest {
         request.setMessage("test message");
 
         assertEquals("test message", request.getMessage());
+    }
+
+    // ---------------------------------------------------------------- session ownership (sign-in on)
+
+    private static SecurityContext signedIn(String user, boolean admin) {
+        SecurityContext security = mock(SecurityContext.class);
+        when(security.getUserPrincipal()).thenReturn(() -> user);
+        when(security.isUserInRole("qtt-admin")).thenReturn(admin);
+        return security;
+    }
+
+    @Test
+    public void testStartSession_SignedInUserOwnsTheSession() throws Exception {
+        SparqiSession session = new SparqiSession("test-route", "alice");
+        session.addMessage(new SparqiMessage(SparqiMessage.MessageRole.ASSISTANT, "Welcome", new Date()));
+        when(sparqiService.startSession("test-route", "alice")).thenReturn(session);
+
+        Response response = controller.startSession("test-route", "mallory", signedIn("alice", false));
+
+        assertEquals(201, response.getStatus());
+        verify(sparqiService).startSession("test-route", "alice");
+    }
+
+    @Test
+    public void testStartSession_UserIdParameterHonouredOnlyWhenSignInIsOff() throws Exception {
+        SparqiSession session = new SparqiSession("test-route", "it");
+        session.addMessage(new SparqiMessage(SparqiMessage.MessageRole.ASSISTANT, "Welcome", new Date()));
+        when(sparqiService.startSession("test-route", "it")).thenReturn(session);
+
+        controller.startSession("test-route", "it", signedIn("anonymous", true));
+
+        verify(sparqiService).startSession("test-route", "it");
+    }
+
+    @Test
+    public void testOtherUsersSessionLooksMissing() throws Exception {
+        when(sparqiService.getSessionOwner("session-123")).thenReturn(Optional.of("alice"));
+        SecurityContext bob = signedIn("bob", false);
+        SparqiController.MessageRequest request = new SparqiController.MessageRequest();
+        request.setMessage("hi");
+
+        assertEquals(404, controller.getHistory("session-123", bob).getStatus());
+        assertEquals(404, controller.getContext("session-123", bob).getStatus());
+        assertEquals(404, controller.sendMessage("session-123", request, bob).getStatus());
+        assertEquals(404, controller.terminateSession("session-123", bob).getStatus());
+        verify(sparqiService, never()).getSessionHistory(anyString());
+        verify(sparqiService, never()).getSessionContext(anyString());
+        verify(sparqiService, never()).sendMessage(anyString(), anyString());
+        verify(sparqiService, never()).terminateSession(anyString());
+    }
+
+    @Test
+    public void testOwnerAndAdminsCanUseTheSession() throws Exception {
+        when(sparqiService.getSessionOwner("session-123")).thenReturn(Optional.of("alice"));
+        when(sparqiService.getSessionHistory("session-123")).thenReturn(List.of());
+
+        assertEquals(200, controller.getHistory("session-123", signedIn("alice", false)).getStatus());
+        assertEquals(200, controller.getHistory("session-123", signedIn("root", true)).getStatus());
     }
 }

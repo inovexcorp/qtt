@@ -1,7 +1,10 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.security.RolesAllowed;
 import com.inovexcorp.queryservice.config.OsgiConfig;
+import com.inovexcorp.queryservice.persistence.audit.Audited;
+import com.inovexcorp.queryservice.security.QttRoles;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
@@ -73,6 +76,7 @@ public class RoutesController {
      * @param routeId The ID of the route
      * @return Response containing the the content of the template
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("templateContent/{routeId}")
     public Response getTemplateContent(@PathParam("routeId") String routeId) {
@@ -89,6 +93,8 @@ public class RoutesController {
      * @return Response indicating success or failure
      * @throws Exception
      */
+    @Audited
+    @RolesAllowed(QttRoles.EDITOR)
     @PATCH
     @Path("{routeId}")
     public Response updateRouteStatus(@PathParam("routeId") String routeId, String status) throws Exception {
@@ -144,6 +150,8 @@ public class RoutesController {
      *                     target with a query
      * @throws Exception
      */
+    @Audited
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("{routeId}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -218,6 +226,7 @@ public class RoutesController {
      * @param routeId a String that is part of a {@link CamelRouteTemplate} routeId
      * @throws Exception
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @DELETE
     @Path("{routeId}")
     public Response deleteEndpoint(@PathParam("routeId") String routeId) throws Exception {
@@ -248,6 +257,8 @@ public class RoutesController {
      *                     target with a query
      * @throws Exception if the route does not exist.
      */
+    @Audited
+    @RolesAllowed(QttRoles.EDITOR)
     @PUT
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
@@ -317,6 +328,7 @@ public class RoutesController {
      * @param template the template text (text/plain)
      * @return {@code {"valid": true}}, or {@code valid: false} with the parser's message and the 1-based position
      */
+    @RolesAllowed(QttRoles.VIEWER) // a syntax check; changes nothing
     @POST
     @Path("template/validate")
     @Consumes(MediaType.TEXT_PLAIN)
@@ -359,6 +371,7 @@ public class RoutesController {
         return body;
     }
 
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{routeId}")
     public Response getEndpoint(@PathParam("routeId") String routeId) {
@@ -376,12 +389,14 @@ public class RoutesController {
         }
     }
 
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     public Response getAllEndpoints() {
         return Response.status(Response.Status.OK).entity(routeService.getAll()).type(MediaType.APPLICATION_JSON)
                 .build();
     }
 
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("metadata")
     @Produces(MediaType.APPLICATION_JSON)
@@ -390,6 +405,8 @@ public class RoutesController {
                 .type(MediaType.APPLICATION_JSON).build();
     }
 
+    @Audited
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("clone/{routeId}")
     public Response cloneEndpoint(@PathParam("routeId") String routeId) throws Exception {
@@ -409,6 +426,7 @@ public class RoutesController {
      * @param routeId The route ID whose cache should be cleared
      * @return Response indicating the number of cache entries deleted
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @DELETE
     @Path("{routeId}/cache")
     @Produces(MediaType.APPLICATION_JSON)
@@ -457,6 +475,7 @@ public class RoutesController {
      *
      * @return Response indicating the number of cache entries deleted
      */
+    @RolesAllowed(QttRoles.ADMIN)
     @DELETE
     @Path("cache")
     @Produces(MediaType.APPLICATION_JSON)
@@ -493,6 +512,7 @@ public class RoutesController {
      * @param routeId The route ID
      * @return Response with cache statistics
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{routeId}/cache/stats")
     @Produces(MediaType.APPLICATION_JSON)
@@ -547,6 +567,7 @@ public class RoutesController {
      *
      * @return Response with cache connection info and statistics
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("cache/info")
     @Produces(MediaType.APPLICATION_JSON)

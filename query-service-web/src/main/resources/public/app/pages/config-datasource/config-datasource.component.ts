@@ -2,6 +2,7 @@ import {Component, OnInit, ViewEncapsulation, ViewChild, AfterViewInit} from '@a
 import {AbstractControl, FormControl, FormGroup, ValidationErrors, Validators} from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import {DatasourceService} from '../../core/services/datasource.service';
+import {AuditInfo} from '../../core/models/audit';
 import {Datasources} from '../../core/models/datasources';
 import {MatDialog} from '@angular/material/dialog';
 import {DeleteDatasourceModalComponent} from '../delete-datasource-modal/delete-datasource-modal.component';
@@ -19,6 +20,9 @@ import {MatSort} from '@angular/material/sort';
   encapsulation: ViewEncapsulation.None
 })
 export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
+  /** Who created and last changed this datasource. */
+  audit?: AuditInfo | null;
+
   private sub: any;
   dataSourceId: string = '';
   private associatedRoutes: string[] = [];
@@ -147,6 +151,7 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
         this.configDatasource.controls['validateCertificate'].setValue(datasources.validateCertificate.toString())
         this.associatedRoutes = datasources.camelRouteTemplate;
         this.datasourceStatus = datasources.status;
+        this.audit = datasources.audit;
       });
   }
 

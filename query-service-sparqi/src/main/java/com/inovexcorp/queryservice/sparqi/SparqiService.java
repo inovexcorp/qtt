@@ -54,6 +54,14 @@ public interface SparqiService {
     SparqiContext getSessionContext(String sessionId) throws SparqiException;
 
     /**
+     * The user who started a session.
+     *
+     * @param sessionId The session ID
+     * @return the owner's user name, or empty if there is no such (live) session
+     */
+    java.util.Optional<String> getSessionOwner(String sessionId);
+
+    /**
      * Refreshes the context information for a session.
      * Useful when ontology cache has been updated and context needs to reflect new data.
      *

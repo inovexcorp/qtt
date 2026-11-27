@@ -12,6 +12,8 @@
 #   QTT_IMAGE   image under test               (default inovexis/qtt:latest)
 #   QTT_DB      derby | postgres | mssql       (default derby)
 #   QTT_REDIS   true | false                   (default false)
+#   QTT_OIDC    true | false                   (default false) require sign-in, against a Keycloak container on
+#               localhost:18180 with scripts/keycloak/qtt-realm.json (test users and clients)
 #   QTT_CPUS / QTT_MEMORY  container limits    (default 2 / 2g)
 #   QTT_EXTRA_ENV  extra "-e K=V" args for the QTT container
 #   QTT_DATA_VOLUME  named volume mounted at /opt/qtt/data (keeps the Derby database across app containers)
@@ -25,6 +27,9 @@ APP=qtt-it-app
 QTT_IMAGE="${QTT_IMAGE:-inovexis/qtt:latest}"
 QTT_DB="${QTT_DB:-derby}"
 QTT_REDIS="${QTT_REDIS:-false}"
+QTT_OIDC="${QTT_OIDC:-false}"
+KEYCLOAK_IMAGE=quay.io/keycloak/keycloak:26.0.7
+KEYCLOAK_PORT=18180
 QTT_CPUS="${QTT_CPUS:-2}"
 QTT_MEMORY="${QTT_MEMORY:-2g}"
 API_PORT=18443
@@ -89,6 +94,11 @@ start_app() {
   local args=()
   while IFS= read -r kv; do [[ -n "$kv" ]] && args+=(-e "$kv"); done < <(db_args)
   if [[ "$QTT_REDIS" == "true" ]]; then args+=(-e REDIS_ENABLED=true -e REDIS_HOST=qtt-it-redis); fi
+  if [[ "$QTT_OIDC" == "true" ]]; then
+    # QTT reaches Keycloak as keycloak:8080; Keycloak's issuer and login page use the browser-facing localhost URL.
+    args+=(-e OIDC_ENABLED=true -e OIDC_AUTH_SERVER_URL=http://keycloak:8080/realms/qtt -e OIDC_CLIENT_ID=qtt
+           -e OIDC_CLIENT_SECRET=qtt-test-secret -e OIDC_ADMIN_GROUPS=legacy-admins)
+  fi
   if [[ -n "${QTT_DATA_VOLUME:-}" ]]; then args+=(-v "$QTT_DATA_VOLUME:/opt/qtt/data"); fi
   if [[ -n "${QTT_JAVA_OPTS:-}" ]]; then args+=(-e "JAVA_OPTS=$QTT_JAVA_OPTS"); fi
   # shellcheck disable=SC2086
@@ -98,6 +108,17 @@ start_app() {
     -e SPARQI_ENABLED=true -e SPARQI_LLM_BASE_URL=http://wiremock:8080/v1 \
     -e SPARQI_LLM_API_KEY=mock-key -e SPARQI_LLM_MODEL=mock-model \
     ${QTT_EXTRA_ENV:-} "$QTT_IMAGE" >/dev/null
+}
+
+start_keycloak() {
+  # --hostname fixes the issuer and login page at the URL tests and browsers use; backchannel-dynamic lets QTT
+  # fetch keys and tokens through the container network.
+  $ENGINE run -d --name qtt-it-keycloak --network $NET --network-alias keycloak -p $KEYCLOAK_PORT:8080 \
+    -v "$ROOT/scripts/keycloak:/opt/keycloak/data/import:ro,Z" \
+    -e KC_BOOTSTRAP_ADMIN_USERNAME=kcadmin -e KC_BOOTSTRAP_ADMIN_PASSWORD=kcadmin \
+    "$KEYCLOAK_IMAGE" start-dev --import-realm \
+    --hostname=http://localhost:$KEYCLOAK_PORT --hostname-backchannel-dynamic=true >/dev/null
+  wait_http "http://localhost:$KEYCLOAK_PORT/realms/qtt/.well-known/openid-configuration" 180
 }
 
 wait_ready() {
@@ -118,6 +139,7 @@ cmd_up() {
     $ENGINE run -d --name qtt-it-redis --network $NET docker.io/library/redis:7-alpine >/dev/null
   fi
   start_db
+  if [[ "$QTT_OIDC" == "true" ]]; then start_keycloak; fi
   wait_http "http://localhost:$WIREMOCK_PORT/__admin/health" 60
   local start; start=$(now_ms)
   start_app
@@ -125,7 +147,7 @@ cmd_up() {
 }
 
 cmd_down() {
-  $ENGINE rm -f $APP wiremock qtt-it-redis qtt-it-db >/dev/null 2>&1 || true
+  $ENGINE rm -f $APP wiremock qtt-it-redis qtt-it-db qtt-it-keycloak >/dev/null 2>&1 || true
   $ENGINE network rm $NET >/dev/null 2>&1 || true
 }
 
@@ -137,13 +159,14 @@ cmd_restart() {
 
 cmd_it() {
   local redis=$QTT_REDIS
-  (cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dqtt.redis="$redis" -Dqtt.db="$QTT_DB" "$@")
+  (cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dqtt.redis="$redis" -Dqtt.db="$QTT_DB" \
+    -Dqtt.oidc="$QTT_OIDC" "$@")
 }
 
 cmd_restart_it() {
-  (cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dit.groups=restart-setup -Dit.excludedGroups=)
+  (cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dit.groups=restart-setup -Dit.excludedGroups= -Dqtt.oidc="$QTT_OIDC")
   cmd_restart >/dev/null
-  (cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dit.groups=restart-verify -Dit.excludedGroups=)
+  (cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dit.groups=restart-verify -Dit.excludedGroups= -Dqtt.oidc="$QTT_OIDC")
 }
 
 case "${1:-}" in

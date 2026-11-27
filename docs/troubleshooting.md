@@ -275,6 +275,22 @@ curl http://localhost:8888/my-route
    docker logs qtt | grep -i sparqi
    ```
 
+### Issue: Sign-in Problems
+
+Sign-in problems are logged by `io.quarkus.oidc`; raise it to see details:
+`QUARKUS_LOG_CATEGORY__IO_QUARKUS_OIDC__LEVEL=DEBUG`.
+
+| Symptom | Cause and fix |
+|---|---|
+| The IdP shows "Invalid parameter: redirect_uri" | The client's valid redirect URIs don't match the URL QTT sends. Behind a TLS proxy QTT builds `http://` URLs: set `QTT_BEHIND_PROXY=true` (and `QTT_TRUSTED_PROXIES`), or `OIDC_FORCE_HTTPS_REDIRECT=true` |
+| Scripts get `401` with a valid token | The token isn't issued for QTT: the log shows `Audience (aud) claim ... doesn't contain an acceptable identifier`. Add an audience mapper for `qtt` to the calling client (Keycloak), or set `OIDC_TOKEN_AUDIENCE` |
+| `401` with `Issuer (iss) claim value ... doesn't match` | `OIDC_AUTH_SERVER_URL` differs from the issuer in the tokens (often `http` vs `https`, or an internal vs public host name). Use the public issuer URL; for Keycloak behind a proxy, set its `--hostname` |
+| Everyone sees "No access to QTT" | QTT finds no QTT role in the token. Check `OIDC_ROLES_CLAIM` / `OIDC_ROLES_SOURCE` for your IdP, and that names in `OIDC_*_GROUPS` match the token exactly (case-sensitive) |
+| A `400` or a blank page from the proxy after login | The session cookies are larger than the proxy's header limit. Allow at least 8 KB (nginx: `large_client_header_buffers 4 16k;`), and grant access with a few roles rather than many groups |
+| Startup fails with an SSL handshake error to the IdP | The IdP's certificate is from a private CA: set `OIDC_TRUSTSTORE_FILE` (see the Administration Guide) |
+| State-changing requests from your own scripts get `403` | They use a browser session cookie without `X-Requested-With`. Use a bearer token instead, or add the header |
+| Users are logged out of QTT but not of the IdP | The IdP doesn't support RP-initiated logout; only the QTT session ends |
+
 ### Issue: Query Performance Degradation
 
 **Symptoms:**

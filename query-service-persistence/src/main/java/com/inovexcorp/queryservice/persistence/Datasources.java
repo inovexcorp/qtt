@@ -3,6 +3,8 @@ package com.inovexcorp.queryservice.persistence;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.inovexcorp.queryservice.persistence.audit.AuditInfo;
+import com.inovexcorp.queryservice.persistence.audit.AuditListener;
 import com.inovexcorp.queryservice.persistence.util.EncryptedPasswordConverter;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,7 +13,9 @@ import org.hibernate.annotations.DynamicUpdate;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -33,7 +37,8 @@ import java.util.List;
 // matters when a stored password cannot be decrypted (wrong key): rewriting it would encrypt the ciphertext again.
 @DynamicUpdate
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Datasources {
+@EntityListeners(AuditListener.class)
+public class Datasources implements AuditListener.Auditable {
 
     private static final Base64.Encoder encoder = Base64.getEncoder();
 
@@ -72,6 +77,11 @@ public class Datasources {
 
     @Column(name = "consecutiveFailures")
     private Integer consecutiveFailures = 0;
+
+    /** Who created and last changed this datasource through the API, and when (read-only; set by AuditListener). */
+    @Embedded
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private AuditInfo audit;
 
     @JsonIgnore
     @OneToMany(mappedBy = "datasources", orphanRemoval = true, fetch = FetchType.EAGER)

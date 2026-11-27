@@ -378,3 +378,14 @@ mat-divider {
     margin: 0;
   }
 }
+
+// Title with the "created by / last changed by" line under it
+.title-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  h1 {
+    margin-bottom: 0;
+  }
+}

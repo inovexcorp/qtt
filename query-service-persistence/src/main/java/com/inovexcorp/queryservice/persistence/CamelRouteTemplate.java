@@ -1,6 +1,9 @@
 package com.inovexcorp.queryservice.persistence;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.inovexcorp.queryservice.persistence.audit.AuditInfo;
+import com.inovexcorp.queryservice.persistence.audit.AuditListener;
 import lombok.Data;
 import lombok.ToString;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -9,7 +12,9 @@ import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -22,7 +27,8 @@ import java.util.List;
 @Entity
 @Table(name = "routes")
 @ToString(exclude = {"datasources", "layerAssociations", "metricRecord"})
-public class CamelRouteTemplate {
+@EntityListeners(AuditListener.class)
+public class CamelRouteTemplate implements AuditListener.Auditable {
 
     @Id
     @Column(name = "routeId")
@@ -49,6 +55,11 @@ public class CamelRouteTemplate {
 
     @Column(name = "cacheKeyStrategy")
     private String cacheKeyStrategy = "QUERY_HASH";
+
+    /** Who created and last changed this route through the API, and when (read-only; set by AuditListener). */
+    @Embedded
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private AuditInfo audit;
 
     @ManyToOne(cascade = {jakarta.persistence.CascadeType.MERGE})
     @JoinColumn(name = "datasources", referencedColumnName = "dataSourceId")

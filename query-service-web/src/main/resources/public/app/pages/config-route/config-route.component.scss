@@ -1221,3 +1221,14 @@ h1.card-header {
     color: #f44336;
   }
 }
+
+// Title with the "created by / last changed by" line under it
+.title-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  h1 {
+    margin-bottom: 0;
+  }
+}

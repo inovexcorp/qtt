@@ -1,18 +1,47 @@
 <mat-toolbar color="primary">
-  <button (click)="drawer.toggle()" mat-icon-button>
+  <button (click)="drawer?.toggle()" mat-icon-button *ngIf="!auth.noAccess">
     <mat-icon>menu</mat-icon>
   </button>
   <img class="logo" src="assets/logo.png" />
   <span>Query Templating Tool</span>
   <div class="example-spacer"></div>
-<!--  <button mat-icon-button routerLink=".">-->
-<!--    <mat-icon>person</mat-icon>-->
-<!--  </button>-->
+  <ng-container *ngIf="auth.user.authEnabled">
+    <button mat-button class="user-button" [matMenuTriggerFor]="userMenu" aria-label="Account">
+      <mat-icon>account_circle</mat-icon>
+      <span class="user-name">{{ auth.user.displayName }}</span>
+    </button>
+    <mat-menu #userMenu="matMenu" xPosition="before">
+      <div class="user-menu-header">
+        <div class="user-menu-name">{{ auth.user.username }}</div>
+        <div class="user-role">{{ auth.roleLabel ?? 'No access' }}</div>
+      </div>
+      <a mat-menu-item [href]="auth.user.logoutUrl">
+        <mat-icon>logout</mat-icon>
+        <span>Sign out</span>
+      </a>
+    </mat-menu>
+  </ng-container>
 </mat-toolbar>
 <app-qs-breadcrumb></app-qs-breadcrumb>
 
 
-<mat-drawer-container class="primary_container" autosize color="primary">
+<mat-card *ngIf="auth.noAccess" appearance="outlined" class="no-access">
+  <mat-card-header>
+    <mat-icon mat-card-avatar>lock</mat-icon>
+    <mat-card-title>No access to QTT</mat-card-title>
+    <mat-card-subtitle>Signed in as {{ auth.user.username }}</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <p>Your account doesn't have a QTT role. Ask an administrator to give you
+      <code>qtt-viewer</code>, <code>qtt-editor</code> or <code>qtt-admin</code>, or a group mapped to one,
+      then sign in again.</p>
+  </mat-card-content>
+  <mat-card-actions>
+    <a mat-stroked-button color="primary" [href]="auth.user.logoutUrl">Sign out</a>
+  </mat-card-actions>
+</mat-card>
+
+<mat-drawer-container *ngIf="!auth.noAccess" class="primary_container" autosize color="primary">
   <mat-drawer #drawer mode="side" class="sidebar" color="primary">
     <mat-nav-list color="primary">
       <mat-list-item routerLink="/metrics" routerLinkActive="active-nav-item">

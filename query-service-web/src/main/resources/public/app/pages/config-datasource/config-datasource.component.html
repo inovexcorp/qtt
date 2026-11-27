@@ -1,7 +1,10 @@
 <mat-card appearance="outlined" class="config-panel">
   <div class="datasource-card-header">
-    <h1 class="card-header">{{ dataSourceId }}</h1>
-    <button class="delete-datasource" (click)="openConfirmDeleteDatasourceModal()" mat-icon-button>
+    <div class="title-block">
+      <h1 class="card-header">{{ dataSourceId }}</h1>
+      <app-audit-line [audit]="audit"></app-audit-line>
+    </div>
+    <button *qttIfRole="'admin'" class="delete-datasource" (click)="openConfirmDeleteDatasourceModal()" mat-icon-button>
       <mat-icon>delete</mat-icon>
     </button>
   </div>
@@ -29,7 +32,7 @@
           </div>
         </div>
         <div class="health-actions">
-          <button mat-raised-button
+          <button *qttIfRole="'admin'" mat-raised-button
                   color="primary"
                   [disabled]="isEnabling || datasourceStatus === 'UP' || datasourceStatus === 'CHECKING'"
                   (click)="enableDatasource()">
@@ -38,7 +41,7 @@
             <span *ngIf="isEnabling">Enabling...</span>
           </button>
 
-          <button mat-raised-button
+          <button *qttIfRole="'admin'" mat-raised-button
                   color="warn"
                   [disabled]="isDisabling || datasourceStatus === 'DISABLED'"
                   (click)="disableDatasource()">
@@ -47,7 +50,7 @@
             <span *ngIf="isDisabling">Disabling...</span>
           </button>
 
-          <button mat-raised-button
+          <button *qttIfRole="'editor'" mat-raised-button
                   color="accent"
                   [disabled]="datasourceStatus === 'DISABLED' || datasourceStatus === 'CHECKING' || !healthCheckEnabled"
                   [matTooltip]="!healthCheckEnabled ? 'Automated health checks are globally disabled' : ''"
@@ -125,10 +128,10 @@
           </mat-form-field>
         </div>
       </form>
-      <button type="submit" [disabled]="!configDatasource.valid" mat-raised-button color="primary" id="submit-button"
+      <button *qttIfRole="'admin'" type="submit" [disabled]="!configDatasource.valid" mat-raised-button color="primary" id="submit-button"
               (click)="config(dataSourceId); "><mat-icon>check</mat-icon>Submit
       </button>
-      <button type="button" [disabled]="!configDatasource.valid" mat-raised-button color="accent" id="test-button"
+      <button *qttIfRole="'admin'" type="button" [disabled]="!configDatasource.valid" mat-raised-button color="accent" id="test-button"
               (click)="test()"><mat-icon>network_check</mat-icon>Test
       </button>
       <div *ngIf="testResponseStatus" class="test-response" [ngClass]="{

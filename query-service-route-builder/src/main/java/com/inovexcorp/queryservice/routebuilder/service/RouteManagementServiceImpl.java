@@ -7,6 +7,7 @@ import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.cache.CacheService;
 import com.inovexcorp.queryservice.cache.NoOpCacheService;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
+import com.inovexcorp.queryservice.persistence.audit.AuditInfo;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.LayerAssociations;
@@ -62,6 +63,18 @@ public class RouteManagementServiceImpl implements RouteManagementService {
                                           String description, String graphMartUri, String freemarker,
                                           String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
                                           String cacheKeyStrategy) throws Exception {
+        return createRoute(routeId, routeParams, dataSourceId, description, graphMartUri, freemarker, layers,
+                cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, null);
+    }
+
+    /**
+     * Creates a route; {@code audit}, when given, is the audit record of the route this one replaces (a modify is a
+     * delete and re-create), so its creator is kept.
+     */
+    private CamelRouteTemplate createRoute(String routeId, String routeParams, String dataSourceId,
+                                           String description, String graphMartUri, String freemarker,
+                                           String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                           String cacheKeyStrategy, AuditInfo audit) throws Exception {
         log.debug("Creating route with ID: {}", routeId);
 
         final CamelContext camelContext = contextManager.getDefaultContext();
@@ -70,6 +83,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
         Datasources datasource = dataSourceService.getDataSource(dataSourceId);
         CamelRouteTemplate template = new CamelRouteTemplate(routeId, routeParams, freemarker,
                                                              description, graphMartUri, datasource);
+        template.setAudit(audit);
 
         // Set cache configuration
         if (cacheEnabled != null) {
@@ -129,12 +143,19 @@ public class RouteManagementServiceImpl implements RouteManagementService {
         return template;
     }
 
+    /** The stored route's audit record (who created it), carried across the delete and re-create of a modify. */
+    private AuditInfo auditOf(String routeId) {
+        CamelRouteTemplate existing = routeService.getRoute(routeId);
+        return existing == null ? null : existing.getAudit();
+    }
+
     @Override
     public CamelRouteTemplate modifyRoute(String routeId, String routeParams, String dataSourceId,
                                           String description, String graphMartUri, String freemarker,
                                           String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
                                           String cacheKeyStrategy) throws Exception {
         log.debug("Modifying route with ID: {}", routeId);
+        AuditInfo audit = auditOf(routeId);
 
         // Delete route in memory to then recreate it
         routeService.delete(routeId);
@@ -142,7 +163,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
         // Recreate the route with new parameters
         CamelRouteTemplate modified = createRoute(routeId, routeParams, dataSourceId, description,
                                                   graphMartUri, freemarker, layers, cacheEnabled,
-                                                  cacheTtlSeconds, cacheKeyStrategy);
+                                                  cacheTtlSeconds, cacheKeyStrategy, audit);
 
         log.info("Successfully modified route: {}", routeId);
         return modified;
@@ -163,7 +184,8 @@ public class RouteManagementServiceImpl implements RouteManagementService {
                                                   template.getDatasources().getDataSourceId(),
                                                   template.getDescription(), template.getGraphMartUri(),
                                                   freemarker, layers, template.getCacheEnabled(),
-                                                  template.getCacheTtlSeconds(), template.getCacheKeyStrategy());
+                                                  template.getCacheTtlSeconds(), template.getCacheKeyStrategy(),
+                                                  template.getAudit());
 
         log.info("Successfully modified template for route: {}", routeId);
         return modified;

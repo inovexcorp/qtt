@@ -393,6 +393,143 @@ podman pod start qtt-pod
 podman pod rm qtt-pod
 ```
 
+## Single Sign-On (OIDC)
+
+QTT can require users to sign in through your organization's OpenID Connect identity provider (IdP) before they can
+use the UI or the management API (`/queryrest/api`). What each user can do then depends on their QTT role.
+
+**Sign-in is off by default.** Without it, the UI and management API are open to anyone who can reach ports
+8080/8443, and QTT logs a warning at every startup. Turn it on for any shared or production deployment.
+
+**Sign-in does not cover the query endpoints on port 8888.** Anyone who can reach port 8888 can run every started
+route, using the credentials stored for its datasource. Restrict that port at the network level (firewall, private
+network, or a reverse proxy with its own authentication).
+
+### Roles
+
+| Role         | Can                                                                                                   |
+|--------------|-------------------------------------------------------------------------------------------------------|
+| `qtt-viewer` | See everything: metrics, routes and templates, datasources (never their passwords), settings          |
+| `qtt-editor` | Everything a viewer can, plus create, change, start/stop, clone and delete routes; clear a route's cache; run template tests; use SPARQi; trigger a datasource health check |
+| `qtt-admin`  | Everything an editor can, plus create, change, enable/disable and delete datasources (they hold the Anzo credentials), test a datasource connection, clear every route's cache |
+
+A signed-in user with none of these roles sees a "No access" page. Users can only see and use their own SPARQi
+sessions (admins can see all). Routes and datasources record who created and last changed them, shown on their
+configuration pages and returned as `audit` by the API.
+
+You can grant roles in two ways:
+
+- Give users (or their groups) IdP roles named exactly `qtt-viewer`, `qtt-editor` or `qtt-admin`.
+- Or map roles or groups you already have: `OIDC_VIEWER_GROUPS`, `OIDC_EDITOR_GROUPS` and `OIDC_ADMIN_GROUPS` each
+  take a comma-separated list of names, matched exactly (case-sensitive).
+
+### Turning it on
+
+```bash
+docker run -d \
+  --name qtt \
+  -p 8443:8443 \
+  -e OIDC_ENABLED=true \
+  -e OIDC_AUTH_SERVER_URL=https://keycloak.example.com/realms/example \
+  -e OIDC_CLIENT_ID=qtt \
+  -e OIDC_CLIENT_SECRET="$(cat ./secrets/qtt_client_secret)" \
+  -e OIDC_ADMIN_GROUPS=platform-admins \
+  docker.io/inovexis/qtt:latest
+```
+
+`OIDC_AUTH_SERVER_URL` is the issuer URL; QTT reads the rest from its `/.well-known/openid-configuration`. All
+sign-in settings are listed in [Configuration](configuration.md#sign-in-oidc-configuration).
+
+Startup logs `Sign-in required for the UI and management API (OIDC issuer ...)` when it is on.
+The **Single Sign-On** card on the Settings page shows whether sign-in is on, who you are signed in as and with
+which role, and the settings in effect: issuer, client ID, roles claim, accepted audience, group mappings, and whether
+the client secret, session secret and private-CA trust store are set (never their values).
+
+### Setting up Keycloak
+
+Keycloak is the identity provider QTT is tested against. `scripts/keycloak/qtt-realm.json` is a complete test realm
+(it contains test passwords, so use it as a reference only).
+
+1. **Client for QTT**: create an OpenID Connect client, for example `qtt`.
+   - Client authentication: on (confidential). Copy its secret into `OIDC_CLIENT_SECRET`.
+   - Standard flow: on.
+   - Valid redirect URIs: `https://qtt.example.com/*` (the URL users open QTT at).
+   - Valid post logout redirect URIs: `+` (same as the redirect URIs).
+2. **Audience**: add a mapper to the client (Client scopes → `qtt-dedicated` → Add mapper → By configuration →
+   Audience) with *Included Client Audience* `qtt` and *Add to access token* on. Without it, bearer tokens are
+   rejected (401) because they are not issued for QTT.
+3. **Roles**: create realm roles `qtt-viewer`, `qtt-editor` and `qtt-admin` and assign them to users or groups. Or
+   keep your existing roles and map them with `OIDC_*_GROUPS`.
+4. **Automation** (optional): for scripts and CI, create a second confidential client (for example `qtt-ci`) with
+   *Service accounts roles* on and standard flow off, give its service account a QTT role, and add the same audience
+   mapper.
+
+Keycloak puts realm roles in the access token, which is where QTT reads them by default
+(`OIDC_ROLES_SOURCE=accesstoken`). To use Keycloak groups instead of roles, add a *Group Membership* mapper (claim
+`groups`, *Full group path* off, added to the access token), set `OIDC_ROLES_CLAIM=groups` and map the group names
+with `OIDC_*_GROUPS`.
+
+### Other identity providers
+
+Any OpenID Connect provider should work, but only Keycloak is tested. Points to watch:
+
+- **Microsoft Entra ID**: `OIDC_AUTH_SERVER_URL=https://login.microsoftonline.com/<tenant-id>/v2.0`. Define app
+  roles on the app registration and assign them; set `OIDC_ROLES_CLAIM=roles` and `OIDC_ROLES_SOURCE=idtoken` (the
+  access token Entra issues at sign-in is meant for Microsoft Graph, not QTT). Prefer app roles to groups: group
+  claims are object IDs and are left out entirely for users in more than 200 groups.
+  `OIDC_USERNAME_CLAIM=preferred_username` works.
+- **Okta**: add a `groups` claim to the authorization server (filter it to the groups QTT needs), then
+  `OIDC_ROLES_CLAIM=groups` and map the group names with `OIDC_*_GROUPS`.
+- Providers without RP-initiated logout (for example Google) end only the QTT session on sign-out, not the
+  provider's.
+
+### Behind a reverse proxy
+
+If TLS ends at a proxy, QTT sees plain-HTTP requests and builds `http://` redirect URIs, which the IdP rejects. Set:
+
+| Variable                    | Value                                                          |
+|-----------------------------|----------------------------------------------------------------|
+| `QTT_BEHIND_PROXY`          | `true`: trust `X-Forwarded-*` / `Forwarded` headers            |
+| `QTT_TRUSTED_PROXIES`       | the proxy's address(es), so other clients can't forge headers  |
+| `OIDC_FORCE_HTTPS_REDIRECT` | `true` if the proxy doesn't send `X-Forwarded-Proto`           |
+
+Proxies must allow request headers of at least 8 KB: the session is kept in encrypted cookies, split one per
+token.
+
+### Identity provider with a private CA
+
+```bash
+-v /path/to/idp-ca.p12:/opt/qtt/etc/idp-ca.p12:ro \
+-e OIDC_TRUSTSTORE_FILE=/opt/qtt/etc/idp-ca.p12 \
+-e OIDC_TRUSTSTORE_PASSWORD=changeit \
+-e OIDC_TRUSTSTORE_TYPE=PKCS12     # or JKS, or PEM (a certificate file; no password)
+```
+
+### More than one QTT instance
+
+Sessions live in encrypted cookies, so any instance can serve any user. All instances need the same
+`OIDC_CLIENT_SECRET` and, if you set it, the same `OIDC_SESSION_SECRET` (at least 32 characters).
+
+### Calling the API from scripts
+
+With sign-in on, scripts send a bearer token from the IdP. With Keycloak's client-credentials grant:
+
+```bash
+TOKEN=$(curl -s https://keycloak.example.com/realms/example/protocol/openid-connect/token \
+  -d grant_type=client_credentials -d client_id=qtt-ci -d client_secret="$QTT_CI_SECRET" | jq -r .access_token)
+curl -H "Authorization: Bearer $TOKEN" https://qtt.example.com:8443/queryrest/api/routes
+```
+
+Requests with a bearer token need no other headers. (The browser UI uses a session cookie; state-changing requests
+made with that cookie must carry an `X-Requested-With` header, which the UI adds, as protection against cross-site
+request forgery.)
+
+### If the identity provider is down
+
+Users can't sign in while the IdP is unreachable. To get back in, restart QTT with `OIDC_ENABLED=false`, which
+opens the UI and API to anyone who can reach them, so do that only on a network you control, and turn sign-in back on
+as soon as the IdP returns.
+
 ## SSL/TLS Configuration
 
 ### Using Custom SSL Certificates
@@ -473,6 +610,9 @@ podman run -d \
 | 8080 | HTTP     | REST API and Web UI (plain HTTP)           |
 | 8888 | HTTP     | Dynamic query endpoints (Camel Netty HTTP) |
 
+Sign-in ([Single Sign-On](#single-sign-on-oidc)) protects 8443 and 8080 only. Port 8888 has no authentication;
+restrict who can reach it.
+
 To expose QTT on other host ports, change the host side of the `-p` mapping (for example `-p 443:8443`).
 
 ## Upgrading from QTT 1.x
@@ -495,6 +635,10 @@ unchanged, so an existing deployment upgrades by switching the image:
   variables or Java system properties (see the [Configuration Reference](configuration.md)). Changes require a
   restart.
 - **Logs**: QTT logs to the console instead of `data/log/karaf.log`.
+- **Sign-in**: 2.0 can require sign-in through an OpenID Connect provider ([Single Sign-On](#single-sign-on-oidc)).
+  It is off unless `OIDC_ENABLED=true`, so upgrading changes nothing until you turn it on. Routes and datasources
+  gain `createdBy`/`createdAt`/`modifiedBy`/`modifiedAt` columns, added automatically at first start; existing rows
+  leave them empty.
 
 ## Docker vs Podman Command Reference
 

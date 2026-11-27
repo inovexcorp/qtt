@@ -3,21 +3,26 @@
     <button mat-icon-button class="back-button" (click)="navigateBack()" matTooltip="Back to Routes">
       <mat-icon>arrow_back</mat-icon>
     </button>
-    <h1 class="card-header">Config Route: {{routeId}}</h1>
+    <div class="title-block">
+      <h1 class="card-header">Config Route: {{routeId}}</h1>
+      <app-audit-line [audit]="routeData?.audit"></app-audit-line>
+    </div>
     <div class="header-actions">
       <!-- Save/Cancel Buttons -->
       <span class="template-buttons">
         <button mat-raised-button type="button" class="cancel-btn" (click)="navigateBack()"><mat-icon>cancel</mat-icon> Cancel</button>
-        <button mat-raised-button type="submit" id="config-route-btn" color="primary" [disabled]="!configRoute.valid"
+        <button *qttIfRole="'editor'" mat-raised-button type="submit" id="config-route-btn" color="primary" [disabled]="!configRoute.valid"
                 (click)="putRoute()"><mat-icon>save</mat-icon> Save</button>
       </span>
       <!-- SPARQL Assistant Button -->
+      <ng-container *qttIfRole="'editor'">
       <button mat-icon-button (click)="toggleChatPanel()"
               matTooltip="Toggle AI Assistant"
               class="sparql-assistant-btn"
               *ngIf="isSparqiEnabled">
         <mat-icon>{{isChatPanelOpen ? 'close' : 'smart_toy'}}</mat-icon>
       </button>
+      </ng-container>
     </div>
   </div>
 
@@ -237,7 +242,7 @@
 
               <!-- Clear Cache Button -->
               <div class="cache-actions">
-                <button mat-raised-button
+                <button *qttIfRole="'editor'" mat-raised-button
                         color="warn"
                         class="clear-cache-btn"
                         (click)="clearRouteCache()"
@@ -268,12 +273,14 @@
               <h2 class="editor-title" *ngIf="isFullscreen">Template Editor - {{routeId}}</h2>
               <div class="editor-actions">
                 <!-- SPARQL Assistant Button (visible in fullscreen mode) -->
+                <ng-container *qttIfRole="'editor'">
                 <button mat-icon-button (click)="toggleChatPanel()"
                         matTooltip="Toggle AI Assistant"
                         class="sparql-assistant-btn"
                         *ngIf="isSparqiEnabled && isFullscreen">
                   <mat-icon>{{isChatPanelOpen ? 'close' : 'smart_toy'}}</mat-icon>
                 </button>
+                </ng-container>
                 <button mat-icon-button (click)="toggleFullscreen()"
                   [matTooltip]="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'"
                   class="fullscreen-btn">
@@ -291,7 +298,7 @@
           </div>
           <div class="file-upload-section">
             <input type="file" class="file-input" (change)="onFileSelected($event)" #fileUpload>
-            <button mat-raised-button color="primary" class="upload-btn" (click)="fileUpload.click()">
+            <button *qttIfRole="'editor'" mat-raised-button color="primary" class="upload-btn" (click)="fileUpload.click()">
               <mat-icon>upload_file</mat-icon>
               Upload Template
             </button>
@@ -350,7 +357,7 @@
                       Include edge cases (empty values, special chars, boundaries)
                     </mat-checkbox>
 
-                    <button mat-raised-button
+                    <button *qttIfRole="'editor'" mat-raised-button
                             color="accent"
                             class="generate-btn"
                             (click)="generateTestRequestWithSparqi()"
@@ -478,7 +485,7 @@
             </div>
 
             <!-- Execute Button -->
-            <button mat-raised-button color="primary" class="execute-test-btn"
+            <button *qttIfRole="'editor'" mat-raised-button color="primary" class="execute-test-btn"
                     (click)="executeTest()" [disabled]="isTestExecuting || isGeneratingRequest">
               <mat-spinner *ngIf="isTestExecuting" diameter="20" class="button-spinner"></mat-spinner>
               <mat-icon *ngIf="!isTestExecuting">play_arrow</mat-icon>
@@ -536,7 +543,8 @@
       </mat-tab>
     </mat-tab-group>
 
-    <!-- Chat Panel (slide out from right) -->
+    <!-- Chat Panel (slide out from right); it opens a SPARQi session, which needs the editor role -->
+    <ng-container *qttIfRole="'editor'">
     <div class="chat-panel"
          [class.open]="isChatPanelOpen"
          [style.width.px]="chatPanelWidth"
@@ -552,6 +560,7 @@
         (closePanel)="toggleChatPanel()">
       </app-sparqi-chat>
     </div>
+    </ng-container>
   </form>
 </mat-card>
 

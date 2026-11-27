@@ -1,8 +1,10 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
+import com.inovexcorp.queryservice.security.QttRoles;
 import com.inovexcorp.queryservice.metrics.MetricObject;
 import com.inovexcorp.queryservice.metrics.MetricsScraper;
 import com.inovexcorp.queryservice.metrics.RouteMetrics;
@@ -64,6 +66,7 @@ public class MetricsController {
      *
      * @return Response containing historical metrics data
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("route/persisted")
     @Produces(MediaType.APPLICATION_JSON)
@@ -89,6 +92,7 @@ public class MetricsController {
      * @return Response containing metrics for all routes
      * @throws Exception if MBean query fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("routes")
     @Produces(MediaType.APPLICATION_JSON)
@@ -112,6 +116,7 @@ public class MetricsController {
      * @return Response containing exchange metrics or 404 if route not found
      * @throws Exception if MBean lookup fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("exchanges/{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -139,6 +144,7 @@ public class MetricsController {
      * @return Response containing route metrics or 404 if route not found
      * @throws Exception if metrics retrieval fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("route/{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -162,6 +168,7 @@ public class MetricsController {
      * @return Response containing processing time metrics or 404 if route not found
      * @throws Exception if MBean lookup fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("/processingTime/{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -189,6 +196,7 @@ public class MetricsController {
      * @return Response containing metrics for filtered routes
      * @throws Exception if MBean query fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("routes/{datasourceId}")
     @Produces(MediaType.APPLICATION_JSON)

@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { SettingsService } from '../../core/services/settings.service';
+import { SettingsService, SsoInfo } from '../../core/services/settings.service';
+import { AuthService } from '../../core/services/auth.service';
 import { CacheService } from '../../core/services/cache.service';
 import { SparqiService } from '../../core/services/sparqi.service';
 import { CacheStatistics } from '../../core/models/ontology/cache-statistics';
@@ -23,6 +24,10 @@ export class SettingsComponent implements OnInit {
   routeCount: number | undefined;
   cacheStats: CacheStatistics | undefined;
 
+  // Single sign-on configuration
+  ssoInfo: SsoInfo | undefined;
+  ssoLoadFailed = false;
+
   // Redis cache properties
   redisCacheInfo: CacheInfo | undefined;
   redisCacheStats: CacheStats | undefined;
@@ -38,7 +43,8 @@ export class SettingsComponent implements OnInit {
     private settingsService: SettingsService,
     private cacheService: CacheService,
     private sparqiService: SparqiService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    public auth: AuthService
   ) { }
 
   ngOnInit(): void {
@@ -52,6 +58,11 @@ export class SettingsComponent implements OnInit {
     this.settingsService.getStats().subscribe(stats => {
       this.datasourceCount = stats.datasources;
       this.routeCount = stats.routes;
+    });
+
+    this.settingsService.getSsoInfo().subscribe({
+      next: info => this.ssoInfo = info,
+      error: () => this.ssoLoadFailed = true
     });
 
     this.settingsService.getCacheStatistics().subscribe(stats => {
@@ -112,6 +123,30 @@ export class SettingsComponent implements OnInit {
       panelClass: 'sparqi-metrics-dialog-panel',
       autoFocus: false
     });
+  }
+
+  /** Group names mapped to a role, or a note that the role is only granted directly. */
+  formatGroups(groups: string[] | undefined): string {
+    return groups && groups.length ? groups.join(', ') : 'none (role assigned directly in the IdP)';
+  }
+
+  /** Which token the roles are read from, in words. */
+  formatRolesSource(source: string | null | undefined): string {
+    switch (source) {
+      case 'idtoken': return 'from the ID token';
+      case 'userinfo': return 'from UserInfo';
+      default: return 'from the access token';
+    }
+  }
+
+  /** How the session-cookie key was chosen, in words. */
+  formatSessionKey(key: string | undefined): string {
+    switch (key) {
+      case 'OIDC_SESSION_SECRET': return 'Dedicated secret (OIDC_SESSION_SECRET)';
+      case 'client secret': return 'Derived from the client secret';
+      case 'generated at startup': return 'Generated at startup (sessions end on restart)';
+      default: return key ?? 'N/A';
+    }
   }
 
   formatHitRate(rate: number | undefined): string {

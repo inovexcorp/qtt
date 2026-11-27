@@ -6,7 +6,7 @@
     <input #inp matInput (keyup)="applyFilter(inp.value)">
     <mat-icon matSuffix>search</mat-icon>
   </mat-form-field>
-  <button mat-raised-button color="primary" class="add-button" (click)="openAddRouteDialog()">Add Route</button>
+  <button *qttIfRole="'editor'" mat-raised-button color="primary" class="add-button" (click)="openAddRouteDialog()">Add Route</button>
 </div>
   <table mat-table [dataSource]="dataSource" matSort class="mat-elevation-z8">
 
@@ -80,6 +80,7 @@
             <mat-icon color="primary">construction</mat-icon>
             <span>Configure</span>
           </button>
+          <ng-container *qttIfRole="'editor'">
           <button mat-menu-item *ngIf="element.status=='Started'" (click)="toggleRouteStatus(element.routeId, 'Stopped')">
             <span>
               <mat-icon color="primary">wifi_off</mat-icon>
@@ -106,6 +107,7 @@
             <mat-icon color="primary">delete</mat-icon>
             <span>Delete</span>
           </button>
+          </ng-container>
         </mat-menu>
       </td>
     </ng-container>

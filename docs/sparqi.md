@@ -316,6 +316,9 @@ For programmatic access, SPARQi provides a REST API.
 curl -X POST "http://localhost:8080/queryrest/api/sparqi/session?routeId=people-search&userId=alice"
 ```
 
+With sign-in on, the session belongs to the signed-in user and `userId` is ignored. Only that user (and admins) can
+read, use or end it; to anyone else it answers `404`. With sign-in off, `userId` is recorded as given.
+
 **Response:**
 
 ```json

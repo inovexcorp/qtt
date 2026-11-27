@@ -1,4 +1,5 @@
 import { Datasources } from "../datasources";
+import { AuditInfo } from "../audit";
 
 export interface Routes {
     routeId: string;
@@ -12,4 +13,6 @@ export interface Routes {
     cacheEnabled?: boolean;
     cacheTtlSeconds?: number;
     cacheKeyStrategy?: string;
+    // Who created and last changed it (read-only)
+    audit?: AuditInfo | null;
   }

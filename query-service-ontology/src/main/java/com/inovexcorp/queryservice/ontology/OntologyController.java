@@ -1,8 +1,10 @@
 package com.inovexcorp.queryservice.ontology;
 
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ontology.model.CacheStatistics;
+import com.inovexcorp.queryservice.security.QttRoles;
 import com.inovexcorp.queryservice.ontology.model.OntologyElement;
 import com.inovexcorp.queryservice.ontology.model.OntologyElementType;
 import com.inovexcorp.queryservice.ontology.model.OntologyMetadata;
@@ -42,6 +44,7 @@ public class OntologyController {
      * @param limit   Maximum number of results to return
      * @return List of matching ontology elements
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -79,6 +82,7 @@ public class OntologyController {
      * @param routeId The route ID
      * @return Ontology metadata
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{routeId}/metadata")
     @Produces(MediaType.APPLICATION_JSON)
@@ -101,6 +105,7 @@ public class OntologyController {
      * @param routeId The route ID
      * @return Success message
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("{routeId}/refresh")
     @Produces(MediaType.APPLICATION_JSON)
@@ -125,6 +130,7 @@ public class OntologyController {
      * @param routeId The route ID
      * @return Success message
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @DELETE
     @Path("{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -140,6 +146,7 @@ public class OntologyController {
      *
      * @return Cache performance statistics
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("cache/statistics")
     @Produces(MediaType.APPLICATION_JSON)
@@ -154,6 +161,7 @@ public class OntologyController {
      * @param routeId The route ID
      * @return Success message
      */
+    @RolesAllowed(QttRoles.VIEWER) // loads what GET {routeId} would; the route page calls it on open
     @POST
     @Path("{routeId}/warm")
     @Produces(MediaType.APPLICATION_JSON)

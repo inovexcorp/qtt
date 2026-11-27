@@ -24,4 +24,13 @@ describe('SettingsComponent', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('describes SSO group mappings and the session key', () => {
+    expect(component.formatGroups(['a', 'b'])).toBe('a, b');
+    expect(component.formatGroups([])).toContain('assigned directly');
+    expect(component.formatSessionKey('OIDC_SESSION_SECRET')).toContain('Dedicated');
+    expect(component.formatSessionKey('generated at startup')).toContain('sessions end on restart');
+    expect(component.formatRolesSource('idtoken')).toBe('from the ID token');
+    expect(component.formatRolesSource(null)).toBe('from the access token');
+  });
 });
