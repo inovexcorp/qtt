@@ -32,15 +32,32 @@ public class SettingsRestController {
     @ConfigProperty(name = "qtt.db.url", defaultValue = "unknown")
     String datasourceUrl;
 
-    /** The DB_DRIVER_NAME value (e.g. "derby", "PostgreSQL JDBC Driver"), as reported by Karaf before. */
-    @ConfigProperty(name = "qtt.db.driver-name", defaultValue = "unknown")
-    String datasourceType;
+    /**
+     * The database in use: derby, postgresql or mssql, as the application detected it from DB_URL (or QTT_DB_KIND)
+     * to choose its persistence unit. Karaf showed DB_DRIVER_NAME, a separate label that defaulted to "derby" and
+     * could disagree with the database actually used.
+     */
+    @ConfigProperty(name = "qtt.db.kind", defaultValue = "unknown")
+    String databaseKind;
 
     /** Sets the reported values directly (used by tests). */
-    void configure(String version, String datasourceUrl, String datasourceType) {
+    void configure(String version, String datasourceUrl, String databaseKind) {
         this.version = version;
         this.datasourceUrl = datasourceUrl;
-        this.datasourceType = datasourceType;
+        this.databaseKind = databaseKind;
+    }
+
+    /** Display name for a database kind. */
+    static String databaseType(String kind) {
+        if (kind == null) {
+            return "unknown";
+        }
+        return switch (kind) {
+            case "derby" -> "Apache Derby";
+            case "postgresql" -> "PostgreSQL";
+            case "mssql" -> "Microsoft SQL Server";
+            default -> kind;
+        };
     }
 
     @GET
@@ -49,7 +66,7 @@ public class SettingsRestController {
         Map<String, String> map = new HashMap<>();
         map.put("version", this.version != null ? this.version : "unknown");
         map.put("datasourceUrl", this.datasourceUrl != null ? this.datasourceUrl : "unknown");
-        map.put("datasourceType", this.datasourceType != null ? this.datasourceType : "unknown");
+        map.put("datasourceType", databaseType(this.databaseKind));
         map.put("uptime", getUptime());
         return map;
     }

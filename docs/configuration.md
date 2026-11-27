@@ -18,7 +18,7 @@ This configuration controls the database connection for the persistence layer.
 | `DB_USER`        | `user`                                 | Database username      | Optional |
 | `DB_PASSWORD`    | `password`                             | Database password      | Optional |
 | `QTT_DB_KIND`    | (detected from `DB_URL`)               | Database type override | Optional |
-| `DB_DRIVER_NAME` | `derby`                                | Database type label    | Optional |
+| `DB_DRIVER_NAME` | (none)                                 | Legacy; see below      | Optional |
 
 **Database selection:** the database type is detected from the `DB_URL` prefix:
 
@@ -27,9 +27,8 @@ This configuration controls the database connection for the persistence layer.
 - `jdbc:sqlserver:` - SQL Server
 
 `QTT_DB_KIND` (`derby`, `postgresql` or `mssql`) overrides the detection. `DB_DRIVER_NAME` no longer selects the
-driver, but it is still accepted and its value is what the Settings page shows as the database type, so keep setting
-it (`derby`, `PostgreSQL JDBC Driver` or `Microsoft JDBC Driver for SQL Server`) if you want that display to be
-accurate.
+driver or sets the Settings page's database type (which shows the database actually in use); it is still accepted,
+and only used to pick the database when neither `QTT_DB_KIND` nor `DB_URL` is set.
 
 ### API Configuration
 

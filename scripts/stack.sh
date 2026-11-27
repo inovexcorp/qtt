@@ -137,7 +137,7 @@ cmd_restart() {
 
 cmd_it() {
   local redis=$QTT_REDIS
-  (cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dqtt.redis="$redis" "$@")
+  (cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dqtt.redis="$redis" -Dqtt.db="$QTT_DB" "$@")
 }
 
 cmd_restart_it() {

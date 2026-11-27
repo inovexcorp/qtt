@@ -41,10 +41,19 @@ public class SettingsRestControllerTest {
 
     private static final String TEST_VERSION = "1.0.0.SNAPSHOT";
     private static final String TEST_DATASOURCE_URL = "jdbc:derby:data/database;create=true";
-    private static final String TEST_DATASOURCE_TYPE = "Apache Derby Embedded";
+    private static final String TEST_DATASOURCE_TYPE = "Apache Derby";
 
     private void setupWithDataSource() {
-        settingsRestController.configure(TEST_VERSION, TEST_DATASOURCE_URL, TEST_DATASOURCE_TYPE);
+        settingsRestController.configure(TEST_VERSION, TEST_DATASOURCE_URL, "derby");
+    }
+
+    /** The type shown is the database in use, whatever DB_DRIVER_NAME says (it defaults to "derby"). */
+    @Test
+    public void testDatabaseTypeFollowsTheDatabaseInUse() {
+        settingsRestController.configure(TEST_VERSION, "jdbc:postgresql://localhost:5432/qtt", "postgresql");
+        assertEquals("PostgreSQL", settingsRestController.getSystemInformation().get("datasourceType"));
+        settingsRestController.configure(TEST_VERSION, "jdbc:sqlserver://localhost:1433;databaseName=qtt", "mssql");
+        assertEquals("Microsoft SQL Server", settingsRestController.getSystemInformation().get("datasourceType"));
     }
 
     @Test

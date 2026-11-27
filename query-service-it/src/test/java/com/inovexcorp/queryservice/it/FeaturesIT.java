@@ -121,7 +121,11 @@ class FeaturesIT {
     void settingsSysinfoAndStats() {
         api().get("/settings/sysinfo").then().statusCode(200)
                 .body("version", not(emptyOrNullString()))
-                .body("$", hasKey("datasourceType"))
+                .body("datasourceType", equalTo(switch (DB) {
+                    case "postgres" -> "PostgreSQL";
+                    case "mssql" -> "Microsoft SQL Server";
+                    default -> "Apache Derby";
+                }))
                 .body("$", hasKey("uptime"));
         api().get("/settings/stats").then().statusCode(200)
                 .body("routes", greaterThanOrEqualTo(1))

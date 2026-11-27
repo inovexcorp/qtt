@@ -378,7 +378,7 @@ The Settings page displays system information and statistics.
 
 - **Version**: Application version number
 - **System Uptime**: Formatted uptime duration
-- **Database Type**: Database driver name as configured by `DB_DRIVER_NAME` (Derby/PostgreSQL/SQL Server)
+- **Database Type**: The database in use (Apache Derby, PostgreSQL or Microsoft SQL Server), as detected from `DB_URL`
 - **Remote Database Address**: JDBC connection URL
 
 #### Application Stats Card
