@@ -268,6 +268,8 @@ Each route provides these actions:
     - Smart autocomplete for ontology elements
     - File upload button for existing templates
     - Context-aware suggestions (triggered by typing)
+    - Syntax checking as you type: a FreeMarker syntax error is underlined in the editor, and its line, column and
+      message are shown above it. A route whose template does not parse cannot be saved.
 
 4. Click **"Save"** to create the route
 

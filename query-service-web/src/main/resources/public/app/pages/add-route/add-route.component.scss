@@ -301,3 +301,23 @@ ngx-monaco-editor {
     height: 20px;
   }
 }
+
+// Template syntax error reported by the server while typing (also marked in the editor)
+.template-syntax-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid #f44336;
+  border-radius: 4px;
+  background-color: #ffebee;
+  color: #c62828;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-size: 0.875rem;
+
+  mat-icon {
+    flex: none;
+    color: #f44336;
+  }
+}

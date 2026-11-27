@@ -167,55 +167,79 @@ GET /routes/{id}
 ### Create Route
 
 ```bash
-POST /routes
-Content-Type: application/json
+POST /routes/{routeId}?routeParams=httpMethodRestrict=GET,POST&dataSourceId=my-anzo&description=Search%20for%20people&graphMartUri=http://example.org/graphmart
+Content-Type: multipart/form-data
 
+freemarker: the FreeMarker template (may be empty: the route is then created stopped)
+layers:     comma-separated layer URIs (may be empty)
+```
+
+Optional query parameters: `cacheEnabled`, `cacheTtlSeconds`, `cacheKeyStrategy`. Returns `201` with
+`{ "endpointUrl": "..." }`.
+
+A template that does not parse is rejected with `400`, and nothing is saved:
+
+```json
 {
-  "id": "people-search",
-  "description": "Search for people",
-  "datasourceId": "my-anzo",
-  "graphMartUri": "http://example.org/graphmart",
-  "layerUris": ["http://example.org/layer1"],
-  "template": "PREFIX foaf: <http://xmlns.com/foaf/0.1/>\n\nCONSTRUCT { ?person foaf:name ?name . }\nWHERE { ?person a foaf:Person ; foaf:name ?name . }",
-  "httpMethods": ["GET", "POST"]
+  "error": "Template syntax error",
+  "status": "TEMPLATE_ERROR",
+  "message": "The template of route 'people-search' has a syntax error at line 2, column 7: ...",
+  "line": 2, "column": 7, "endLine": 2, "endColumn": 7
 }
 ```
 
 ### Update Route
 
 ```bash
-PUT /routes/{id}
-Content-Type: application/json
-
-{
-  "description": "Updated description",
-  "template": "...",
-  ...
-}
+PUT /routes/{routeId}?routeParams=...&dataSourceId=...&description=...&graphMartUri=...
+Content-Type: multipart/form-data
 ```
 
-**Note:** Route changes take effect immediately without restart.
+Same fields as create. To change only the template, send just the `freemarker` part and no query parameters. The
+template is checked as on create (`400` on a syntax error, and the route keeps its previous template). Route changes
+take effect immediately without restart.
+
+### Validate a Template
+
+```bash
+POST /routes/template/validate
+Content-Type: text/plain
+
+SELECT * WHERE { ?s ?p "${headers.name" }
+```
+
+Checks that a template parses, exactly as a route would parse it, without saving anything. The route editor calls
+this while you type and marks the error in the editor. Returns `{ "valid": true }`, or:
+
+```json
+{ "valid": false, "message": "...", "line": 1, "column": 25, "endLine": 1, "endColumn": 25 }
+```
+
+Positions are 1-based and the end is inclusive. Only syntax is checked: a template that parses can still fail for a
+request that does not supply a value it needs (`400` from the query endpoint, see Query Errors).
 
 ### Delete Route
 
 ```bash
-DELETE /routes/{id}
+DELETE /routes/{routeId}
 ```
 
 ### Start/Stop Route
 
 ```bash
-POST /routes/{id}/start
-POST /routes/{id}/stop
+PATCH /routes/{routeId}
+Content-Type: text/plain
+
+Started        # or Stopped
 ```
 
 ### Clone Route
 
 ```bash
-POST /routes/{id}/clone
+POST /routes/clone/{routeId}
 ```
 
-Creates a new route with ID `{id}-copy`.
+Creates a copy with ID `{routeId}Clone`.
 
 ## GraphMarts and Layers API
 
@@ -417,7 +441,7 @@ Errors are JSON objects with `error` and `message` (and `status` where shown).
 |---|---|---|
 | 400 | `TEMPLATE_ERROR` | The template needs a value the request did not supply; `message` names it (for example `headers.name`) |
 | 400 | `QUERY_ERROR` | Anzo rejected the generated SPARQL |
-| 500 | `TEMPLATE_ERROR` | The route's template has a syntax error |
+| 500 | `TEMPLATE_ERROR` | The route's template has a syntax error (only routes saved before templates were checked on save) |
 | 502 | | Anzo returned a server error |
 | 503 | `DISABLED` | The route's datasource is disabled (takes effect on running routes immediately) |
 | 503 | | Anzo could not be reached, timed out or rejected the credentials |

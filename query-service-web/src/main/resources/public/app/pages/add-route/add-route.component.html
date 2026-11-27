@@ -162,6 +162,10 @@
             </button>
             <div [style.visibility]="showTemplateEditor ? 'visible' : 'hidden'">
                 <h2 class="editor-title">Template Editor</h2>
+                <div class="template-syntax-error" *ngIf="templateSyntaxError" role="alert">
+                    <mat-icon>error_outline</mat-icon>
+                    <span>Line {{ templateSyntaxError.line }}, column {{ templateSyntaxError.column }}: {{ templateSyntaxError.message }}</span>
+                </div>
                 <div>
                     <ngx-monaco-editor [options]="editorOptions" formControlName="template"
                         (onInit)="onEditorInit($event)"

@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { ViewEncapsulation } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { trigger, state, style, transition, animate } from '@angular/animations';
@@ -21,6 +21,8 @@ import { NewRoute } from '../../core/models/routes-interfaces/new-route';
 import { OntologyService } from '../../core/services/ontology/ontology.service';
 import { registerOntologyAutocomplete, OntologyAutocompleteProvider } from '../../core/services/ontology/ontology-autocomplete.provider';
 import * as monaco from 'monaco-editor';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
 import { CacheService } from '../../core/services/cache.service';
 import { CacheInfo } from '../../core/models/cache-info';
 
@@ -43,7 +45,7 @@ import { CacheInfo } from '../../core/models/cache-info';
     ])
   ]
 })
-export class AddRouteComponent implements OnInit {
+export class AddRouteComponent implements OnInit, OnDestroy {
 
   filteredGraphmarts!: Observable<Graphmarts[]> | undefined;
   datasourceIcon: string = 'assets/icons/anzo.svg';
@@ -83,6 +85,9 @@ export class AddRouteComponent implements OnInit {
   layerPlaceholder: string = "Keep blank to target all layers";
   private ontologyAutocompleteProvider?: OntologyAutocompleteProvider;
   private monacoEditor: any;
+  private templateValidation?: { dispose(): void };
+  /** The template's current syntax error, shown below the editor (null when it parses). */
+  templateSyntaxError: TemplateValidation | null = null;
 
   // Cache configuration
   cacheInfo?: CacheInfo;
@@ -118,7 +123,8 @@ export class AddRouteComponent implements OnInit {
 
 
 
-  constructor(private domSanitzer: DomSanitizer, public router: Router, public dialog: MatDialog, private datasourceService: DatasourceService, private routeService: AddRouteService, private graphMartService: GraphmartsService, private matIconRegistry: MatIconRegistry, private layersService: LayersService, private ontologyService: OntologyService, private cacheService: CacheService
+  constructor(private domSanitzer: DomSanitizer, public router: Router, public dialog: MatDialog, private datasourceService: DatasourceService, private routeService: AddRouteService, private graphMartService: GraphmartsService, private matIconRegistry: MatIconRegistry, private layersService: LayersService, private ontologyService: OntologyService, private cacheService: CacheService,
+    private templateValidationService: TemplateValidationService, private snackBar: MatSnackBar
   ) {
     this.matIconRegistry.addSvgIcon(
       'anzo-logo',
@@ -305,6 +311,11 @@ export class AddRouteComponent implements OnInit {
     // Store the editor instance
     this.monacoEditor = editor;
 
+    // Mark syntax errors as the user types (the server rejects saving a template that does not parse)
+    this.templateValidation?.dispose();
+    this.templateValidation = this.templateValidationService.attach(editor,
+      result => this.templateSyntaxError = result && !result.valid ? result : null);
+
     // Configure word pattern FIRST, before registering providers
     // This prevents Monaco from breaking URIs at dots, slashes, etc.
     monaco.languages.setLanguageConfiguration('freemarker2', {
@@ -321,6 +332,11 @@ export class AddRouteComponent implements OnInit {
       this.initializeOntologyAutocomplete(routeId);
       console.log('[Add Route] Provider registered. Try typing "<" or pressing Ctrl+Space');
     }, 100);
+  }
+
+  ngOnDestroy(): void {
+    this.templateValidation?.dispose();
+    this.templateValidation = undefined;
   }
 
   toggleEditor(): void {
@@ -363,9 +379,14 @@ export class AddRouteComponent implements OnInit {
     }
 
     this.routeService.postRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, status, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy } as NewRoute)
-      .subscribe(() => {
-        this.router.navigate(['../../routes']);
-        location.reload();
+      .subscribe({
+        next: () => {
+          this.router.navigate(['../../routes']);
+          location.reload();
+        },
+        // Stay on the page (keeping the input) and say why, e.g. a template syntax error
+        error: (error) => this.snackBar.open(`Route not created: ${saveErrorMessage(error)}`, 'Close',
+          { duration: 10000, panelClass: ['error-snackbar'] })
       });
 
   }

@@ -123,7 +123,7 @@ class QueryPathIT {
 
     /**
      * Template errors are reported as such and never reach Anzo. They used to be reported as an unreachable
-     * datasource (503, status DOWN).
+     * datasource (503, status DOWN), and templates that did not parse could be saved.
      */
     @Test
     void templateErrorsAreReportedAsTemplateErrors() {
@@ -131,13 +131,14 @@ class QueryPathIT {
         String id = uniqueId("it-q");
         routes.add(id);
         routes.add(id + "b");
+        // A template that does not parse is not saved (routes stored before this check report 500 when queried;
+        // see RouteErrorHandlingTest).
         createRoute(id, ds, neverCalled, "SELECT ${headers.unclosed WHERE {}", LAYER, null)
-                .then().statusCode(201);
-        query().get("/" + id).then().statusCode(500)
-                .contentType(containsString("json"))
+                .then().statusCode(400)
                 .body("status", equalTo("TEMPLATE_ERROR"))
-                .body("error", equalTo("Route template error"))
+                .body("line", equalTo(1))
                 .body("message", containsString("syntax error at line 1"));
+        api().get("/routes/" + id).then().statusCode(404);
 
         createRoute(id + "b", ds, neverCalled, "SELECT ${headers.undefinedVariable} WHERE {}", LAYER, null)
                 .then().statusCode(201);

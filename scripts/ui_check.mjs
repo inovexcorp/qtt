@@ -80,6 +80,58 @@ try {
     problems.push(...errs.map(e => `${name}: ${e}`));
     await page.close();
   }
+
+  // Template editors: a syntax error is marked while typing (before saving), and the mark clears once fixed.
+  // add-route uses ngx-monaco-editor's own Monaco instance, config-route the bundled one; check both.
+  // [name, page, buttons/tabs to click (in order) to reveal the editor]
+  const editors = [
+    ['config-route editor', `#/routes/config-route/${route}`, ['tab:Template Editor']],
+    ['add-route editor', '#/routes', ['.add-button', '.edit-btn']],
+  ];
+  const selectAll = process.platform === 'darwin' ? 'Meta' : 'Control';
+  for (const [name, hash, openSteps] of editors) {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1440, height: 900 });
+    const errs = [];
+    page.on('pageerror', e => errs.push(`pageerror: ${e.message}`));
+    try {
+      await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle0', timeout: 60000 });
+      for (const step of openSteps) {
+        if (step.startsWith('tab:')) {
+          const label = step.slice(4);
+          await page.evaluate(l => [...document.querySelectorAll('[role="tab"]')]
+            .find(t => t.innerText.trim() === l)?.click(), label);
+        } else {
+          await page.waitForSelector(step, { visible: true, timeout: 10000 });
+          await page.click(step);
+        }
+        await new Promise(r => setTimeout(r, 800));
+      }
+      await page.waitForSelector('.monaco-editor .view-lines', { visible: true, timeout: 15000 });
+      const replaceText = async text => {
+        await page.click('.monaco-editor .view-lines');
+        await page.keyboard.down(selectAll);
+        await page.keyboard.press('KeyA');
+        await page.keyboard.up(selectAll);
+        await page.keyboard.press('Backspace');
+        await page.keyboard.type(text, { delay: 5 });
+      };
+      await replaceText('SELECT * WHERE { ?s ?p ?o }\n<#if x>');
+      await page.waitForSelector('.template-syntax-error', { timeout: 10000 });
+      await page.waitForSelector('.monaco-editor .squiggly-error', { timeout: 10000 });
+      const banner = await page.$eval('.template-syntax-error', el => el.innerText);
+      if (!banner.includes('Line 2')) errs.push(`unexpected error banner: ${banner}`);
+      await replaceText('SELECT * WHERE { ?s ?p ?o }');
+      await page.waitForSelector('.template-syntax-error', { hidden: true, timeout: 10000 });
+      await page.waitForSelector('.monaco-editor .squiggly-error', { hidden: true, timeout: 10000 });
+    } catch (e) {
+      errs.push(`editor check: ${e.message}`);
+    }
+    console.log(`${errs.length ? 'FAIL' : 'PASS'} ${name}${errs.length ? '\n    ' + errs.join('\n    ') : ''}`);
+    problems.push(...errs.map(e => `${name}: ${e}`));
+    pages.push([name]);
+    await page.close();
+  }
 } finally {
   await browser.close();
   await teardown();

@@ -281,6 +281,10 @@
                 </button>
               </div>
             </div>
+            <div class="template-syntax-error" *ngIf="templateSyntaxError" role="alert">
+              <mat-icon>error_outline</mat-icon>
+              <span>Line {{ templateSyntaxError.line }}, column {{ templateSyntaxError.column }}: {{ templateSyntaxError.message }}</span>
+            </div>
             <div class="editor-container">
               <div #monacoEditorContainer class="template-editor-div"></div>
             </div>

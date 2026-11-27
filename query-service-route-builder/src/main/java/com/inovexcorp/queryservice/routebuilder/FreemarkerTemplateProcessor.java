@@ -43,6 +43,28 @@ public class FreemarkerTemplateProcessor implements Processor {
         return configuration;
     }
 
+    /**
+     * Checks that a template parses, exactly as a route would parse it. A template that passes always parses at
+     * query time; what it renders still depends on each request.
+     *
+     * @param name    the route id (used in the message)
+     * @param content the template; null or blank is valid (a route without a template is created stopped)
+     * @throws RouteTemplateException with the position of the first syntax error
+     */
+    public static void checkSyntax(String name, String content) {
+        if (content == null || content.isBlank()) {
+            return;
+        }
+        try {
+            new Template(name, new StringReader(content), CONFIGURATION);
+        } catch (ParseException e) {
+            throw RouteTemplateException.syntax(name, e);
+        } catch (java.io.IOException e) {
+            // Reading from a String cannot fail; Template's constructor declares it for other readers.
+            throw new java.io.UncheckedIOException(e);
+        }
+    }
+
     Template template() throws Exception {
         Template t = template;
         if (t == null) {

@@ -14,17 +14,52 @@ import freemarker.template.TemplateException;
 public class RouteTemplateException extends RuntimeException {
 
     private final boolean syntaxError;
+    /** Position of a syntax error (1-based), 0 when unknown or not a syntax error. */
+    private final int line;
+    private final int column;
+    private final int endLine;
+    private final int endColumn;
 
     private RouteTemplateException(String message, Throwable cause, boolean syntaxError) {
+        this(message, cause, syntaxError, 0, 0, 0, 0);
+    }
+
+    private RouteTemplateException(String message, Throwable cause, boolean syntaxError,
+                                   int line, int column, int endLine, int endColumn) {
         super(message, cause);
         this.syntaxError = syntaxError;
+        this.line = line;
+        this.column = column;
+        this.endLine = endLine;
+        this.endColumn = endColumn;
     }
 
     /** The template does not parse: the route is misconfigured, whatever the request. */
     static RouteTemplateException syntax(String routeId, ParseException e) {
         return new RouteTemplateException(String.format("The template of route '%s' has a syntax error at line %d, "
                 + "column %d: %s", routeId, e.getLineNumber(), e.getColumnNumber(), firstLine(e.getEditorMessage())),
-                e, true);
+                e, true, e.getLineNumber(), e.getColumnNumber(), e.getEndLineNumber(), e.getEndColumnNumber());
+    }
+
+    /** The parser's description of a syntax error, without the position (see {@link #getLine()} etc.). */
+    public String getSyntaxMessage() {
+        return getCause() instanceof ParseException p ? firstLine(p.getEditorMessage()) : getMessage();
+    }
+
+    public int getLine() {
+        return line;
+    }
+
+    public int getColumn() {
+        return column;
+    }
+
+    public int getEndLine() {
+        return endLine;
+    }
+
+    public int getEndColumn() {
+        return endColumn;
     }
 
     /** The template parsed but failed for this request, usually because a value it needs was not supplied. */

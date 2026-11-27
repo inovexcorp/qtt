@@ -28,6 +28,7 @@ import { CacheInfo, RouteCacheStats } from '../../core/models/cache-info';
 import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabChangeEvent } from '@angular/material/tabs';
+import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
 import * as monaco from 'monaco-editor';
 
 // Import ALL editor features including suggest
@@ -138,6 +139,9 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   layerPlaceholder: string = this.layers.length < 1 ? "Keep blank to target all layers" : "Add a new layer(s)...";
   private ontologyAutocompleteProvider?: OntologyAutocompleteProvider;
   private monacoEditor?: monaco.editor.IStandaloneCodeEditor;
+  private templateValidation?: { dispose(): void };
+  /** The template's current syntax error, shown below the editor (null when it parses). */
+  templateSyntaxError: TemplateValidation | null = null;
 
   // Cache configuration
   cacheInfo?: CacheInfo;
@@ -238,7 +242,8 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     private sparqiService: SparqiService,
     private cacheService: CacheService,
     private dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private templateValidationService: TemplateValidationService
   ) {
     this.matIconRegistry.addSvgIcon(
       'anzo-logo',
@@ -429,8 +434,11 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!httpMethods || httpMethods.length === 0 || !routeDescription || !graphMartUri || !templateBody || !dataSourceId) { return; }
 
     this.configRouteService.configRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy } as NewRoute)
-      .subscribe(() => {
-        this.navigateBack();
+      .subscribe({
+        next: () => this.navigateBack(),
+        // Stay on the page (keeping the edits) and say why, e.g. a template syntax error
+        error: (error) => this.snackBar.open(`Route not saved: ${saveErrorMessage(error)}`, 'Close',
+          { duration: 10000, panelClass: ['error-snackbar'] })
       });
   }
 
@@ -1123,6 +1131,10 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
         this.templateContent = value;
       });
 
+      // Mark syntax errors as the user types (the server rejects saving a template that does not parse)
+      this.templateValidation = this.templateValidationService.attach(this.monacoEditor,
+        result => this.templateSyntaxError = result && !result.valid ? result : null);
+
       // Wait a bit then initialize autocomplete
       setTimeout(() => {
         this.onEditorInit(this.monacoEditor!);
@@ -1455,6 +1467,9 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     // Signal all subscriptions to complete
     this.destroy$.next();
     this.destroy$.complete();
+
+    this.templateValidation?.dispose();
+    this.templateValidation = undefined;
 
     // Dispose Monaco editor
     if (this.monacoEditor) {

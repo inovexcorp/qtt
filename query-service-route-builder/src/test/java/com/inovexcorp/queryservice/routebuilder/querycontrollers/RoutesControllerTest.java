@@ -618,4 +618,83 @@ public class RoutesControllerTest {
         field.setAccessible(true);
         field.set(target, value);
     }
+
+    // ========================================
+    // Template syntax is checked before saving, and on demand for the editor
+    // ========================================
+
+    private static final String BROKEN_TEMPLATE = "SELECT * WHERE {\n  ?s ?p \"${headers.unclosed\" }";
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> body(Response response) {
+        return (Map<String, Object>) response.getEntity();
+    }
+
+    @Test
+    public void testCreateEndpoint_TemplateSyntaxError_RejectedWithPosition() throws Exception {
+        when(dataSourceService.dataSourceExists(TEST_DATASOURCE_ID)).thenReturn(true);
+
+        Response response = routesController.createEndpoint(TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, BROKEN_TEMPLATE, TEST_LAYERS);
+
+        assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+        assertEquals("TEMPLATE_ERROR", body(response).get("status"));
+        assertEquals(2, body(response).get("line"));
+        assertTrue((Integer) body(response).get("column") > 0);
+        assertTrue(body(response).get("message").toString().contains("syntax error at line 2"));
+        verify(routeManagementService, never()).createRoute(any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any());
+    }
+
+    /** Creating a route without a template (it starts stopped) stays allowed. */
+    @Test
+    public void testCreateEndpoint_EmptyTemplate_Allowed() throws Exception {
+        when(dataSourceService.dataSourceExists(TEST_DATASOURCE_ID)).thenReturn(true);
+
+        Response response = routesController.createEndpoint(TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, "", TEST_LAYERS);
+
+        assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
+    }
+
+    @Test
+    public void testModifyEndpoint_TemplateSyntaxError_Rejected() throws Exception {
+        when(routeManagementService.routeExists(TEST_ROUTE_ID)).thenReturn(true);
+
+        Response full = routesController.modifyEndpoint(TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, BROKEN_TEMPLATE, TEST_LAYERS);
+        Response templateOnly = routesController.modifyEndpoint(TEST_ROUTE_ID, null, null, null, null,
+                null, null, null, BROKEN_TEMPLATE, null);
+
+        assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), full.getStatus());
+        assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), templateOnly.getStatus());
+        verify(routeManagementService, never()).modifyRoute(any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any());
+        verify(routeManagementService, never()).modifyRouteTemplate(any(), any());
+    }
+
+    @Test
+    public void testValidateTemplate_Valid() {
+        Response response = routesController.validateTemplate(
+                "<#if headers.x??>SELECT ${headers.x}<#else>SELECT 1</#if>");
+
+        assertEquals(200, response.getStatus());
+        assertEquals(Map.of("valid", true), response.getEntity());
+        assertEquals(Map.of("valid", true), routesController.validateTemplate("").getEntity());
+    }
+
+    /** The editor marks the error from these fields; a missing request value is not a syntax error. */
+    @Test
+    public void testValidateTemplate_SyntaxErrorWithRange() {
+        Map<String, Object> result = body(routesController.validateTemplate(BROKEN_TEMPLATE));
+
+        assertEquals(false, result.get("valid"));
+        assertEquals(2, result.get("line"));
+        assertTrue((Integer) result.get("endLine") >= 2);
+        assertTrue((Integer) result.get("endColumn") >= 1);
+        assertTrue(!result.get("message").toString().isBlank());
+        assertTrue("message has no position prefix", !result.get("message").toString().contains("line 2"));
+
+        assertEquals(Map.of("valid", true), routesController.validateTemplate("SELECT ${headers.nosuch}").getEntity());
+    }
 }

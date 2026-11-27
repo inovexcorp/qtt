@@ -140,6 +140,28 @@ class RouteApiIT {
     }
 
     @Test
+    void templateSyntaxIsCheckedBeforeSaving() {
+        createRoute(route, ds);
+        modifyRoute(route, ds, GRAPHMART, "SELECT * WHERE {\n  ?s ?p \"${headers.x\" }", LAYER, null)
+                .then().statusCode(400)
+                .body("status", equalTo("TEMPLATE_ERROR"))
+                .body("line", equalTo(2));
+        // The route keeps its previous template and keeps serving.
+        api().get("/routes/" + route).then().body("templateContent", equalTo(TEMPLATE));
+        query().get("/" + route).then().statusCode(200);
+
+        // What the editor calls while the user types: nothing is saved.
+        api().contentType("text/plain").body("SELECT ${headers.x").post("/routes/template/validate")
+                .then().statusCode(200)
+                .body("valid", equalTo(false))
+                .body("line", equalTo(1))
+                .body("column", greaterThan(0))
+                .body("message", not(emptyOrNullString()));
+        api().contentType("text/plain").body(TEMPLATE).post("/routes/template/validate")
+                .then().statusCode(200).body("valid", equalTo(true));
+    }
+
+    @Test
     void cloneCreatesIndependentCopy() {
         createRoute(route, ds);
         String body = api().post("/routes/clone/" + route).then().statusCode(anyOf(is(200), is(201)))

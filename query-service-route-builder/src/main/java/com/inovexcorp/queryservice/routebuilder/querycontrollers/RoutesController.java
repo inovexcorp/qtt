@@ -14,6 +14,8 @@ import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.RouteService;
+import com.inovexcorp.queryservice.routebuilder.FreemarkerTemplateProcessor;
+import com.inovexcorp.queryservice.routebuilder.RouteTemplateException;
 import com.inovexcorp.queryservice.routebuilder.service.RouteManagementService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
@@ -184,6 +186,10 @@ public class RoutesController {
         }
         // Else process the request
         else {
+            Response invalidTemplate = rejectInvalidTemplate(routeId, freemarker);
+            if (invalidTemplate != null) {
+                return invalidTemplate;
+            }
             // Check datasource health and log warning if DOWN or DISABLED
             Datasources datasource = dataSourceService.getDataSource(dataSourceId);
             if (datasource != null) {
@@ -273,6 +279,10 @@ public class RoutesController {
         // Check if they'd just like to modify route freemarker template
         else if (routeParams == null && dataSourceId == null && freemarker != null && graphMartUri == null
                 && description == null && layers == null) {
+            Response invalidTemplate = rejectInvalidTemplate(routeId, freemarker);
+            if (invalidTemplate != null) {
+                return invalidTemplate;
+            }
             routeManagementService.modifyRouteTemplate(routeId, freemarker);
             return Response.ok().build();
         }
@@ -290,10 +300,63 @@ public class RoutesController {
         }
         // else all the fields are present, so mutate the entity in the database and generate the camel route.
         else {
+            Response invalidTemplate = rejectInvalidTemplate(routeId, freemarker);
+            if (invalidTemplate != null) {
+                return invalidTemplate;
+            }
             routeManagementService.modifyRoute(routeId, routeParams, dataSourceId, description,
                     graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy);
             return Response.ok().build();
         }
+    }
+
+    /**
+     * Checks that a template parses, exactly as a route would parse it, without saving anything. The route editor
+     * calls this while the user types to mark syntax errors.
+     *
+     * @param template the template text (text/plain)
+     * @return {@code {"valid": true}}, or {@code valid: false} with the parser's message and the 1-based position
+     */
+    @POST
+    @Path("template/validate")
+    @Consumes(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response validateTemplate(String template) {
+        try {
+            FreemarkerTemplateProcessor.checkSyntax("template", template);
+            return Response.ok(Map.of("valid", true)).build();
+        } catch (RouteTemplateException e) {
+            return Response.ok(syntaxError(e, false)).build();
+        }
+    }
+
+    /** A template that does not parse could never serve a query, so it is not saved: 400 with its position. */
+    private Response rejectInvalidTemplate(String routeId, String freemarker) {
+        try {
+            FreemarkerTemplateProcessor.checkSyntax(routeId, freemarker);
+            return null;
+        } catch (RouteTemplateException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(syntaxError(e, true))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+    }
+
+    private static Map<String, Object> syntaxError(RouteTemplateException e, boolean rejected) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        if (rejected) {
+            body.put("error", "Template syntax error");
+            body.put("status", "TEMPLATE_ERROR");
+        } else {
+            body.put("valid", false);
+        }
+        body.put("message", rejected ? e.getMessage() : e.getSyntaxMessage());
+        body.put("line", e.getLine());
+        body.put("column", e.getColumn());
+        body.put("endLine", e.getEndLine());
+        body.put("endColumn", e.getEndColumn());
+        return body;
     }
 
     @GET
