@@ -30,12 +30,6 @@ class KnownIssuesIT {
         deleteDatasourceQuietly(ds);
     }
 
-    /** KNOWN ISSUE: the unauthenticated API returns the Anzo password in plaintext. */
-    @Test
-    void datasourcePasswordIsReturnedInPlaintext() {
-        api().get("/datasources/" + ds).then().statusCode(200).body("password", equalTo("mock-password"));
-    }
-
     /** KNOWN ISSUE: a route checks a status snapshot taken when it was built, so disabling does not stop it. */
     @Test
     void disablingDatasourceDoesNotStopRunningRoute() {

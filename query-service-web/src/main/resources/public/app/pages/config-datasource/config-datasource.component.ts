@@ -1,5 +1,5 @@
 import {Component, OnInit, ViewEncapsulation, ViewChild, AfterViewInit} from '@angular/core';
-import {FormControl, FormGroup, Validators} from '@angular/forms';
+import {AbstractControl, FormControl, FormGroup, ValidationErrors, Validators} from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import {DatasourceService} from '../../core/services/datasource.service';
 import {Datasources} from '../../core/models/datasources';
@@ -22,6 +22,9 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
   private sub: any;
   dataSourceId: string = '';
   private associatedRoutes: string[] = [];
+  // The stored password can only be kept while these are unchanged (the API never returns it)
+  private storedUrl: string = '';
+  private storedUsername: string = '';
   testResponse: any;
   testResponseStatus: 'success' | 'error' | null = null;
 
@@ -59,7 +62,9 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     timeOutSeconds: new FormControl('', Validators.required),
     maxQueryHeaderLength: new FormControl('', Validators.required),
     username: new FormControl('', Validators.required),
-    password: new FormControl('', Validators.required),
+    // Blank keeps the stored password, unless the URL or username changes
+    password: new FormControl('', (control: AbstractControl): ValidationErrors | null =>
+      this.passwordRequiredForChange(control) ? {requiredForChange: true} : null),
     validateCertificate: new FormControl('true', Validators.required)
   })
   hide = true;
@@ -102,6 +107,8 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
       this.dataSourceId = params['dataSourceId'];
     });
     this.getDatasource();
+    this.configDatasource.controls['url'].valueChanges.subscribe(() => this.revalidatePassword());
+    this.configDatasource.controls['username'].valueChanges.subscribe(() => this.revalidatePassword());
     this.loadUsageMetrics();
     this.checkHealthCheckStatus();
   }
@@ -131,11 +138,12 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     this.datasourceService.getDatasource(this.dataSourceId)
       .subscribe((datasources) => {
         this.dataSourceId = datasources.dataSourceId;
+        this.storedUrl = datasources.url;
+        this.storedUsername = datasources.username;
         this.configDatasource.controls['url'].setValue(datasources.url);
         this.configDatasource.controls['timeOutSeconds'].setValue(datasources.timeOutSeconds);
         this.configDatasource.controls['maxQueryHeaderLength'].setValue(datasources.maxQueryHeaderLength);
         this.configDatasource.controls['username'].setValue(datasources.username);
-        this.configDatasource.controls['password'].setValue(datasources.password);
         this.configDatasource.controls['validateCertificate'].setValue(datasources.validateCertificate.toString())
         this.associatedRoutes = datasources.camelRouteTemplate;
         this.datasourceStatus = datasources.status;
@@ -148,9 +156,12 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     let timeOutSeconds: string = this.configDatasource.value['timeOutSeconds'] as string;
     let maxQueryHeaderLength: string = this.configDatasource.value['maxQueryHeaderLength'] as string;
     let username: string = this.configDatasource.value['username'] as string;
-    let password: string = this.configDatasource.value['password'] as string;
+    let password: string | undefined = (this.configDatasource.value['password'] as string) || undefined;
     let validateCertificate: boolean = this.configDatasource.value['validateCertificate'] === 'true';
-    if (!dataSourceId || !url || !timeOutSeconds || !maxQueryHeaderLength || !username || !password) {
+    if (!dataSourceId || !url || !timeOutSeconds || !maxQueryHeaderLength || !username) {
+      return;
+    }
+    if (this.password?.invalid) {
       return;
     }
 
@@ -193,6 +204,22 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     });
   }
 
+  /** True when the URL or username differs from the stored datasource and no new password was entered. */
+  private passwordRequiredForChange(password: AbstractControl): boolean {
+    const group = password.parent;
+    if (!group || password.value || !this.storedUrl) {
+      return false;
+    }
+    return group.get('url')?.value !== this.storedUrl || group.get('username')?.value !== this.storedUsername;
+  }
+
+  private revalidatePassword(): void {
+    this.password?.updateValueAndValidity({emitEvent: false});
+    if (this.password?.invalid) {
+      this.password.markAsTouched();
+    }
+  }
+
   public test(): void {
     this.datasourceService.testDatasource(this.asDataSource()).subscribe({
       next: response => {
@@ -214,7 +241,7 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
       timeOutSeconds: this.configDatasource.value['timeOutSeconds'] as string,
       maxQueryHeaderLength: this.configDatasource.value['maxQueryHeaderLength'] as string,
       username: this.configDatasource.value['username'] as string,
-      password: this.configDatasource.value['password'] as string,
+      password: (this.configDatasource.value['password'] as string) || undefined,
       validateCertificate: this.configDatasource.value['validateCertificate'] === 'true'
     } as Datasources;
   }

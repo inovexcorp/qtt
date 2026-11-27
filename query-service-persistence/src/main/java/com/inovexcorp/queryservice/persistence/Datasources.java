@@ -2,11 +2,15 @@ package com.inovexcorp.queryservice.persistence;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.inovexcorp.queryservice.persistence.util.EncryptedPasswordConverter;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -25,6 +29,9 @@ import java.util.List;
 @ToString
 @NoArgsConstructor
 @Table(name = "datasources")
+// Only changed columns are written. Status updates (health checks) then never rewrite the password column, which
+// matters when a stored password cannot be decrypted (wrong key): rewriting it would encrypt the ciphertext again.
+@DynamicUpdate
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Datasources {
 
@@ -39,6 +46,15 @@ public class Datasources {
     private String timeOutSeconds;
     private String maxQueryHeaderLength;
     private String username;
+
+    /**
+     * Accepted in requests but never written to JSON or {@code toString()}: the management API is unauthenticated.
+     * Encrypted in the database by {@link EncryptedPasswordConverter} when password encryption is enabled; in memory
+     * it is always the plain value.
+     */
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @ToString.Exclude
+    @Convert(converter = EncryptedPasswordConverter.class)
     private String password;
     private String url;
     private boolean validateCertificate;

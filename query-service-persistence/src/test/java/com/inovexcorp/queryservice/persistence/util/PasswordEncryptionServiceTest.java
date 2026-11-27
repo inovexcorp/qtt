@@ -380,4 +380,41 @@ class PasswordEncryptionServiceTest {
         assertEquals(specialPassword, decrypted,
                 "Should correctly handle special characters and Unicode");
     }
+
+    @Test
+    @DisplayName("isEncrypted is true only for values encrypted with the configured key")
+    void testIsEncrypted() {
+        service.activate(defaultConfig);
+        String encrypted = service.encrypt("mock-password");
+
+        assertTrue(service.isEncrypted(encrypted));
+        assertFalse(service.isEncrypted("mock-password"));
+        assertFalse(service.isEncrypted(Base64.getEncoder().encodeToString("plain but base64 text".getBytes())));
+        assertFalse(service.isEncrypted(""));
+        assertFalse(service.isEncrypted(null));
+
+        PasswordEncryptionService otherKey = new PasswordEncryptionService();
+        otherKey.activate(createConfig(true, "a-different-key-entirely!!!!", "test-salt-16chars"));
+        assertFalse(otherKey.isEncrypted(encrypted));
+
+        PasswordEncryptionService disabled = new PasswordEncryptionService();
+        disabled.activate(createConfig(false, "", ""));
+        assertFalse(disabled.isEncrypted(encrypted));
+    }
+
+    @Test
+    @DisplayName("looksEncrypted recognizes ciphertext from any key, but not ordinary passwords")
+    void testLooksEncrypted() {
+        service.activate(defaultConfig);
+        PasswordEncryptionService otherKey = new PasswordEncryptionService();
+        otherKey.activate(createConfig(true, "a-different-key-entirely!!!!", "test-salt-16chars"));
+
+        assertTrue(service.looksEncrypted(service.encrypt("x")));
+        assertTrue(service.looksEncrypted(otherKey.encrypt("mock-password")));
+        assertFalse(service.looksEncrypted("mock-password"));
+        assertFalse(service.looksEncrypted("p@ss w0rd!"));
+        assertFalse(service.looksEncrypted("c2hvcnQ="));
+        assertFalse(service.looksEncrypted(""));
+        assertFalse(service.looksEncrypted(null));
+    }
 }

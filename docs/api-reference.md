@@ -10,6 +10,11 @@ QTT provides comprehensive RESTful APIs for all functionality.
 
 ## DataSources API
 
+Datasource passwords are write-only: requests may include `password`, but no response ever contains it (including
+routes, which embed their datasource, and the health summary). To change other settings and keep the stored password,
+leave `password` out (or send it empty). That is only allowed while `url` and `username` stay the same; changing
+either requires the password again, so the stored credentials are never sent to a different server or account.
+
 ### List All DataSources
 
 ```bash
@@ -21,16 +26,17 @@ GET /datasources
 ```json
 [
   {
-    "id": "my-anzo",
+    "dataSourceId": "my-anzo",
     "url": "http://anzo:8080",
-    "timeout": 30,
-    "maxQueryHeaderLength": 8192,
+    "timeOutSeconds": "30",
+    "maxQueryHeaderLength": "8192",
     "username": "admin",
-    "password": "***",
     "validateCertificate": true,
     "status": "UP",
-    "lastHealthCheck": "2025-10-18T10:00:00.000Z",
-    "consecutiveFailures": 0
+    "lastHealthCheck": "2025-10-18T10:00:00.000+00:00",
+    "lastHealthError": null,
+    "consecutiveFailures": 0,
+    "camelRouteTemplateNames": ["people-search"]
   }
 ]
 ```
@@ -38,7 +44,7 @@ GET /datasources
 ### Get Single DataSource
 
 ```bash
-GET /datasources/{id}
+GET /datasources/{dataSourceId}
 ```
 
 ### Create DataSource
@@ -48,62 +54,77 @@ POST /datasources
 Content-Type: application/json
 
 {
-  "id": "my-anzo",
+  "dataSourceId": "my-anzo",
   "url": "http://anzo:8080",
-  "timeout": 30,
-  "maxQueryHeaderLength": 8192,
+  "timeOutSeconds": "30",
+  "maxQueryHeaderLength": "8192",
   "username": "admin",
   "password": "password",
   "validateCertificate": true
 }
 ```
 
+Returns `201` with a `Location` header. Posting an existing `dataSourceId` updates it in place (same rules as an
+update). A new datasource without a password is rejected with `400`.
+
 ### Update DataSource
 
 ```bash
-PUT /datasources/{id}
+PUT /datasources
 Content-Type: application/json
 
 {
-  "url": "http://new-anzo:8080",
-  "timeout": 60,
-  ...
+  "dataSourceId": "my-anzo",
+  "url": "http://anzo:8080",
+  "timeOutSeconds": "60",
+  "maxQueryHeaderLength": "8192",
+  "username": "admin",
+  "validateCertificate": true
 }
 ```
+
+All fields except `password` are required. Returns the updated datasource; its routes are rebuilt with the new
+settings. Returns `400` if `password` is left out while `url` or `username` changes.
 
 ### Delete DataSource
 
 ```bash
-DELETE /datasources/{id}
+DELETE /datasources/{dataSourceId}
 ```
 
 ### Test Connection
 
 ```bash
-POST /datasources/{id}/test
+POST /datasources/test
+Content-Type: application/json
+
+{ ...same fields as create... }
 ```
+
+Tries to list graphmarts with the given settings. Leave `password` out to test with the stored password of an
+existing `dataSourceId` (same `url` and `username` only).
 
 **Response:**
 
 ```json
-{
-  "success": true,
-  "message": "Connection successful",
-  "timestamp": "2025-10-18T10:00:00.000Z"
-}
+{ "status": "success" }
 ```
+
+or `{ "status": "error", "message": "..." }`.
 
 ### Enable/Disable DataSource
 
 ```bash
-POST /datasources/{id}/enable
-POST /datasources/{id}/disable
+PUT /datasources/{dataSourceId}/enable
+PUT /datasources/{dataSourceId}/disable
 ```
 
-### Trigger Health Check
+### Health
 
 ```bash
-POST /datasources/{id}/health-check
+POST /datasources/{dataSourceId}/healthcheck   # check now
+GET  /datasources/{dataSourceId}/health        # status and recent history
+GET  /datasources/health/summary               # counts for all datasources
 ```
 
 ## Routes API

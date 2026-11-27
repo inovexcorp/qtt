@@ -203,6 +203,19 @@ public final class Qtt {
         return found;
     }
 
+    /** The Authorization header of the newest request to the mock whose (form-encoded) body contains the marker. */
+    public static String anzoAuthorizationForBodyContaining(String marker) {
+        List<String> headers = given().baseUri(WIREMOCK).contentType(ContentType.JSON)
+                .body(Map.of("method", "POST", "urlPathPattern", "/sparql/graphmart/.*",
+                        "bodyPatterns", List.of(Map.of("contains", marker))))
+                .post("/__admin/requests/find").then().statusCode(200)
+                .extract().jsonPath().getList("requests.headers.Authorization", String.class);
+        if (headers.isEmpty()) {
+            throw new AssertionError("no Anzo request contained " + marker);
+        }
+        return headers.get(0);
+    }
+
     /** Path segment for a graphmart, URL-encoded the way the Anzo client encodes it. */
     public static String encodedGraphmart(String graphmart) {
         return java.net.URLEncoder.encode(graphmart, StandardCharsets.UTF_8);

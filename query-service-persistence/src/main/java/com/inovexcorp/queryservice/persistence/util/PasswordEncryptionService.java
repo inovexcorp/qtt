@@ -163,24 +163,7 @@ public class PasswordEncryptionService {
         }
 
         try {
-            // Decode from Base64
-            byte[] decodedBytes = Base64.getDecoder().decode(encryptedPassword);
-
-            // Extract IV and ciphertext
-            ByteBuffer byteBuffer = ByteBuffer.wrap(decodedBytes);
-            byte[] iv = new byte[gcmIvLength];
-            byteBuffer.get(iv);
-            byte[] cipherText = new byte[byteBuffer.remaining()];
-            byteBuffer.get(cipherText);
-
-            // Initialize cipher
-            Cipher cipher = Cipher.getInstance(algorithm);
-            GCMParameterSpec parameterSpec = new GCMParameterSpec(gcmTagLength, iv);
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, parameterSpec);
-
-            // Decrypt
-            byte[] plainText = cipher.doFinal(cipherText);
-            return new String(plainText, StandardCharsets.UTF_8);
+            return decryptOrThrow(encryptedPassword);
         } catch (Exception e) {
             // If decryption fails, the value might be plain text (backward compatibility)
             log.warn("Failed to decrypt password - might be plain text. Consider re-saving this datasource. Error: {}",
@@ -190,6 +173,64 @@ public class PasswordEncryptionService {
             }
             return encryptedPassword;
         }
+    }
+
+    /**
+     * Checks whether a stored value was encrypted with the configured key (decryption succeeds), without logging.
+     *
+     * @param storedPassword the value as stored in the database
+     * @return true if encryption is enabled and the value decrypts; false for plain text or a different key
+     */
+    public boolean isEncrypted(String storedPassword) {
+        if (!encryptionEnabled || storedPassword == null || storedPassword.isEmpty()) {
+            return false;
+        }
+        try {
+            decryptOrThrow(storedPassword);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Checks whether a stored value has the form of a value this service encrypts (Base64 of IV, ciphertext and
+     * authentication tag), whether or not it decrypts with the configured key.
+     *
+     * @param storedPassword the value as stored in the database
+     * @return true if the value could be ciphertext, for example one encrypted with a different key
+     */
+    public boolean looksEncrypted(String storedPassword) {
+        if (storedPassword == null || storedPassword.isEmpty()) {
+            return false;
+        }
+        try {
+            byte[] decoded = Base64.getDecoder().decode(storedPassword);
+            return decoded.length > gcmIvLength + gcmTagLength / 8;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private String decryptOrThrow(String encryptedPassword) throws Exception {
+        // Decode from Base64
+        byte[] decodedBytes = Base64.getDecoder().decode(encryptedPassword);
+
+        // Extract IV and ciphertext
+        ByteBuffer byteBuffer = ByteBuffer.wrap(decodedBytes);
+        byte[] iv = new byte[gcmIvLength];
+        byteBuffer.get(iv);
+        byte[] cipherText = new byte[byteBuffer.remaining()];
+        byteBuffer.get(cipherText);
+
+        // Initialize cipher
+        Cipher cipher = Cipher.getInstance(algorithm);
+        GCMParameterSpec parameterSpec = new GCMParameterSpec(gcmTagLength, iv);
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, parameterSpec);
+
+        // Decrypt
+        byte[] plainText = cipher.doFinal(cipherText);
+        return new String(plainText, StandardCharsets.UTF_8);
     }
 
     /**

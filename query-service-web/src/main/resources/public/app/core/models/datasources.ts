@@ -5,7 +5,8 @@ export interface Datasources {
     timeOutSeconds: string;
     maxQueryHeaderLength: string;
     username: string;
-    password: string;
+    // Write-only: the API never returns it. Leave it out of an update to keep the stored password.
+    password?: string;
     url: string;
     validateCertificate: boolean;
 

@@ -35,6 +35,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Controller class responsible for managing data sources in a system.
@@ -54,11 +55,14 @@ public class DataSourcesController {
                 Timeout seconds: %s
                 Max Query Header Length: %s
                 Username: %s
-                Password: <masked>
                 URL: %s
             """;
 
     private static final String DATASOURCE_NOT_FOUND = "Datasource with id: %s not found";
+
+    static final String PASSWORD_REQUIRED = "A password is required";
+    static final String PASSWORD_REQUIRED_FOR_CHANGE =
+            "A password is required when changing the URL or username of a datasource";
 
     @Inject
     RouteService routeService;
@@ -108,6 +112,13 @@ public class DataSourcesController {
         if (isDatasourceMissingParams(datasource)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(getDatasourceError(datasource))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+        String passwordError = fillInStoredPassword(datasource);
+        if (passwordError != null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", passwordError))
                     .type(MediaType.APPLICATION_JSON)
                     .build();
         }
@@ -170,7 +181,15 @@ public class DataSourcesController {
                     .type(MediaType.TEXT_PLAIN)
                     .build();
         }
+        String passwordError = fillInStoredPassword(datasource);
+        if (passwordError != null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(passwordError)
+                    .type(MediaType.TEXT_PLAIN)
+                    .build();
+        }
         // Modify the provided datasource.
+        // A blank password keeps the stored one.
         dataSourceService.update(datasource);
         reinstantiateRoutes(dataSourceId);
 
@@ -254,6 +273,12 @@ public class DataSourcesController {
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, String> testDatasource(Datasources datasource) {
         final Map<String, String> response = new HashMap<>();
+        String passwordError = fillInStoredPassword(datasource);
+        if (passwordError != null) {
+            response.put("status", "error");
+            response.put("message", passwordError);
+            return response;
+        }
         final AnzoClient client = new SimpleAnzoClient(datasource.getUrl(), datasource.getUsername(),
                 datasource.getPassword(), Integer.parseInt(datasource.getTimeOutSeconds()),
                 datasource.isValidateCertificate());
@@ -455,6 +480,32 @@ public class DataSourcesController {
     }
 
     /**
+     * The API never returns passwords, so clients editing a datasource send a blank password to keep the stored one.
+     * This fills in the stored password for such a request, but only while the URL and username are unchanged:
+     * otherwise anyone able to call the API could send the stored credentials to a server of their choosing.
+     *
+     * @param datasource the datasource from the request; its password is set to the stored one when it is blank
+     * @return an error message when a password is required, otherwise null
+     */
+    private String fillInStoredPassword(Datasources datasource) {
+        if (datasource.getPassword() != null && !datasource.getPassword().isEmpty()) {
+            return null;
+        }
+        String dataSourceId = datasource.getDataSourceId();
+        Datasources stored = dataSourceId == null || !dataSourceService.dataSourceExists(dataSourceId)
+                ? null : dataSourceService.getDataSource(dataSourceId);
+        if (stored == null || stored.getPassword() == null) {
+            return PASSWORD_REQUIRED;
+        }
+        if (!Objects.equals(stored.getUrl(), datasource.getUrl())
+                || !Objects.equals(stored.getUsername(), datasource.getUsername())) {
+            return PASSWORD_REQUIRED_FOR_CHANGE;
+        }
+        datasource.setPassword(stored.getPassword());
+        return null;
+    }
+
+    /**
      * Constructs an error message for a missing or invalid data source.
      *
      * @param datasource The Datasources object containing details of the data source to be created.
@@ -472,11 +523,13 @@ public class DataSourcesController {
      * Checks if the provided Datasources object is missing any required parameters.
      *
      * @param datasource The Datasources object to check for missing parameters.
+     * The password is checked separately ({@link #fillInStoredPassword}): it may be left out to keep the stored one.
+     *
      * @return true if any of the required parameters are null, false otherwise.
      */
     private static boolean isDatasourceMissingParams(Datasources datasource) {
         return (datasource.getDataSourceId() == null || datasource.getTimeOutSeconds() == null
                 || datasource.getMaxQueryHeaderLength() == null || datasource.getUsername() == null
-                || datasource.getPassword() == null || datasource.getUrl() == null);
+                || datasource.getUrl() == null);
     }
 }

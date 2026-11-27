@@ -43,12 +43,8 @@ public class DataSourceServiceImpl implements DataSourceService {
      */
     @Override
     public void add(Datasources datasources) {
+        // The password is encrypted by EncryptedPasswordConverter when written.
         jpa.tx(TransactionType.Required, em -> {
-            // Encrypt password before saving
-            if (datasources.getPassword() != null && !datasources.getPassword().isEmpty()) {
-                String encryptedPassword = encryptionService.encrypt(datasources.getPassword());
-                datasources.setPassword(encryptedPassword);
-            }
             em.merge(datasources);
             em.flush();
         });
@@ -62,10 +58,9 @@ public class DataSourceServiceImpl implements DataSourceService {
             ds.setMaxQueryHeaderLength(datasources.getMaxQueryHeaderLength());
             ds.setUsername(datasources.getUsername());
 
-            // Encrypt password before saving
+            // A blank password keeps the stored one
             if (datasources.getPassword() != null && !datasources.getPassword().isEmpty()) {
-                String encryptedPassword = encryptionService.encrypt(datasources.getPassword());
-                ds.setPassword(encryptedPassword);
+                ds.setPassword(datasources.getPassword());
             }
 
             ds.setUrl(datasources.getUrl());
@@ -85,12 +80,8 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public List<Datasources> getAll() {
-        List<Datasources> datasources = jpa.txExpr(TransactionType.Supports, em ->
+        return jpa.txExpr(TransactionType.Supports, em ->
                 em.createQuery("select d from Datasources d", Datasources.class).getResultList());
-
-        // Decrypt passwords for each datasource
-        datasources.forEach(this::decryptPassword);
-        return datasources;
     }
 
     @Override
@@ -151,25 +142,14 @@ public class DataSourceServiceImpl implements DataSourceService {
         AtomicReference<Datasources> datasource = new AtomicReference<>(new Datasources());
         jpa.tx(TransactionType.Supports, em -> datasource.set(em.find(Datasources.class, dataSourceId)));
 
-        // Decrypt password before generating URL
-        Datasources ds = datasource.get();
-        if (ds != null) {
-            decryptPassword(ds);
-        }
-        return ds.generateCamelUrl("http://graphmart", "http://layer1,http://layer2");
+        return datasource.get().generateCamelUrl("http://graphmart", "http://layer1,http://layer2");
     }
 
     @Override
     public Datasources getDataSource(String dataSourceId) {
         AtomicReference<Datasources> datasource = new AtomicReference<>(new Datasources());
         jpa.tx(TransactionType.Supports, em -> datasource.set(em.find(Datasources.class, dataSourceId)));
-
-        // Decrypt password before returning
-        Datasources ds = datasource.get();
-        if (ds != null) {
-            decryptPassword(ds);
-        }
-        return ds;
+        return datasource.get();
     }
 
 
@@ -205,23 +185,9 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public List<Datasources> getUnhealthyDatasources() {
-        List<Datasources> datasources = jpa.txExpr(TransactionType.Supports, em ->
+        return jpa.txExpr(TransactionType.Supports, em ->
                 em.createQuery("select d from Datasources d where d.status = :status", Datasources.class)
                     .setParameter("status", DatasourceStatus.DOWN)
                     .getResultList());
-
-        // Decrypt passwords for each datasource
-        datasources.forEach(this::decryptPassword);
-        return datasources;
-    }
-
-    /**
-     * Helper method to decrypt password in a Datasources object.
-     */
-    private void decryptPassword(Datasources datasource) {
-        if (datasource != null && datasource.getPassword() != null && !datasource.getPassword().isEmpty()) {
-            String decryptedPassword = encryptionService.decrypt(datasource.getPassword());
-            datasource.setPassword(decryptedPassword);
-        }
     }
 }

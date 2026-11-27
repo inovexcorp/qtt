@@ -123,7 +123,16 @@ Configuration for AES-256-GCM encryption of datasource passwords stored in the d
   export PASSWORD_ENCRYPTION_SALT=$(openssl rand -base64 16)
   ```
 - **Environment Variables Only**: Never commit encryption keys to version control
-- **Key Rotation**: Periodically rotate encryption keys (requires re-encrypting all stored passwords)
+- **Key Rotation**: There is no automatic re-encryption with a new key. After changing the key or salt, re-enter the
+  password of each datasource (its configuration page, or `PUT /api/datasources` with the password).
+
+**Behaviour:**
+
+- Passwords are encrypted on every write to the database and decrypted when read; the REST API never returns them.
+- At startup, passwords stored in plain text (created before encryption was enabled, or rewritten in plain text by
+  earlier builds, which did that on the first health check) are encrypted.
+- Values that look encrypted but do not decrypt with the configured key are left unchanged and reported in the log,
+  so starting once with a wrong key does no damage: restart with the right key.
 
 ## Application Properties
 

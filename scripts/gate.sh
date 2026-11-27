@@ -3,6 +3,7 @@
 #   * black-box suite on Derby, Derby+Redis, PostgreSQL+Redis and MSSQL
 #   * slow tests (scheduled metrics), restart persistence, headless UI check and, when ANZO_URL/ANZO_USER/ANZO_PASS
 #     are set, the real-Anzo smoke test (on Derby+Redis)
+#   * custom TLS keystore, and password encryption at rest (PostgreSQL, encryption enabled)
 #
 #   scripts/gate.sh <image> [log-dir]
 #
@@ -57,5 +58,7 @@ podman logs qtt-it-app > "$LOGS/app-derby-true.log" 2>&1
 "$STACK" down
 "$ROOT/scripts/tls_check.sh" "$IMAGE" > "$LOGS/tls.log" 2>&1
 record "custom TLS keystore" $? "$LOGS/tls.log"
+"$ROOT/scripts/encryption_check.sh" "$IMAGE" > "$LOGS/encryption.log" 2>&1
+record "password encryption at rest" $? "$LOGS/encryption.log"
 echo "gate: $( [[ $rc -eq 0 ]] && echo PASSED || echo FAILED ) — $SUMMARY"
 exit $rc
