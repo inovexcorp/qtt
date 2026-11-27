@@ -219,9 +219,13 @@ logs_docker:
 start_redis:
 	$(COMPOSE) up -d redis
 
-# Start PostgreSQL container
+# Start PostgreSQL container, wait until it accepts connections, and create the qtt database if it does not exist
+# (POSTGRES_DB would only apply to a new volume). Runs inside the container and avoids $ and quotes the host shell
+# would interpret, so the same command works from sh and cmd.exe. The TCP check skips the socket-only server the
+# image runs while initializing a new volume.
 start_postgres:
 	$(COMPOSE) up -d postgresql
+	$(ENGINE) exec postgresql sh -c "timeout 60 sh -c 'until pg_isready -q -h 127.0.0.1 -U postgres; do sleep 1; done' || { echo 'PostgreSQL did not start within 60 s'; exit 1; }; (psql -U postgres -tAc 'SELECT datname FROM pg_database' | grep -qx qtt || createdb -U postgres qtt) && echo 'PostgreSQL ready, database qtt exists'"
 
 # Start MSSQL container
 start_mssql:
