@@ -21,6 +21,63 @@
     </mat-card-content>
   </mat-card>
 
+  <mat-card class="settings-card sso-card">
+    <mat-card-header>
+      <mat-card-title><mat-icon>lock</mat-icon> Single Sign-On</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p *ngIf="ssoLoadFailed"><em>Could not load the sign-in configuration.</em></p>
+      <p *ngIf="!ssoInfo && !ssoLoadFailed"><em>Loading…</em></p>
+
+      <div *ngIf="ssoInfo && !ssoInfo.enabled" class="sso-banner sso-off">
+        <mat-icon>warning</mat-icon>
+        <div>
+          <strong>Sign-in is off.</strong>
+          Anyone who can reach this server can view and change datasources, routes and templates.
+          Set <code>OIDC_ENABLED=true</code> and configure an identity provider (see the Administration Guide).
+        </div>
+      </div>
+
+      <ng-container *ngIf="ssoInfo?.enabled">
+        <div class="sso-banner sso-on">
+          <mat-icon>verified_user</mat-icon>
+          <div>
+            <strong>Sign-in is on.</strong>
+            Signed in as {{ auth.user.displayName }}<span *ngIf="auth.user.displayName !== auth.user.username"> ({{ auth.user.username }})</span>
+            · {{ auth.roleLabel ?? 'No QTT role' }}
+          </div>
+        </div>
+
+        <div class="sso-grid">
+          <section>
+            <h4>Identity Provider</h4>
+            <p><strong>Issuer:</strong> {{ ssoInfo?.issuer ?? 'not set' }}</p>
+            <p><strong>Client ID:</strong> {{ ssoInfo?.clientId }}</p>
+            <p><strong>Client Secret:</strong> {{ ssoInfo?.clientSecretConfigured ? 'Configured' : 'Not set' }}</p>
+            <p><strong>Accepted Audience:</strong> {{ ssoInfo?.audience?.length ? ssoInfo?.audience?.join(', ') : 'any' }}</p>
+            <p><strong>Private CA Trust Store:</strong> {{ ssoInfo?.privateCaTrustStore ? 'Configured' : 'No (JVM default)' }}</p>
+          </section>
+          <section>
+            <h4>Users and Roles</h4>
+            <p><strong>Username Claim:</strong> {{ ssoInfo?.usernameClaim }}</p>
+            <p><strong>Roles Claim:</strong> {{ ssoInfo?.rolesClaim ?? 'provider default' }} ({{ formatRolesSource(ssoInfo?.rolesSource) }})</p>
+            <p><strong>Viewer Groups:</strong> {{ formatGroups(ssoInfo?.groupMappings?.viewer) }}</p>
+            <p><strong>Editor Groups:</strong> {{ formatGroups(ssoInfo?.groupMappings?.editor) }}</p>
+            <p><strong>Admin Groups:</strong> {{ formatGroups(ssoInfo?.groupMappings?.admin) }}</p>
+          </section>
+          <section>
+            <h4>Browser Session</h4>
+            <p><strong>Flow:</strong> {{ ssoInfo?.applicationType === 'hybrid' ? 'Browser sign-in and bearer tokens' : ssoInfo?.applicationType }}</p>
+            <p><strong>Cookie Encryption Key:</strong> {{ formatSessionKey(ssoInfo?.sessionKey) }}</p>
+            <p><strong>Force HTTPS Redirect:</strong> {{ ssoInfo?.forceHttpsRedirect ? 'Yes' : 'No' }}</p>
+            <p><strong>Sign-out Path:</strong> {{ ssoInfo?.logoutPath }}</p>
+          </section>
+        </div>
+        <p class="sso-note">Sign-in protects the UI and the management API. The query endpoints on port 8888 are not covered.</p>
+      </ng-container>
+    </mat-card-content>
+  </mat-card>
+
   <mat-card class="settings-card">
     <mat-card-header>
       <mat-card-title>Ontology Cache Statistics</mat-card-title>

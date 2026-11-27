@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run the full regression gate against one image:
 #   * black-box suite on Derby, Derby+Redis, PostgreSQL+Redis and MSSQL
+#   * the same suite with sign-in required (Keycloak), plus SecurityIT
 #   * slow tests (scheduled metrics), restart persistence, headless UI check and, when ANZO_URL/ANZO_USER/ANZO_PASS
 #     are set, the real-Anzo smoke test (on Derby+Redis)
 #   * custom TLS keystore, and password encryption at rest (PostgreSQL, encryption enabled)
@@ -25,14 +26,15 @@ record() { # name exit-code log
   printf '%-4s %-38s %s\n' "$status" "$1" "$counts" | tee -a "$SUMMARY"
 }
 
-run_suite() { # db redis extra-maven-args...
-  local db=$1 redis=$2; shift 2
-  local name="it[$db,redis=$redis]"
-  local log="$LOGS/it-$db-$redis.log"
-  if ! QTT_IMAGE=$IMAGE QTT_DB=$db QTT_REDIS=$redis "$STACK" up > "$log" 2>&1; then
+run_suite() { # db redis extra-maven-args...   (QTT_OIDC=true in the environment: sign-in required)
+  local db=$1 redis=$2 oidc=${QTT_OIDC:-false}; shift 2
+  local name="it[$db,redis=$redis]" log="$LOGS/it-$db-$redis.log"
+  if [[ "$oidc" == "true" ]]; then name="it[$db,redis=$redis,oidc]"; log="$LOGS/it-$db-$redis-oidc.log"; fi
+  if ! QTT_IMAGE=$IMAGE QTT_DB=$db QTT_REDIS=$redis QTT_OIDC=$oidc "$STACK" up > "$log" 2>&1; then
     record "$name (stack up)" 1 "$log"; "$STACK" down; return
   fi
-  (cd "$ROOT" && mvn -B -Pit -pl query-service-it verify -Dqtt.redis="$redis" -Dqtt.db="$db" "$@") >> "$log" 2>&1
+  (cd "$ROOT" && mvn -B -Pit -pl query-service-it verify -Dqtt.redis="$redis" -Dqtt.db="$db" -Dqtt.oidc="$oidc" "$@") \
+    >> "$log" 2>&1
   record "$name" $? "$log"
 }
 
@@ -41,6 +43,16 @@ for cfg in "derby false" "postgres true" "mssql false"; do
   podman logs qtt-it-app > "$LOGS/app-${cfg// /-}.log" 2>&1
   "$STACK" down
 done
+
+# Sign-in required: the whole suite as the qtt-ci service account, plus SecurityIT (browser flow, roles, CSRF).
+QTT_OIDC=true run_suite derby false -Dit.excludedGroups=slow,restart-setup,restart-verify
+if [[ -n "${UI_TOOLS:-}" ]]; then
+  QTT_OIDC=true NODE_PATH="$UI_TOOLS/node_modules" node "$ROOT/scripts/ui_check.mjs" https://localhost:18443 \
+    "$LOGS/screenshots-oidc" > "$LOGS/ui-oidc.log" 2>&1
+  record "ui check (oidc)" $? "$LOGS/ui-oidc.log"
+fi
+podman logs qtt-it-app > "$LOGS/app-derby-oidc.log" 2>&1
+"$STACK" down
 
 # Derby + Redis: full suite including slow tests, then restart, UI and real-Anzo checks on the same stack.
 run_suite derby true -Dit.excludedGroups=restart-setup,restart-verify

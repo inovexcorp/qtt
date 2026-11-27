@@ -32,6 +32,10 @@ public final class Qtt {
     public static final boolean REDIS = Boolean.parseBoolean(System.getProperty("qtt.redis", "false"));
     /** Database behind the stack under test: derby, postgres or mssql. */
     public static final String DB = System.getProperty("qtt.db", "derby");
+    /** True when the stack requires sign-in (scripts/stack.sh with QTT_OIDC=true). */
+    public static final boolean OIDC = Boolean.parseBoolean(System.getProperty("qtt.oidc", "false"));
+    /** The Keycloak realm of an OIDC stack, as seen from the test (scripts/keycloak/qtt-realm.json). */
+    public static final String OIDC_REALM = System.getProperty("qtt.oidc.realm", "http://localhost:18180/realms/qtt");
 
     /** Graphmart and layer recorded from the Anzo test system (see wiremock/__files). */
     public static final String GRAPHMART = "http://cambridgesemantics.com/Graphmart/93794a1ba2a24246a0f33c4340858d80";
@@ -62,7 +66,17 @@ public final class Qtt {
     }
 
     public static RequestSpecification api() {
-        return given().spec(new RequestSpecBuilder().setBaseUri(API).setAccept("application/json").build());
+        return signedIn().spec(new RequestSpecBuilder().setBaseUri(API).setAccept("application/json").build());
+    }
+
+    /**
+     * A request that is authenticated when the stack requires sign-in: it carries a bearer token for the
+     * {@code qtt-ci} service account (qtt-admin), so every test runs unchanged with OIDC on or off.
+     */
+    public static RequestSpecification signedIn() {
+        RequestSpecification spec = given();
+        return OIDC ? spec.header("Authorization", "Bearer " + Tokens.clientCredentials("qtt-ci", "qtt-ci-test-secret"))
+                : spec;
     }
 
     public static RequestSpecification query() {

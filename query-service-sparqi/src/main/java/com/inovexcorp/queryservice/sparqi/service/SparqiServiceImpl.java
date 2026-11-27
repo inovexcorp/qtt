@@ -294,6 +294,11 @@ public class SparqiServiceImpl implements SparqiService {
      * @throws SparqiException if the session with the specified ID is not found
      */
     @Override
+    public java.util.Optional<String> getSessionOwner(String sessionId) {
+        return sessionManager.getSession(sessionId).map(SparqiSession::getUserId);
+    }
+
+    @Override
     public List<SparqiMessage> getSessionHistory(String sessionId) throws SparqiException {
         SparqiSession session = sessionManager.getSession(sessionId)
                 .orElseThrow(() -> new SparqiException("Session not found: " + sessionId));

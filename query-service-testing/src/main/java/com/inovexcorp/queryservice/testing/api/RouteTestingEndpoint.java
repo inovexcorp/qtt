@@ -1,8 +1,10 @@
 package com.inovexcorp.queryservice.testing.api;
 
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.inovexcorp.queryservice.security.QttRoles;
 import com.inovexcorp.queryservice.testing.model.TestExecuteRequest;
 import com.inovexcorp.queryservice.testing.model.TestExecuteResponse;
 import com.inovexcorp.queryservice.testing.model.TestVariablesRequest;
@@ -40,6 +42,7 @@ public class RouteTestingEndpoint {
      * @param request Request containing template content
      * @return Response with list of extracted variables
      */
+    @RolesAllowed(QttRoles.VIEWER) // parses the template it is sent; changes nothing
     @POST
     @Path("/variables")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -87,6 +90,7 @@ public class RouteTestingEndpoint {
      * @param request Request containing template, config, and parameters
      * @return Response with test results
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("/execute")
     @Consumes(MediaType.APPLICATION_JSON)

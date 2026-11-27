@@ -26,6 +26,8 @@
         <qtt.anzo.internal>http://wiremock:8080</qtt.anzo.internal>
         <qtt.redis>false</qtt.redis>
         <qtt.db>derby</qtt.db>
+        <qtt.oidc>false</qtt.oidc>
+        <qtt.oidc.realm>http://localhost:18180/realms/qtt</qtt.oidc.realm>
         <it.groups/>
         <it.excludedGroups>restart-setup,restart-verify</it.excludedGroups>
     </properties>
@@ -88,6 +90,8 @@
                         <qtt.anzo.internal>${qtt.anzo.internal}</qtt.anzo.internal>
                         <qtt.redis>${qtt.redis}</qtt.redis>
                         <qtt.db>${qtt.db}</qtt.db>
+                        <qtt.oidc>${qtt.oidc}</qtt.oidc>
+                        <qtt.oidc.realm>${qtt.oidc.realm}</qtt.oidc.realm>
                     </systemPropertyVariables>
                     <runOrder>alphabetical</runOrder>
                 </configuration>

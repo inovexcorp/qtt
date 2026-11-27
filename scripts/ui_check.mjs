@@ -4,6 +4,10 @@
 //
 // Requires puppeteer-core and a local Chrome (CHROME_PATH, default: macOS Google Chrome).
 // Expects a datasource and route to exist (it creates its own via the API and removes them afterwards).
+//
+// QTT_OIDC=true: the stack requires sign-in (scripts/stack.sh with QTT_OIDC=true). Pages are walked signed in as
+// "admin" through the Keycloak login form; then a viewer's controls, the no-access page, signing in again after the
+// session ends (back to the same page) and signing out are checked.
 import { createRequire } from 'module';
 import fs from 'fs';
 
@@ -15,13 +19,36 @@ const shots = process.argv[3];
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const api = `${base}/queryrest/api`;
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+const oidc = process.env.QTT_OIDC === 'true';
+const realm = process.env.QTT_OIDC_REALM || 'http://localhost:18180/realms/qtt';
+
+async function serviceToken() {
+  const r = await fetch(`${realm}/protocol/openid-connect/token`, { method: 'POST',
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: 'qtt-ci', client_secret: 'qtt-ci-test-secret' }) });
+  if (r.status !== 200) throw new Error(`token request failed: ${r.status}`);
+  return (await r.json()).access_token;
+}
+const auth = oidc ? { Authorization: `Bearer ${await serviceToken()}` } : {};
+
+/** Signs in through the Keycloak form in this page's browser context; ends on the QTT page that was asked for. */
+async function signIn(page, user, hash = '#/metrics') {
+  await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle0', timeout: 60000 });
+  if (!page.url().startsWith(realm)) throw new Error(`expected the Keycloak login page, got ${page.url()}`);
+  await page.type('#username', user);
+  await page.type('#password', `${user}-pw`);
+  await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 }), page.click('#kc-login')]);
+  if (!page.url().startsWith(base)) throw new Error(`sign-in as ${user} did not return to QTT: ${page.url()}`);
+}
+
+const visible = (page, text) => page.evaluate(t => [...document.querySelectorAll('button, a')]
+  .some(b => b.offsetParent !== null && b.innerText.replace(/\s+/g, ' ').includes(t)), text);
 
 const suffix = Math.random().toString(16).slice(2, 8);
 const ds = `ui-ds-${suffix}`;
 const route = `ui-route-${suffix}`;
 
 async function call(method, path, body, headers = {}) {
-  const r = await fetch(api + path, { method, body, headers: { Accept: 'application/json', ...headers } });
+  const r = await fetch(api + path, { method, body, headers: { Accept: 'application/json', ...auth, ...headers } });
   return r.status;
 }
 
@@ -60,6 +87,11 @@ await setup();
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true,
   args: ['--ignore-certificate-errors', '--no-sandbox'] });
 try {
+  if (oidc) {
+    const page = await browser.newPage();
+    await signIn(page, 'admin');
+    await page.close();
+  }
   for (const [name, hash, expectText] of pages) {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 900 });
@@ -131,6 +163,79 @@ try {
     problems.push(...errs.map(e => `${name}: ${e}`));
     pages.push([name]);
     await page.close();
+  }
+
+  if (oidc) {
+    // [name, check(page) -> list of problems], each in a fresh browser context (its own cookies)
+    const checks = [
+      ['oidc viewer sees no write controls', async page => {
+        const errs = [];
+        await signIn(page, 'viewer', '#/routes');
+        const menu = await page.$eval('.user-button', b => b.innerText);
+        if (!menu.includes('Vera Viewer')) errs.push(`user menu shows "${menu}"`);
+        if (await visible(page, 'Add Route')) errs.push('"Add Route" shown to a viewer');
+        const forbidden = [];
+        page.on('response', r => { if (r.status() === 403) forbidden.push(r.url()); });
+        await page.goto(`${base}/#/routes/config-route/${route}`, { waitUntil: 'networkidle0', timeout: 60000 });
+        await new Promise(r => setTimeout(r, 1500));
+        if (!(await page.evaluate(() => document.body.innerText)).includes(route)) errs.push('route page did not load');
+        if (await visible(page, 'Save')) errs.push('"Save" shown to a viewer');
+        await page.goto(`${base}/#/datasources`, { waitUntil: 'networkidle0', timeout: 60000 });
+        if (await visible(page, 'Add DataSource')) errs.push('"Add DataSource" shown to a viewer');
+        if (forbidden.length) errs.push(`opening pages as a viewer got 403 from: ${forbidden.join(', ')}`);
+        return errs;
+      }],
+      ['oidc user without a role sees "no access"', async page => {
+        await signIn(page, 'norole');
+        await new Promise(r => setTimeout(r, 1000));
+        const text = await page.evaluate(() => document.body.innerText);
+        return text.includes('No access to QTT') ? [] : ['no "No access" page'];
+      }],
+      ['oidc ended session signs in again, back on the same page', async page => {
+        await signIn(page, 'admin', '#/routes');
+        const client = await page.createCDPSession();
+        const { cookies } = await client.send('Network.getCookies', { urls: [base] });
+        const session = cookies.filter(c => c.name.startsWith('q_session'));
+        if (!session.length) return ['no q_session cookie after signing in'];
+        for (const c of session) await page.deleteCookie({ name: c.name, url: base });
+        // The next API call gets 499; the UI reloads, Keycloak's own session signs the user straight back in.
+        await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 }),
+          page.evaluate(() => { window.location.hash = '#/datasources'; })]);
+        await page.waitForFunction(d => document.body.innerText.includes(d), { timeout: 20000 }, ds).catch(() => {});
+        const errs = [];
+        if (!page.url().startsWith(base) || !page.url().endsWith('#/datasources')) errs.push(`ended on ${page.url()}`);
+        if (!(await page.evaluate(d => document.body.innerText.includes(d), ds))) errs.push('datasources not shown');
+        return errs;
+      }],
+      ['oidc sign out', async page => {
+        await signIn(page, 'editor');
+        await page.click('.user-button');
+        await page.waitForSelector('a[href="/logout"]', { visible: true, timeout: 5000 });
+        await new Promise(r => setTimeout(r, 500)); // let the menu finish opening
+        await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 }),
+          page.click('a[href="/logout"]')]);
+        // Keycloak shows its login page again once QTT's post-logout redirect asks for a new session.
+        return page.url().startsWith(realm) ? [] : [`after signing out, ended on ${page.url()}`];
+      }],
+    ];
+    for (const [name, check] of checks) {
+      const context = await browser.createBrowserContext();
+      const page = await context.newPage();
+      await page.setViewport({ width: 1440, height: 900 });
+      const pageErrors = [];
+      page.on('pageerror', e => pageErrors.push(`pageerror: ${e.message}`));
+      let errs;
+      try {
+        errs = [...await check(page), ...pageErrors];
+      } catch (e) {
+        errs = [e.message, ...pageErrors];
+      }
+      if (shots) await page.screenshot({ path: `${shots}/${name.replace(/[^a-z0-9]+/gi, '-')}.png` }).catch(() => {});
+      console.log(`${errs.length ? 'FAIL' : 'PASS'} ${name}${errs.length ? '\n    ' + errs.join('\n    ') : ''}`);
+      problems.push(...errs.map(e => `${name}: ${e}`));
+      pages.push([name]);
+      await context.close();
+    }
   }
 } finally {
   await browser.close();

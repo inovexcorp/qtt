@@ -1,8 +1,10 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
+import com.inovexcorp.queryservice.security.QttRoles;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import com.inovexcorp.queryservice.camel.anzo.comm.AnzoClient;
 import com.inovexcorp.queryservice.camel.anzo.comm.QueryResponse;
@@ -53,6 +55,7 @@ public class AnzoLookupRestController {
      * @throws IOException          If there is an error communicating with the data source.
      * @throws InterruptedException If the request to retrieve graphmarts is interrupted.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("graphmarts/{datasourceId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -82,6 +85,7 @@ public class AnzoLookupRestController {
      * @throws IOException          If there is an error communicating with the data source.
      * @throws InterruptedException If the request to retrieve layers is interrupted.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("layers/{datasourceId}")
     @Consumes(MediaType.APPLICATION_JSON)

@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { APP_INITIALIZER, NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
 import { AppRoutingModule } from './app-routing.module';
@@ -20,7 +20,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { BreadcrumbComponent } from 'xng-breadcrumb';
 import { QsBreadcrumbComponent } from './shared/qs-breadcrumb/qs-breadcrumb.component';
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { AddDatasourceComponent } from './pages/add-datasource/add-datasource.component';
 import { DeleteDatasourceModalComponent } from './pages/delete-datasource-modal/delete-datasource-modal.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -52,6 +52,10 @@ import { OntologyVisualizationDialogComponent } from './pages/config-route/sparq
 import { SparqiMetricsModalComponent } from './pages/settings/sparqi-metrics-modal/sparqi-metrics-modal.component';
 import {MatSlideToggle} from "@angular/material/slide-toggle";
 import {NgOptimizedImage} from "@angular/common";
+import { AuthService } from './core/services/auth.service';
+import { AuthInterceptor } from './core/interceptors/auth.interceptor';
+import { IfRoleDirective } from './shared/if-role.directive';
+import { AuditLineComponent } from './shared/audit-line/audit-line.component';
 
 @NgModule({
   declarations: [
@@ -71,7 +75,9 @@ import {NgOptimizedImage} from "@angular/common";
     SparqiChatComponent,
     OntologyVisualizationDialogComponent,
     SparqiMetricsModalComponent,
-    CacheClearConfirmDialog
+    CacheClearConfirmDialog,
+    IfRoleDirective,
+    AuditLineComponent
   ],
     imports: [
         BrowserModule,
@@ -118,7 +124,10 @@ import {NgOptimizedImage} from "@angular/common";
         NgOptimizedImage
     ],
   providers: [
-    provideHttpClient(withInterceptorsFromDi())
+    provideHttpClient(withInterceptorsFromDi()),
+    { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
+    // Who is signed in, before the first page renders (so role-dependent controls don't flicker).
+    { provide: APP_INITIALIZER, useFactory: (auth: AuthService) => () => auth.load(), deps: [AuthService], multi: true }
   ],
   bootstrap: [AppComponent]
 })

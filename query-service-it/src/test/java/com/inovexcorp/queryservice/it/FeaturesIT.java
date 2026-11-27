@@ -135,7 +135,7 @@ class FeaturesIT {
     /** Plain clients (curl sends Accept: *\/*) get JSON; Karaf answered 500 here. */
     @Test
     void wildcardAcceptGetsJson() {
-        io.restassured.RestAssured.given().baseUri(API).accept("*/*").get("/settings/sysinfo").then().statusCode(200)
+        Qtt.signedIn().baseUri(API).accept("*/*").get("/settings/sysinfo").then().statusCode(200)
                 .contentType(containsString("json"))
                 .body("$", hasKey("version"));
     }
@@ -166,7 +166,7 @@ class FeaturesIT {
 
     @Test
     void uiIsServed() {
-        String index = io.restassured.RestAssured.given().baseUri(UI).get("/").then().statusCode(200)
+        String index = Qtt.signedIn().baseUri(UI).get("/").then().statusCode(200)
                 .contentType(containsString("html")).extract().asString();
         assertThat(index).containsIgnoringCase("<app-root");
         // Every script referenced by index.html loads.
@@ -175,7 +175,7 @@ class FeaturesIT {
         while (m.find()) {
             scripts++;
             String src = m.group(1);
-            io.restassured.RestAssured.given().baseUri(UI).get(src.startsWith("/") ? src : "/" + src)
+            Qtt.signedIn().baseUri(UI).get(src.startsWith("/") ? src : "/" + src)
                     .then().statusCode(200);
         }
         assertThat(scripts).isPositive();

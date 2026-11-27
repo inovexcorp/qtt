@@ -4,7 +4,39 @@ QTT provides comprehensive RESTful APIs for all functionality.
 
 **Base URL:** `https://localhost:8443/queryrest/api` (or over plain HTTP: `http://localhost:8080/queryrest/api`)
 
-**Authentication:** Currently no authentication (HTTP only)
+**Authentication:** none by default. With sign-in on (`OIDC_ENABLED=true`, see
+[Single Sign-On](administration.md#single-sign-on-oidc)), every call needs a bearer token from the identity provider
+(`Authorization: Bearer <token>`), or the browser session the UI uses. Unauthenticated calls get `302` (to the
+login page) or, with `X-Requested-With: JavaScript`, `499`. Calls the user's role does not allow get `403`.
+
+**Roles:** each endpoint needs `qtt-viewer`, `qtt-editor` or `qtt-admin` (each includes the ones before it). Reads
+need viewer; route, template, test and SPARQi changes need editor; datasource changes, `POST /datasources/test` and
+`DELETE /routes/cache` need admin. The authoritative list is
+`query-service-app/src/test/resources/security/role-table.txt`, which a test checks against the code. With sign-in
+off, everyone has every role.
+
+**Who changed what:** routes and datasources include a read-only `audit` object (`createdBy`, `createdAt`,
+`modifiedBy`, `modifiedAt`) recording changes made through the API. It is absent for rows created before 2.0.
+
+### Current User
+
+```bash
+GET /me
+```
+
+**Response:**
+
+```json
+{
+  "username": "alice",
+  "displayName": "Alice Example",
+  "roles": ["qtt-viewer", "qtt-editor"],
+  "authEnabled": true,
+  "logoutUrl": "/logout"
+}
+```
+
+With sign-in off: `"username": "anonymous"`, every role, `"authEnabled": false`, `"logoutUrl": null`.
 
 **Content-Type:** `application/json` for request/response bodies
 
@@ -377,6 +409,40 @@ GET /settings
   }
 }
 ```
+
+### Get Single Sign-On Configuration
+
+```bash
+GET /settings/sso
+```
+
+How sign-in is configured, as shown on the Settings page (viewer role). Secrets are never returned: the client
+secret is reported only as configured or not, and the private-CA trust store only as present or not.
+
+**Response:**
+
+```json
+{
+  "enabled": true,
+  "issuer": "https://keycloak.example.com/realms/corp",
+  "clientId": "qtt",
+  "clientSecretConfigured": true,
+  "applicationType": "hybrid",
+  "usernameClaim": "preferred_username",
+  "rolesClaim": "resource_access/qtt/roles",
+  "rolesSource": "accesstoken",
+  "audience": ["qtt"],
+  "groupMappings": { "viewer": [], "editor": ["qtt-developers"], "admin": ["platform-ops"] },
+  "sessionKey": "OIDC_SESSION_SECRET",
+  "privateCaTrustStore": false,
+  "forceHttpsRedirect": true,
+  "logoutPath": "/logout"
+}
+```
+
+`rolesClaim` is `null` when the provider's default role claims are read. `sessionKey` says which key encrypts the
+session cookie: `OIDC_SESSION_SECRET`, `client secret` (derived from it), or `generated at startup` (sessions end at
+every restart and aren't shared between instances). With sign-in off, `enabled` is `false` and `logoutPath` is `null`.
 
 ## Query Execution API
 

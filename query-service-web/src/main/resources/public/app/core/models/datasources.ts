@@ -1,3 +1,5 @@
+import { AuditInfo } from './audit';
+
 export interface Datasources {
   // Array of associated route names
     camelRouteTemplate:string[];
@@ -15,4 +17,7 @@ export interface Datasources {
     lastHealthCheck?: Date;
     lastHealthError?: string;
     consecutiveFailures?: number;
+
+    // Who created and last changed it (read-only)
+    audit?: AuditInfo | null;
   }

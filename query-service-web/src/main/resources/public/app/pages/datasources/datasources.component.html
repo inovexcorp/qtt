@@ -12,7 +12,7 @@
     <mat-toolbar class="datasource-toolbar">
       <h2>QtT DataSources</h2>
       <span class="flexExpand"></span>
-      <button mat-raised-button color="primary" class="add-button" [routerLink]="['add-datasource']">Add
+      <button *qttIfRole="'admin'" mat-raised-button color="primary" class="add-button" [routerLink]="['add-datasource']">Add
         DataSource</button>
     </mat-toolbar>
     <mat-card appearance="outlined" *ngFor="let datasource of datasources" class="example-card">

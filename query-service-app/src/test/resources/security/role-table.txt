@@ -1,0 +1,75 @@
+# The role each management API method requires (paths relative to /queryrest). RoleTableTest fails if a REST
+# method is missing from this table, is listed with a different role, or is listed but no longer exists.
+# Roles: viewer < editor < admin (each includes the ones before it); authenticated = any signed-in user.
+# Keep in step with the table in docs/oidc-sso-plan.md.
+# A few POSTs are viewer because they change nothing and the route page calls them when it opens: template
+# syntax check, template variable extraction, ontology cache warm-up.
+
+GET     /api/me                                          authenticated
+
+GET     /api/settings/sysinfo                            viewer
+GET     /api/settings/stats                              viewer
+GET     /api/settings/sso                                viewer
+
+GET     /api/metrics/route/persisted                     viewer
+GET     /api/metrics/routes                              viewer
+GET     /api/metrics/exchanges/{routeId}                 viewer
+GET     /api/metrics/route/{routeId}                     viewer
+GET     /api/metrics/processingTime/{routeId}            viewer
+GET     /api/metrics/routes/{datasourceId}               viewer
+
+GET     /api/anzo/graphmarts/{datasourceId}              viewer
+GET     /api/anzo/layers/{datasourceId}                  viewer
+
+GET     /api/layers/{routeId}                            viewer
+POST    /api/layers/{routeId}                            editor
+DELETE  /api/layers/{routeId}                            editor
+
+GET     /api/routes                                      viewer
+GET     /api/routes/metadata                             viewer
+GET     /api/routes/{routeId}                            viewer
+GET     /api/routes/templateContent/{routeId}            viewer
+GET     /api/routes/{routeId}/cache/stats                viewer
+GET     /api/routes/cache/info                           viewer
+POST    /api/routes/{routeId}                            editor
+PUT     /api/routes/{routeId}                            editor
+PATCH   /api/routes/{routeId}                            editor
+DELETE  /api/routes/{routeId}                            editor
+POST    /api/routes/clone/{routeId}                      editor
+POST    /api/routes/template/validate                    viewer
+DELETE  /api/routes/{routeId}/cache                      editor
+DELETE  /api/routes/cache                                admin
+
+GET     /api/datasources                                 viewer
+GET     /api/datasources/{dataSourceId}                  viewer
+GET     /api/datasources/{dataSourceId}/health           viewer
+GET     /api/datasources/health/summary                  viewer
+GET     /api/datasources/health/config                   viewer
+POST    /api/datasources/{dataSourceId}/healthcheck      editor
+POST    /api/datasources                                 admin
+PUT     /api/datasources                                 admin
+DELETE  /api/datasources/{dataSourceId}                  admin
+PUT     /api/datasources/{dataSourceId}/disable          admin
+PUT     /api/datasources/{dataSourceId}/enable           admin
+POST    /api/datasources/test                            admin
+
+GET     /api/ontology/{routeId}                          viewer
+GET     /api/ontology/{routeId}/metadata                 viewer
+GET     /api/ontology/cache/statistics                   viewer
+POST    /api/ontology/{routeId}/refresh                  editor
+POST    /api/ontology/{routeId}/warm                     viewer
+DELETE  /api/ontology/{routeId}                          editor
+
+POST    /api/testing/variables                           viewer
+POST    /api/testing/execute                             editor
+
+GET     /api/sparqi/health                               viewer
+GET     /api/sparqi/metrics/summary                      viewer
+GET     /api/sparqi/metrics/history                      viewer
+GET     /api/sparqi/metrics/tokens-by-route              viewer
+GET     /api/sparqi/session/{sessionId}/history          viewer
+GET     /api/sparqi/session/{sessionId}/context          viewer
+POST    /api/sparqi/session                              editor
+POST    /api/sparqi/session/{sessionId}/message          editor
+DELETE  /api/sparqi/session/{sessionId}                  editor
+POST    /api/sparqi/generate-test-request                editor

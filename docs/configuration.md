@@ -38,6 +38,35 @@ This configuration controls the UI base URL when displaying the route endpoints.
 |----------------|-------------------------|------------------------------------------------|
 | `API_BASE_URL` | `http://localhost:8888` | Base URL for query endpoints exposed to the UI |
 
+### Sign-In (OIDC) Configuration
+
+Single sign-on for the UI and management API. Setup, roles and identity-provider notes:
+[Administration Guide](administration.md#single-sign-on-oidc).
+
+| Variable                    | Default                 | Description                                                                 |
+|-----------------------------|-------------------------|-----------------------------------------------------------------------------|
+| `OIDC_ENABLED`              | `false`                 | Require sign-in. Off: the UI and API are unauthenticated (startup warns)     |
+| `OIDC_AUTH_SERVER_URL`      | (none)                  | Issuer URL of the identity provider (required when enabled)                 |
+| `OIDC_CLIENT_ID`            | `qtt`                   | QTT's client ID at the identity provider                                    |
+| `OIDC_CLIENT_SECRET`        | (none)                  | QTT's client secret                                                         |
+| `OIDC_ROLES_CLAIM`          | (see description)       | Token claim holding roles or groups. Unset: `groups`, then Keycloak's `realm_access/roles` and `resource_access/<client>/roles` |
+| `OIDC_ROLES_SOURCE`         | `accesstoken`           | Token the roles are read from: `accesstoken`, `idtoken` or `userinfo`       |
+| `OIDC_USERNAME_CLAIM`       | `preferred_username`    | Claim used as the user name                                                 |
+| `OIDC_VIEWER_GROUPS`        | (none)                  | Comma-separated role/group names granting `qtt-viewer`                      |
+| `OIDC_EDITOR_GROUPS`        | (none)                  | Comma-separated role/group names granting `qtt-editor`                      |
+| `OIDC_ADMIN_GROUPS`         | (none)                  | Comma-separated role/group names granting `qtt-admin`                       |
+| `OIDC_TOKEN_AUDIENCE`       | `OIDC_CLIENT_ID`        | Audience bearer tokens must carry                                           |
+| `OIDC_SESSION_SECRET`       | (from client secret)    | Encrypts the session cookie; same value on every instance (32+ characters)  |
+| `OIDC_TRUSTSTORE_FILE`      | (none)                  | Trust store for an identity provider with a private CA                      |
+| `OIDC_TRUSTSTORE_PASSWORD`  | (none)                  | Its password (PKCS12/JKS)                                                   |
+| `OIDC_TRUSTSTORE_TYPE`      | `PKCS12`                | `PKCS12`, `JKS` or `PEM`                                                    |
+| `QTT_BEHIND_PROXY`          | `false`                 | Trust `X-Forwarded-*`/`Forwarded` headers from a reverse proxy              |
+| `QTT_TRUSTED_PROXIES`       | (none)                  | Addresses allowed to send those headers                                     |
+| `OIDC_FORCE_HTTPS_REDIRECT` | `false`                 | Always use `https` in redirect URIs                                         |
+
+Any other `quarkus.oidc.*` setting can be given as an environment variable (for example
+`QUARKUS_OIDC_TOKEN_LIFESPAN_GRACE=30`).
+
 ### SPARQi AI Assistant Configuration
 
 | Variable                   | Default | Description                    | Required     |
@@ -367,6 +396,9 @@ On SQL Server, a database created by QTT 1.x stores templates in a `varchar(max)
 `?` cannot be recovered.
 
 ## Security Configuration
+
+To require sign-in for the UI and management API, see
+[Single Sign-On](administration.md#single-sign-on-oidc).
 
 ### Changing Default SSL Passwords
 

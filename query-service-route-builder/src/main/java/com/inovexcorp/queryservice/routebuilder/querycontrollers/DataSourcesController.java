@@ -1,6 +1,9 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
 import com.inovexcorp.queryservice.persistence.DisabledDatasources;
+import com.inovexcorp.queryservice.persistence.audit.Audited;
+import com.inovexcorp.queryservice.security.QttRoles;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
@@ -107,6 +110,8 @@ public class DataSourcesController {
      * source in JSON format. If there are missing or invalid parameters
      * , returns a BAD_REQUEST status with an error message.
      */
+    @Audited
+    @RolesAllowed(QttRoles.ADMIN)
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     public Response createDatasource(Datasources datasource) {
@@ -148,6 +153,7 @@ public class DataSourcesController {
      * @param dataSourceId The identifier of the data source to delete.
      * @return A response with appropriate status and message based on whether the deletion was successful or not.
      */
+    @RolesAllowed(QttRoles.ADMIN)
     @DELETE
     @Path("{dataSourceId}")
     public Response deleteDatasource(@PathParam("dataSourceId") String dataSourceId) {
@@ -169,6 +175,8 @@ public class DataSourcesController {
      * @return A response with the status code OK and the modified data source in JSON format if successful, or a
      * response with appropriate error codes and messages.
      */
+    @Audited
+    @RolesAllowed(QttRoles.ADMIN)
     @PUT
     @Produces(MediaType.APPLICATION_JSON)
     public Response modifyDatasource(Datasources datasource) {
@@ -240,6 +248,7 @@ public class DataSourcesController {
      * @param dataSourceId The identifier of the data source to retrieve.
      * @return A response with the status code OK and the data source in JSON format if found, or NOT_FOUND if not found.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{dataSourceId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -259,6 +268,7 @@ public class DataSourcesController {
      *
      * @return A response with the status code OK and the data sources in JSON format.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllDatasources() {
@@ -273,6 +283,7 @@ public class DataSourcesController {
      * @return A response map with "status" indicating success or error and "message" providing additional details if
      * an error occurs.
      */
+    @RolesAllowed(QttRoles.ADMIN)
     @POST
     @Path("test")
     @Produces(MediaType.APPLICATION_JSON)
@@ -308,6 +319,7 @@ public class DataSourcesController {
      * @param dataSourceId The identifier of the datasource to check.
      * @return A response with status OK if successful, or NOT_FOUND if the datasource doesn't exist.
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("{dataSourceId}/healthcheck")
     @Produces(MediaType.APPLICATION_JSON)
@@ -343,6 +355,7 @@ public class DataSourcesController {
      * @param dataSourceId The identifier of the datasource.
      * @return A response with health status and history.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{dataSourceId}/health")
     @Produces(MediaType.APPLICATION_JSON)
@@ -373,6 +386,7 @@ public class DataSourcesController {
      *
      * @return A response with health summary statistics.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("health/summary")
     @Produces(MediaType.APPLICATION_JSON)
@@ -400,6 +414,7 @@ public class DataSourcesController {
      *
      * @return A response with health check configuration details.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("health/config")
     @Produces(MediaType.APPLICATION_JSON)
@@ -417,6 +432,8 @@ public class DataSourcesController {
      * @param dataSourceId The identifier of the datasource to disable.
      * @return A response indicating success or failure.
      */
+    @Audited
+    @RolesAllowed(QttRoles.ADMIN)
     @PUT
     @Path("{dataSourceId}/disable")
     @Produces(MediaType.APPLICATION_JSON)
@@ -453,6 +470,8 @@ public class DataSourcesController {
      * @param dataSourceId The identifier of the datasource to enable.
      * @return A response indicating success or failure.
      */
+    @Audited
+    @RolesAllowed(QttRoles.ADMIN)
     @PUT
     @Path("{dataSourceId}/enable")
     @Produces(MediaType.APPLICATION_JSON)

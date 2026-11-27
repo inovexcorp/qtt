@@ -1,8 +1,10 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
+import com.inovexcorp.queryservice.security.QttRoles;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -60,6 +62,7 @@ public class SettingsRestController {
         };
     }
 
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("sysinfo")
     public Map<String, String> getSystemInformation() {
@@ -71,6 +74,7 @@ public class SettingsRestController {
         return map;
     }
 
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("stats")
     public Map<String, Long> getStats() {
