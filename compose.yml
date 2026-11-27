@@ -13,11 +13,12 @@ services:
       start_period: 5s
 
   mssql:
-    image: mcr.microsoft.com/mssql/server:2019-latest
+    # The Makefile sets MSSQL_IMAGE to Azure SQL Edge on ARM hosts, where SQL Server does not run.
+    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2019-latest}
     container_name: mssql
     environment:
       ACCEPT_EULA: "Y"
-      SA_PASSWORD: verYs3cret
+      MSSQL_SA_PASSWORD: verYs3cret
     ports:
       - "1433:1433"
     volumes:

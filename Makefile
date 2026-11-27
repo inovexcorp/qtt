@@ -45,6 +45,14 @@ else
     RUN_CHECK_PATH := $(RUN_DIR)/$(RUN_JAR)
 endif
 
+# SQL Server publishes amd64 images only and crashes under emulation, so ARM hosts (Apple Silicon) run Azure SQL
+# Edge for the mssql compose service instead: same protocol and JDBC driver. Set MSSQL_IMAGE to override.
+ifneq ($(DETECTED_OS),Windows)
+    ifneq ($(filter arm64 aarch64,$(shell uname -m)),)
+        export MSSQL_IMAGE ?= mcr.microsoft.com/azure-sql-edge:latest
+    endif
+endif
+
 # ==============================================================================
 # Help Target (default)
 # ==============================================================================
@@ -100,6 +108,10 @@ help:
 # Build the entire project using Maven
 build:
 	$(MAVEN) clean install
+
+# Build the application if it has not been built yet (targets that need its jars depend on this file)
+$(RUN_DIR)/$(RUN_JAR):
+	$(MAKE) build
 
 # Build the project excluding the query-service-web module
 build_no_web:
@@ -227,9 +239,13 @@ start_postgres:
 	$(COMPOSE) up -d postgresql
 	$(ENGINE) exec postgresql sh -c "timeout 60 sh -c 'until pg_isready -q -h 127.0.0.1 -U postgres; do sleep 1; done' || { echo 'PostgreSQL did not start within 60 s'; exit 1; }; (psql -U postgres -tAc 'SELECT datname FROM pg_database' | grep -qx qtt || createdb -U postgres qtt) && echo 'PostgreSQL ready, database qtt exists'"
 
-# Start MSSQL container
-start_mssql:
+# Start MSSQL container, wait until it accepts logins, and create the qtt database if it does not exist. The
+# database is created over JDBC (scripts/tools/CreateMssqlDb.java, with the driver from the built application)
+# because Azure SQL Edge ships no sqlcmd; this works the same on every OS and image.
+start_mssql: $(RUN_DIR)/$(RUN_JAR)
 	$(COMPOSE) up -d mssql
+	java -cp "$(RUN_DIR)/quarkus-app/lib/main/*" scripts/tools/CreateMssqlDb.java localhost:1433 verYs3cret
+	@echo MSSQL ready, database qtt exists
 
 # Stop Redis container
 stop_redis:
