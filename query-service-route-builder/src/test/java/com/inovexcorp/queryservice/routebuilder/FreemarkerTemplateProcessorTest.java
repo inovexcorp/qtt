@@ -51,14 +51,30 @@ class FreemarkerTemplateProcessorTest {
     @Test
     void brokenTemplateFailsEachRequest() {
         FreemarkerTemplateProcessor p = new FreemarkerTemplateProcessor("r", "SELECT ${headers.unclosed WHERE {}");
-        assertThrows(Exception.class, () -> p.process(exchange(null)));
-        assertThrows(Exception.class, () -> p.process(exchange(null)));
+        RouteTemplateException first = assertThrows(RouteTemplateException.class, () -> p.process(exchange(null)));
+        RouteTemplateException second = assertThrows(RouteTemplateException.class, () -> p.process(exchange(null)));
+        assertTrue(first.isSyntaxError());
+        assertSame(first, second, "the parse failure is kept, not re-parsed per request");
+        assertTrue(first.getMessage().startsWith("The template of route 'r' has a syntax error at line 1, column"),
+                first.getMessage());
+        assertFalse(first.getMessage().contains("\n"));
     }
 
     @Test
     void missingVariableFailsTheRequest() {
         FreemarkerTemplateProcessor p = new FreemarkerTemplateProcessor("r", "SELECT ${headers.nosuch}");
-        assertThrows(Exception.class, () -> p.process(exchange(null)));
+        RouteTemplateException e = assertThrows(RouteTemplateException.class, () -> p.process(exchange(null)));
+        assertFalse(e.isSyntaxError());
+        assertEquals("The query needs a value that the request did not provide: headers.nosuch", e.getMessage());
+    }
+
+    @Test
+    void otherRenderErrorsAreReportedOnOneLine() {
+        FreemarkerTemplateProcessor p = new FreemarkerTemplateProcessor("r", "<#assign b = body?eval_json>${b.x}");
+        RouteTemplateException e = assertThrows(RouteTemplateException.class, () -> p.process(exchange("{not json")));
+        assertFalse(e.isSyntaxError());
+        assertTrue(e.getMessage().startsWith("The template could not be rendered for this request: "), e.getMessage());
+        assertFalse(e.getMessage().contains("\n"), e.getMessage());
     }
 
     @Test

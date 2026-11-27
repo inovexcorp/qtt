@@ -64,7 +64,10 @@ public class DatasourceHealthServiceImpl implements DatasourceHealthService {
     public void updateDatasourceHealth(String dataSourceId, DatasourceStatus status, String errorMessage, Long responseTimeMs) {
         jpa.tx(TransactionType.Required, em -> {
             Datasources datasource = dataSourceService.getDataSource(dataSourceId);
-            if (datasource != null) {
+            if (datasource != null && datasource.getStatus() == DatasourceStatus.DISABLED) {
+                // Disabled while this check was running: a check result must not re-enable it.
+                log.debug("Datasource {} was disabled during its health check; result discarded", dataSourceId);
+            } else if (datasource != null) {
                 datasource.setStatus(status);
                 datasource.setLastHealthCheck(new Date());
                 datasource.setLastHealthError(errorMessage);

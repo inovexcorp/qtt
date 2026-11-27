@@ -205,9 +205,10 @@ miscounts Jetty's chunked keep-alive responses; `scripts/tools/LoadGen.java` rep
 Bugs found and fixed along the way (all with unit tests): health-history JSON, datasource re-POST deleting routes,
 metrics NPE on orphaned routes, run.sh ignoring custom keystores, UI font path and NaN summary, SQL Server losing
 non-Latin template text, template text depending on the JVM default charset, credentials in INFO logs, and the
-Hibernate 7 / Netty / JSON-P issues met during the port. Known issues still open and pinned in `KnownIssuesIT`:
-plaintext datasource passwords in the API, disabling a datasource not stopping its routes, and template errors
-reported as "datasource unavailable".
+Hibernate 7 / Netty / JSON-P issues met during the port. The three issues pinned in `KnownIssuesIT` at the
+end of the migration were fixed afterwards: plaintext datasource passwords in the API (and in the database despite
+encryption), disabling a datasource not stopping its routes, and template errors reported as "datasource
+unavailable".
 
 Deviations from the plan above: the port happened in one module tree (Karaf kept building only until the Phase 6
 cutover), SPARQi keeps plain LangChain4j and Redis keeps Lettuce, configuration keeps the OSGi PIDs, and Phase 8

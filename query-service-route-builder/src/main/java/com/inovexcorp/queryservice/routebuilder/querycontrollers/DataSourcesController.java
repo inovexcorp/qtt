@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import com.inovexcorp.queryservice.persistence.DisabledDatasources;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
@@ -63,6 +64,9 @@ public class DataSourcesController {
     static final String PASSWORD_REQUIRED = "A password is required";
     static final String PASSWORD_REQUIRED_FOR_CHANGE =
             "A password is required when changing the URL or username of a datasource";
+
+    @Inject
+    DisabledDatasources disabledDatasources;
 
     @Inject
     RouteService routeService;
@@ -221,6 +225,7 @@ public class DataSourcesController {
                                 .cacheService(getEffectiveCacheService())
                                 .cacheKeyPrefix(camelKarafComponent.getCacheKeyPrefix())
                                 .cacheDefaultTtlSeconds(camelKarafComponent.getCacheDefaultTtlSeconds())
+                                .disabledDatasources(disabledDatasources)
                                 .build());
                         routeService.add(currentRoute);
                     } catch (Exception e) {

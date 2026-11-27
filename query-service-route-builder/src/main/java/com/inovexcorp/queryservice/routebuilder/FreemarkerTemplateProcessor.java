@@ -1,7 +1,9 @@
 package com.inovexcorp.queryservice.routebuilder;
 
+import freemarker.core.ParseException;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
+import freemarker.template.TemplateException;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.support.ExchangeHelper;
@@ -19,7 +21,7 @@ import java.util.Map;
  * with the same data model ({@link ExchangeHelper#createVariableMap}: headers, body, ...) and the same FreeMarker
  * settings the Karaf build used (default incompatible-improvements level, no localized lookup), so templates
  * render exactly as before. A template that fails to parse fails each request, as before, rather than route
- * creation.</p>
+ * creation. Template failures are thrown as {@link RouteTemplateException} so the route can report them as such.</p>
  */
 public class FreemarkerTemplateProcessor implements Processor {
 
@@ -28,6 +30,7 @@ public class FreemarkerTemplateProcessor implements Processor {
     private final String name;
     private final String templateContent;
     private volatile Template template;
+    private volatile RouteTemplateException parseError;
 
     public FreemarkerTemplateProcessor(String name, String templateContent) {
         this.name = name;
@@ -43,7 +46,15 @@ public class FreemarkerTemplateProcessor implements Processor {
     Template template() throws Exception {
         Template t = template;
         if (t == null) {
-            t = new Template(name, new StringReader(templateContent), CONFIGURATION);
+            if (parseError != null) {
+                throw parseError;
+            }
+            try {
+                t = new Template(name, new StringReader(templateContent), CONFIGURATION);
+            } catch (ParseException e) {
+                parseError = RouteTemplateException.syntax(name, e);
+                throw parseError;
+            }
             template = t;
         }
         return t;
@@ -53,7 +64,11 @@ public class FreemarkerTemplateProcessor implements Processor {
     public void process(Exchange exchange) throws Exception {
         Map<String, Object> dataModel = ExchangeHelper.createVariableMap(exchange, false);
         StringWriter buffer = new StringWriter();
-        template().process(dataModel, buffer);
+        try {
+            template().process(dataModel, buffer);
+        } catch (TemplateException e) {
+            throw RouteTemplateException.render(e);
+        }
         exchange.getMessage().setBody(buffer.toString());
     }
 }

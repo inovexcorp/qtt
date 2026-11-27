@@ -6,6 +6,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
 import com.inovexcorp.queryservice.persistence.Datasources;
+import com.inovexcorp.queryservice.persistence.DisabledDatasources;
 import com.inovexcorp.queryservice.persistence.util.PasswordEncryptionService;
 import lombok.extern.slf4j.Slf4j;
 import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
@@ -25,6 +26,9 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Inject
     PasswordEncryptionService encryptionService;
+
+    @Inject
+    DisabledDatasources disabledDatasources;
 
     @PostConstruct
     void postConstruct() {
@@ -135,6 +139,7 @@ public class DataSourceServiceImpl implements DataSourceService {
                 log.debug("Cannot delete non-existent datasource: {}", dataSourceId, e);
             }
         });
+        disabledDatasources.removed(dataSourceId);
     }
 
     @Override
@@ -181,6 +186,8 @@ public class DataSourceServiceImpl implements DataSourceService {
                 log.warn("Cannot update status for non-existent datasource: {}", dataSourceId);
             }
         });
+        // Routes check this on every request (disabling must take effect without rebuilding them)
+        disabledDatasources.statusChanged(dataSourceId, status);
     }
 
     @Override

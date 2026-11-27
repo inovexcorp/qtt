@@ -352,10 +352,14 @@ in `query-service-app`; this module uses them only in tests.
 Routes check datasource status before processing:
 
 ```java
-if (datasource.getStatus() == DatasourceStatus.DISABLED) {
+if (disabledDatasources.isDisabled(datasourceId)) {
     return HTTP 503 with error message
 }
 ```
+
+`DisabledDatasources` holds the disabled ids in memory: enabling or disabling a datasource updates it at once, and it
+re-reads the database at most every 5 seconds to pick up changes made by other instances sharing the database. (Routes
+used to check the status captured when they were built, so disabling a datasource did not stop them.)
 
 ### Exception Handling Hierarchy
 
@@ -365,7 +369,11 @@ if (datasource.getStatus() == DatasourceStatus.DISABLED) {
    - HTTP 5xx → Backend server error (returns 502 to client)
    - Other → Query error (returns 503 to client)
 
-2. **Generic Exception**:
+2. **RouteTemplateException** (the template could not produce a query; Anzo is not called), status `TEMPLATE_ERROR`:
+   - Template syntax error → HTTP 500 "Route template error" (the route is broken whatever the request)
+   - Rendering failed, usually a value the request did not supply → HTTP 400, naming the missing expression
+
+3. **Generic Exception**:
    - Returns HTTP 503 "Backend datasource unavailable"
 
 ### Fail-Open Cache Design

@@ -409,6 +409,21 @@ curl -X POST "http://localhost:8888/people-search" \
 }
 ```
 
+### Query Errors
+
+Errors are JSON objects with `error` and `message` (and `status` where shown).
+
+| HTTP | `status` | Cause |
+|---|---|---|
+| 400 | `TEMPLATE_ERROR` | The template needs a value the request did not supply; `message` names it (for example `headers.name`) |
+| 400 | `QUERY_ERROR` | Anzo rejected the generated SPARQL |
+| 500 | `TEMPLATE_ERROR` | The route's template has a syntax error |
+| 502 | | Anzo returned a server error |
+| 503 | `DISABLED` | The route's datasource is disabled (takes effect on running routes immediately) |
+| 503 | | Anzo could not be reached, timed out or rejected the credentials |
+
+Template errors never call Anzo.
+
 ## Cache Management API
 
 Endpoints for managing Redis query result cache.

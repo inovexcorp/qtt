@@ -3,6 +3,8 @@ package com.inovexcorp.queryservice.routebuilder;
 import com.inovexcorp.queryservice.RdfResultsJsonifier;
 import com.inovexcorp.queryservice.cache.CacheService;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
+import com.inovexcorp.queryservice.persistence.DatasourceStatus;
+import com.inovexcorp.queryservice.persistence.DisabledDatasources;
 import com.inovexcorp.queryservice.routebuilder.cache.CacheCheckProcessor;
 import com.inovexcorp.queryservice.routebuilder.cache.CacheCoalescingCleanupProcessor;
 import com.inovexcorp.queryservice.routebuilder.cache.CacheStoreProcessor;
@@ -41,6 +43,8 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
     private final CacheService cacheService;
     private final String cacheKeyPrefix;
     private final int cacheDefaultTtlSeconds;
+    /** Checked on every request, so disabling a datasource takes effect on its running routes. */
+    private final DisabledDatasources disabledDatasources;
 
     //Template for creating routes in a format of from->template->to
     @Override
@@ -111,6 +115,27 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
                         })
                 .end();
 
+        // The template could not produce a query: a broken template (500) or a request missing a value it needs (400).
+        // Anzo was not called, so this says nothing about the datasource.
+        onException(RouteTemplateException.class)
+                .handled(true)
+                .process(cleanupProcessor)
+                .process(exchange -> {
+                    RouteTemplateException e = exchange.getProperty(Exchange.EXCEPTION_CAUGHT,
+                            RouteTemplateException.class);
+                    boolean syntax = e.isSyntaxError();
+                    if (syntax) {
+                        log.warn("Route {}: {}", camelRouteTemplate.getRouteId(), e.getMessage());
+                    } else {
+                        log.debug("Route {}: {}", camelRouteTemplate.getRouteId(), e.getMessage());
+                    }
+                    exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, syntax ? 500 : 400);
+                    exchange.getMessage().setHeader(Exchange.CONTENT_TYPE, "application/json");
+                    exchange.getMessage().setBody(String.format(
+                            "{\"error\": %s, \"status\": \"TEMPLATE_ERROR\", \"message\": %s}",
+                            escapeJson(syntax ? "Route template error" : "Bad Request"), escapeJson(e.getMessage())));
+                });
+
         // Generic error handler for connectivity issues (IOException, etc.)
         onException(Exception.class)
                 .handled(true)
@@ -127,7 +152,7 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
                 .routeId(camelRouteTemplate.getRouteId())
                 // Check datasource status before processing
                 .process(exchange -> {
-                    if (camelRouteTemplate.getDatasources().getStatus() == com.inovexcorp.queryservice.persistence.DatasourceStatus.DISABLED) {
+                    if (isDatasourceDisabled()) {
                         String jsonError = String.format(
                             "{\"error\": \"Datasource Disabled\", \"status\": \"DISABLED\", \"message\": \"The datasource '%s' for this route has been manually disabled. Enable it in the datasource configuration to use this route.\"}",
                             camelRouteTemplate.getDatasources().getDataSourceId()
@@ -159,6 +184,14 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
                     // Store result in cache
                     .process(new CacheStoreProcessor(cacheService, camelRouteTemplate, cacheDefaultTtlSeconds))
             .end();
+    }
+
+    private boolean isDatasourceDisabled() {
+        if (disabledDatasources == null) {
+            // Only routes built without the registry (tests): fall back to the status at build time.
+            return camelRouteTemplate.getDatasources().getStatus() == DatasourceStatus.DISABLED;
+        }
+        return disabledDatasources.isDisabled(camelRouteTemplate.getDatasources().getDataSourceId());
     }
 
     /**

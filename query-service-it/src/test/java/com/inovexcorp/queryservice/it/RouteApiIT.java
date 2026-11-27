@@ -121,6 +121,24 @@ class RouteApiIT {
         api().contentType("text/plain").body("Started").patch("/routes/" + route).then().statusCode(409);
     }
 
+    /** Routes used to check a status snapshot taken when they were built, so disabling did not stop them. */
+    @Test
+    void disablingTheDatasourceStopsItsRunningRoutes() {
+        createRoute(route, ds);
+        String graphmartRequests = "/sparql/graphmart/" + encodedGraphmart(GRAPHMART) + ".*";
+        query().get("/" + route).then().statusCode(200);
+
+        api().put("/datasources/" + ds + "/disable").then().statusCode(200);
+        int before = anzoRequestCount(graphmartRequests);
+        query().get("/" + route).then().statusCode(503)
+                .body("status", equalTo("DISABLED"))
+                .body("error", equalTo("Datasource Disabled"));
+        assertThat(anzoRequestCount(graphmartRequests)).as("Anzo calls while disabled").isEqualTo(before);
+
+        api().put("/datasources/" + ds + "/enable").then().statusCode(200);
+        query().get("/" + route).then().statusCode(200);
+    }
+
     @Test
     void cloneCreatesIndependentCopy() {
         createRoute(route, ds);

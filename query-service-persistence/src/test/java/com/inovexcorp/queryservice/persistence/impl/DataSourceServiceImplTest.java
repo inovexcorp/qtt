@@ -1,7 +1,9 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
 import jakarta.inject.Inject;
+import com.inovexcorp.queryservice.persistence.DatasourceStatus;
 import com.inovexcorp.queryservice.persistence.Datasources;
+import com.inovexcorp.queryservice.persistence.DisabledDatasources;
 import com.inovexcorp.queryservice.persistence.util.PasswordEncryptionService;
 import com.inovexcorp.queryservice.persistence.jpa.EmConsumer;
 import com.inovexcorp.queryservice.persistence.jpa.EmFunction;
@@ -48,6 +50,9 @@ public class DataSourceServiceImplTest {
 
     @Mock
     private PasswordEncryptionService encryptionService;
+
+    @Mock
+    private DisabledDatasources disabledDatasources;
 
     @InjectMocks
     private DataSourceServiceImpl dataSourceService;
@@ -431,5 +436,31 @@ public class DataSourceServiceImplTest {
         // Assert
         verify(entityManager).merge(newDs);
         verify(entityManager).flush();
+    }
+
+    /** Routes check DisabledDatasources on every request; status changes must reach it. */
+    @Test
+    public void testUpdateDatasourceStatus_NotifiesDisabledDatasources() {
+        doAnswer(inv -> {
+            ((EmConsumer) inv.getArgument(1)).accept(entityManager);
+            return null;
+        }).when(jpaTemplate).tx(eq(TransactionType.Required), any(EmConsumer.class));
+        when(entityManager.find(Datasources.class, "test-datasource")).thenReturn(testDatasource);
+
+        dataSourceService.updateDatasourceStatus("test-datasource", DatasourceStatus.DISABLED, null);
+
+        verify(disabledDatasources).statusChanged("test-datasource", DatasourceStatus.DISABLED);
+    }
+
+    @Test
+    public void testDelete_NotifiesDisabledDatasources() {
+        doAnswer(inv -> {
+            ((EmConsumer) inv.getArgument(1)).accept(entityManager);
+            return null;
+        }).when(jpaTemplate).tx(eq(TransactionType.Required), any(EmConsumer.class));
+
+        dataSourceService.delete("test-datasource");
+
+        verify(disabledDatasources).removed("test-datasource");
     }
 }

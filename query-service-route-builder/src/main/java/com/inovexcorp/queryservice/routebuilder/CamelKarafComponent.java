@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.routebuilder;
 
+import com.inovexcorp.queryservice.persistence.DisabledDatasources;
 import com.inovexcorp.queryservice.RdfResultsJsonifier;
 import com.inovexcorp.queryservice.cache.CacheService;
 import com.inovexcorp.queryservice.config.OsgiConfig;
@@ -33,6 +34,9 @@ public class CamelKarafComponent {
     private File templateLocation;
 
     @Getter
+    @Inject
+    DisabledDatasources disabledDatasources;
+
     @Inject
     CamelContext camelContext;
 
@@ -91,6 +95,7 @@ public class CamelKarafComponent {
                     .cacheService(cacheService)
                     .cacheKeyPrefix(cacheKeyPrefix)
                     .cacheDefaultTtlSeconds(cacheDefaultTtlSeconds)
+                    .disabledDatasources(disabledDatasources)
                     .build());
             if ("Stopped".equals(camelRouteTemplate.getStatus())) {
                 camelContext.getRouteController().stopRoute(camelRouteTemplate.getRouteId());

@@ -121,20 +121,34 @@ class QueryPathIT {
         }
     }
 
-    /** A template FreeMarker cannot render never reaches Anzo. (The 503 "datasource unavailable" body is a known issue.) */
+    /**
+     * Template errors are reported as such and never reach Anzo. They used to be reported as an unreachable
+     * datasource (503, status DOWN).
+     */
     @Test
-    void templateErrorDoesNotCallAnzo() {
+    void templateErrorsAreReportedAsTemplateErrors() {
         String neverCalled = uniqueId("urn:mock:never");
         String id = uniqueId("it-q");
         routes.add(id);
+        routes.add(id + "b");
         createRoute(id, ds, neverCalled, "SELECT ${headers.unclosed WHERE {}", LAYER, null)
                 .then().statusCode(201);
-        query().get("/" + id).then().statusCode(503);
+        query().get("/" + id).then().statusCode(500)
+                .contentType(containsString("json"))
+                .body("status", equalTo("TEMPLATE_ERROR"))
+                .body("error", equalTo("Route template error"))
+                .body("message", containsString("syntax error at line 1"));
+
         createRoute(id + "b", ds, neverCalled, "SELECT ${headers.undefinedVariable} WHERE {}", LAYER, null)
                 .then().statusCode(201);
-        routes.add(id + "b");
-        query().get("/" + id + "b").then().statusCode(503);
-        assertThat(anzoRequestCount("/sparql/graphmart/" + encodedGraphmart(neverCalled) + ".*")).isZero();
+        query().get("/" + id + "b").then().statusCode(400)
+                .body("status", equalTo("TEMPLATE_ERROR"))
+                .body("message", endsWith("headers.undefinedVariable"));
+        // Supplying the value lets the query through (the one Anzo call counted below).
+        query().queryParam("undefinedVariable", "x").get("/" + id + "b");
+
+        assertThat(anzoRequestCount("/sparql/graphmart/" + encodedGraphmart(neverCalled) + ".*"))
+                .as("Anzo calls for the broken templates").isEqualTo(1);
     }
 
     @Test

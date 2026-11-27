@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.routebuilder.service;
 
+import com.inovexcorp.queryservice.persistence.DisabledDatasources;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
@@ -30,6 +31,9 @@ import java.util.List;
 @Slf4j
 @ApplicationScoped
 public class RouteManagementServiceImpl implements RouteManagementService {
+
+    @Inject
+    DisabledDatasources disabledDatasources;
 
     @Inject
     CamelKarafComponent camelKarafComponent;
@@ -95,6 +99,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
                 .cacheService(getEffectiveCacheService())
                 .cacheKeyPrefix(camelKarafComponent.getCacheKeyPrefix())
                 .cacheDefaultTtlSeconds(camelKarafComponent.getCacheDefaultTtlSeconds())
+                .disabledDatasources(disabledDatasources)
                 .build());
 
         // If the route exists in memory, delete it then re-create it

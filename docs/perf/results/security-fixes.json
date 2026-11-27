@@ -1,0 +1,56 @@
+{
+  "label": "security-fixes",
+  "image": "localhost/qtt:ki",
+  "commit": "907f6d4+dirty",
+  "date": "2026-11-26T21:11:08",
+  "note": "Phase 7 image plus the password, disable and template-error fixes",
+  "image_bytes": 352949788,
+  "image_gzip_bytes": 173086945,
+  "layers": 9,
+  "cold_start": [
+    {
+      "api_ms": 2028,
+      "first_query_ms": 2120
+    },
+    {
+      "api_ms": 2113,
+      "first_query_ms": 2194
+    },
+    {
+      "api_ms": 2049,
+      "first_query_ms": 2121
+    },
+    {
+      "api_ms": 2121,
+      "first_query_ms": 2199
+    },
+    {
+      "api_ms": 2122,
+      "first_query_ms": 2194
+    }
+  ],
+  "api_ready_ms_median": 2113,
+  "api_ready_ms_min": 2028,
+  "api_ready_ms_max": 2122,
+  "first_query_ms_median": 2194,
+  "first_query_ms_min": 2120,
+  "first_query_ms_max": 2199,
+  "rss_idle_mb": 307.9,
+  "load_uncached": {
+    "rps": 1043.6,
+    "p50_ms": 7.32,
+    "p95_ms": 11.96,
+    "p99_ms": 13.48,
+    "errors": 0,
+    "requests": 31318
+  },
+  "load_cached": {
+    "rps": 8875.8,
+    "p50_ms": 0.85,
+    "p95_ms": 1.37,
+    "p99_ms": 2.07,
+    "errors": 0,
+    "requests": 266297
+  },
+  "rss_after_load_mb": 359.8
+}
