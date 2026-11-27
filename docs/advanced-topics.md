@@ -191,7 +191,15 @@ networks:
   external:
 ```
 
-### 3. Secrets Management
+### 3. Route Templates
+
+The management API has no authentication of its own, and anyone who can reach it can save route templates.
+Templates are rendered with FreeMarker's safeguards for untrusted templates switched on: no `?new` or `?api`, no
+`<#include>`/`<#import>`, and no Java methods on request objects (see
+[What Templates Cannot Do](template-development.md#what-templates-cannot-do)). Still, put the management port
+(8443) behind a reverse proxy that requires authentication, and expose only the query port (8888) to clients.
+
+### 4. Secrets Management
 
 Keep secrets out of images and compose files and pass them to the container as environment variables at
 start-up, for example from a Kubernetes Secret:
@@ -213,7 +221,7 @@ env:
 QTT reads these values from environment variables only; it does not support `*_FILE` variables that point to
 secret files.
 
-### 4. Least Privilege Database Access
+### 5. Least Privilege Database Access
 
 Grant only required permissions:
 
@@ -239,7 +247,7 @@ ALL
 SEQUENCES IN SCHEMA public TO qttuser;
 ```
 
-### 5. Rate Limiting
+### 6. Rate Limiting
 
 Use nginx or HAProxy for rate limiting:
 

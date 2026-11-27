@@ -27,7 +27,6 @@ public interface TestRouteService {
 
     /**
      * Deletes a temporary test route by stopping it and removing it from the Camel context.
-     * The template file will be automatically cleaned up by the TemplateCleanupRoutePolicy.
      *
      * @param routeId The ID of the test route to delete
      * @throws Exception If route deletion fails

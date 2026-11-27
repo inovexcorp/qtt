@@ -3,15 +3,12 @@ package com.inovexcorp.queryservice.routebuilder.test;
 import com.inovexcorp.queryservice.RdfResultsJsonifier;
 import com.inovexcorp.queryservice.camel.anzo.comm.QueryException;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
-import lombok.Getter;
+import com.inovexcorp.queryservice.routebuilder.FreemarkerTemplateProcessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
-
-import java.io.File;
-import java.nio.file.Files;
 
 /**
  * RouteBuilder for creating temporary test routes that provide enhanced debugging
@@ -21,20 +18,15 @@ import java.nio.file.Files;
  * The route flow is:
  * HTTP Request → Freemarker Template → Capture SPARQL → Anzo Query → JSON-LD → Enhanced Response
  * <p>
- * Template files are automatically cleaned up when the route is removed via
- * the TemplateCleanupRoutePolicy.
+ * The template renders through {@link FreemarkerTemplateProcessor}, exactly as in a saved route: same output, and
+ * the same restrictions on what a template may do.
  */
 @Slf4j
 @RequiredArgsConstructor
 public class TestRouteBuilder extends RouteBuilder {
 
-    private static final String FREEMARKER_TEMPLATE_URI = "freemarker:file:%s?lazyStartProducer=true";
-
     private final CamelRouteTemplate camelRouteTemplate;
     private final String layerUris;
-
-    @Getter
-    private File tempTemplateFile;
 
     @Override
     public void configure() throws Exception {
@@ -53,18 +45,14 @@ public class TestRouteBuilder extends RouteBuilder {
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
                 .process(new TestErrorProcessor());
 
-        // Create temp template file
-        tempTemplateFile = createTempTemplateFile();
-
         // Build test route (no caching - all queries execute fresh)
         from(String.format("netty-http:http://0.0.0.0:8888/%s?httpMethodRestrict=POST",
                 camelRouteTemplate.getRouteId()))
                 .routeId(camelRouteTemplate.getRouteId())
-                // Attach cleanup policy to automatically delete template file on route removal
-                .routePolicy(new TemplateCleanupRoutePolicy(tempTemplateFile))
                 .log(LoggingLevel.INFO, "Test route ${routeId} processing request")
                 .convertBodyTo(String.class)
-                .to(String.format(FREEMARKER_TEMPLATE_URI, tempTemplateFile.getAbsolutePath()))
+                .process(new FreemarkerTemplateProcessor(camelRouteTemplate.getRouteId(),
+                        camelRouteTemplate.getTemplateContent()))
                 // Capture the generated SPARQL query and timing info
                 .process(new CaptureQueryProcessor())
                 // Execute query against Anzo
@@ -74,23 +62,5 @@ public class TestRouteBuilder extends RouteBuilder {
                 .process(RdfResultsJsonifier.BEAN_REFERENCE)
                 // Wrap results with debug metadata
                 .process(new EnhancedResponseProcessor());
-    }
-
-    /**
-     * Creates a temporary template file in the system temp directory.
-     * The file will be automatically deleted when the route is removed via
-     * the TemplateCleanupRoutePolicy.
-     */
-    private File createTempTemplateFile() throws Exception {
-        // Create temp file in system temp directory
-        File tempFile = Files.createTempFile("qtt-test-", ".ftl").toFile();
-
-        // Write template content
-        Files.writeString(tempFile.toPath(), camelRouteTemplate.getTemplateContent());
-
-        log.info("Created temp template file for test route {}: {}",
-                camelRouteTemplate.getRouteId(), tempFile.getAbsolutePath());
-
-        return tempFile;
     }
 }

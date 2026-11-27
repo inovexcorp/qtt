@@ -21,7 +21,6 @@ import java.util.UUID;
  * - Use UUID-based route IDs to prevent collisions
  * - Bypass caching for fresh query execution
  * - Capture SPARQL queries and execution details
- * - Automatically clean up template files when removed
  * - Have failsafe cleanup after 5 minutes
  */
 @Slf4j
@@ -90,7 +89,7 @@ public class TestRouteServiceImpl implements TestRouteService {
         context.getRouteController().stopRoute(routeId);
         log.debug("Stopped test route: {}", routeId);
 
-        // Remove the route (this will trigger TemplateCleanupRoutePolicy.onRemove())
+        // Remove the route
         context.removeRoute(routeId);
         log.info("Successfully deleted test route: {}", routeId);
     }

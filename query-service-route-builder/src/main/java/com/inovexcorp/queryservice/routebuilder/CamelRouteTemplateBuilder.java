@@ -33,7 +33,6 @@ import java.nio.file.Files;
 public class CamelRouteTemplateBuilder extends RouteBuilder {
 
     private static final String TEMPLATE_NAME_FORMAT = "%s.ftl";
-    private static final String FREEMARKER_TEMPLATE_URI = "freemarker:file:%s?lazyStartProducer=true";
     /** Query endpoints are served by Netty HTTP on their own port (Jetty under Karaf). */
     static final String QUERY_ENDPOINT_URL = "netty-http:http://0.0.0.0:8888/%s?%s";
 
@@ -235,7 +234,7 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
         return new FreemarkerTemplateProcessor(camelRouteTemplate.getRouteId(), camelRouteTemplate.getTemplateContent());
     }
 
-    private String templateFileBuffer(CamelRouteTemplate camelRouteTemplate) throws IOException {
+    private void templateFileBuffer(CamelRouteTemplate camelRouteTemplate) throws IOException {
         log.debug("Processing template file from database clob");
         final File template = templatesDirectory.toPath()
                 .resolve(String.format(TEMPLATE_NAME_FORMAT, camelRouteTemplate.getRouteId())).toFile();
@@ -254,6 +253,5 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
         } catch (IOException e) {
             throw new IOException("Issue occurred buffering template to disk for camel", e);
         }
-        return String.format(FREEMARKER_TEMPLATE_URI, template.getAbsolutePath());
     }
 }

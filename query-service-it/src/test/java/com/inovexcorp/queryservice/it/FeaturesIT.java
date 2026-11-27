@@ -97,6 +97,18 @@ class FeaturesIT {
         assertThat(ids).noneMatch(i -> i.startsWith("test-"));
     }
 
+    /** Template tests render exactly like saved routes, with the same restrictions (they used Camel's own FreeMarker). */
+    @Test
+    void executeTemplateTestCannotRunCommands() {
+        api().post("/datasources/" + ds + "/healthcheck").then().statusCode(200).body("status", equalTo("UP"));
+        api().contentType(ContentType.JSON).body(Map.of(
+                        "templateContent", "${\"freemarker.template.utility.Execute\"?new()(\"id\")}",
+                        "dataSourceId", ds, "graphMartUri", GRAPHMART, "layers", LAYER))
+                .post("/testing/execute").then().statusCode(200)
+                .body("status", equalTo("error"))
+                .body("error", containsString("not allowed in the template for security reasons"));
+    }
+
     @Test
     void executeTemplateTestValidation() {
         api().contentType(ContentType.JSON).body(Map.of("templateContent", TEMPLATE))

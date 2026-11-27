@@ -64,9 +64,17 @@ public class RouteTemplateException extends RuntimeException {
 
     /** The template parsed but failed for this request, usually because a value it needs was not supplied. */
     static RouteTemplateException render(TemplateException e) {
-        String message = e instanceof InvalidReferenceException && e.getBlamedExpressionString() != null
-                ? "The query needs a value that the request did not provide: " + e.getBlamedExpressionString()
-                : "The template could not be rendered for this request: " + firstLine(e.getMessageWithoutStackTop());
+        // ?eval, ?interpret and #include wrap the error that explains the failure; report that one.
+        TemplateException reason = e;
+        for (Throwable cause = e.getCause(); cause != null && cause != cause.getCause(); cause = cause.getCause()) {
+            if (cause instanceof TemplateException t) {
+                reason = t;
+            }
+        }
+        String message = reason instanceof InvalidReferenceException && reason.getBlamedExpressionString() != null
+                ? "The query needs a value that the request did not provide: " + reason.getBlamedExpressionString()
+                : "The template could not be rendered for this request: "
+                        + firstLine(reason.getMessageWithoutStackTop()).replaceFirst(":$", "");
         return new RouteTemplateException(message, e, false);
     }
 

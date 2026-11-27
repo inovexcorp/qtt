@@ -50,7 +50,9 @@ An `@ApplicationScoped` CDI bean (the name is historical) that:
 
 Builds individual Camel routes from `CamelRouteTemplate` database records. Each route:
 - Exposes an HTTP endpoint: `http://0.0.0.0:8888/{routeId}?{params}`
-- Processes the request body through a Freemarker template to generate SPARQL
+- Processes the request body through a Freemarker template to generate SPARQL (`FreemarkerTemplateProcessor`,
+  which template test routes use too; its configuration treats templates as untrusted: no `?new`/`?api`, no
+  `#include`/`#import`, no Java methods on data-model objects)
 - Checks the cache for existing results (if caching enabled)
 - Queries the Anzo backend datasource (on cache miss)
 - Converts RDF results to JSON-LD format

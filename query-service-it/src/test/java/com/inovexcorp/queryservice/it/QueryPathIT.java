@@ -152,6 +152,36 @@ class QueryPathIT {
                 .as("Anzo calls for the broken templates").isEqualTo(1);
     }
 
+    /**
+     * Templates are written through the API and must not reach beyond the request. Each of these worked before:
+     * {@code ?new} ran OS commands, {@code #include} read files under the working directory (here the route's own
+     * template file), and Java objects in the headers (Netty's channel context) exposed their methods.
+     */
+    @Test
+    void templatesCannotRunCommandsReadFilesOrCallJavaMethods() {
+        String neverCalled = uniqueId("urn:mock:never");
+        String id = uniqueId("it-q");
+        routes.add(id);
+        createRoute(id, ds, neverCalled, TEMPLATE, LAYER, null).then().statusCode(201);
+        String[][] attempts = {
+                {"${\"freemarker.template.utility.Execute\"?new()(\"id\")}", "not allowed in the template for security reasons"},
+                {"<#include \"/data/templates/" + id + ".ftl\" parse=false>", "Template inclusion failed"},
+                {"${headers.CamelNettyChannelHandlerContext.channel().isOpen()?c}", "TEMPLATE_ERROR"},
+        };
+        for (String[] attempt : attempts) {
+            modifyRoute(id, ds, neverCalled, attempt[0], LAYER, null).then().statusCode(anyOf(is(200), is(201)));
+            query().get("/" + id).then().statusCode(400)
+                    .body("status", equalTo("TEMPLATE_ERROR"))
+                    .body(containsString(attempt[1]));
+        }
+        // Java objects still print as text, as before.
+        modifyRoute(id, ds, neverCalled, "SELECT * WHERE { ?s ?p \"${headers.CamelNettyChannelHandlerContext}\" }",
+                LAYER, null).then().statusCode(anyOf(is(200), is(201)));
+        query().get("/" + id).then().statusCode(200);
+        assertThat(anzoRequestCount("/sparql/graphmart/" + encodedGraphmart(neverCalled) + ".*"))
+                .as("only the last template reaches Anzo").isEqualTo(1);
+    }
+
     @Test
     void anzoMetadataHeadersAreReturned() {
         String route = newRoute(GRAPHMART);

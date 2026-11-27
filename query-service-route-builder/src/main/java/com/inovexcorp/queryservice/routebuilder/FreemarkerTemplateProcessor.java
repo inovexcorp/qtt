@@ -1,7 +1,10 @@
 package com.inovexcorp.queryservice.routebuilder;
 
 import freemarker.core.ParseException;
+import freemarker.core.TemplateClassResolver;
+import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
+import freemarker.template.DefaultObjectWrapperBuilder;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import org.apache.camel.Exchange;
@@ -22,6 +25,9 @@ import java.util.Map;
  * settings the Karaf build used (default incompatible-improvements level, no localized lookup), so templates
  * render exactly as before. A template that fails to parse fails each request, as before, rather than route
  * creation. Template failures are thrown as {@link RouteTemplateException} so the route can report them as such.</p>
+ *
+ * <p>Both query routes and the template test routes render through this class, so the restrictions in
+ * {@link #createConfiguration()} apply everywhere a user's template runs.</p>
  */
 public class FreemarkerTemplateProcessor implements Processor {
 
@@ -37,9 +43,30 @@ public class FreemarkerTemplateProcessor implements Processor {
         this.templateContent = templateContent != null ? templateContent : "";
     }
 
+    /**
+     * Templates are written by API users, so they are treated as untrusted (see "Is FreeMarker safe for untrusted
+     * templates?" in the FreeMarker FAQ). Everything here is a FreeMarker setting; none of it changes how
+     * headers, the JSON body or built-ins such as {@code ?eval_json} render.
+     * <ul>
+     *   <li>{@code ?new} may not create objects: with the default resolver,
+     *       {@code "freemarker.template.utility.Execute"?new()} runs operating-system commands.</li>
+     *   <li>{@code ?api} stays off (the default, set explicitly so it cannot be switched on by accident).</li>
+     *   <li>Java objects in the data model show their text but expose no methods or properties. Netty puts
+     *       its channel context in the request headers, and with the default exposure a template could call any
+     *       public method on it, for example closing the query server's socket.</li>
+     *   <li>No template loader: {@code #include} and {@code #import} would otherwise read any file under the
+     *       working directory (FreeMarker's legacy default loader), which holds the Derby database and config.</li>
+     * </ul>
+     */
     static Configuration createConfiguration() {
         Configuration configuration = new Configuration(Configuration.DEFAULT_INCOMPATIBLE_IMPROVEMENTS);
         configuration.setLocalizedLookup(false);
+        configuration.setNewBuiltinClassResolver(TemplateClassResolver.ALLOWS_NOTHING_RESOLVER);
+        configuration.setAPIBuiltinEnabled(false);
+        configuration.setTemplateLoader(null);
+        DefaultObjectWrapperBuilder wrapper = new DefaultObjectWrapperBuilder(Configuration.DEFAULT_INCOMPATIBLE_IMPROVEMENTS);
+        wrapper.setExposureLevel(BeansWrapper.EXPOSE_NOTHING);
+        configuration.setObjectWrapper(wrapper.build());
         return configuration;
     }
 
