@@ -31,7 +31,7 @@ Measured on `refactor/optimize` at `b5d1b68`:
 | How to climb | One major at a time, 18 → 19 → 20 → 21 → 22, with `ng update` | `ng update` only migrates one major per run, and its automatic migrations assume that order |
 | TypeScript | Whatever each Angular major requires; **6.0.x** at the end (Angular 22 accepts `>=6.0 <6.1`) | TypeScript 7 is out, but Angular 22 does not support it yet |
 | Builder | Move to `@angular/build:application` (esbuild) and `@angular/build:dev-server` **after** reaching 22. Delete `webpack.config.js`, `css-loader`, `style-loader` and `custom-webpack` | Until then, each version step changes only versions; the builder switch is its own step with its own checks. The new test runner (below) needs the application builder |
-| Monaco | Load **one** copy: the AMD copy that `ngx-monaco-editor-v2` already loads. Code changes to `import type * as monaco` and gets the runtime from `window.monaco` via a small `MonacoLoader` service | Removes about 4 MB from `main`, removes the custom webpack rules, and removes the "set markers on both copies" workaround. This changes behavior, so the Monaco tests below come first |
+| Monaco | Load **one** copy: the bundled ESM build. Replace `ngx-monaco-editor-v2` (used by two editors) with a small in-house `app-code-editor` component (a form control) built on `monaco.editor.create`, the way the route editor already works. Drop the 14 MB `assets/monaco` copy | *Changed 2026-11-27 during Phase 0:* the first draft kept the AMD copy instead, but Monaco deprecated its AMD build in 0.53 ("we don't offer support for it anymore"), and `ngx-monaco-editor-v2` loads exactly that build. The ESM build is the supported one. This also removes the "set markers on both copies" workaround and fixes the add-route editor, which gets no ontology autocomplete today because the provider is registered on the other copy. It's a behavior change, so the Monaco tests below come first |
 | Test runner | Keep **Karma** for the whole version climb, then move to **Vitest** (`@angular/build:unit-test`) as a separate step | Changing the framework and the test runner at the same time would leave nothing trusted to compare against. Keeping the runner fixed means a failure points at the code |
 | Zone.js / zoneless | **Keep zone.js** (0.16 at the end). Zoneless change detection is out of scope | It changes runtime behavior across the whole app and doesn't block anything. Revisit after the redesign |
 | NgModule → standalone, control flow, `inject()` | Do it, as schematic-driven steps **after** the climb and builder switch | `*ngIf` is deprecated and `@angular/animations` is due to be removed in v23, so this keeps v23 from being a big upgrade. Schematics make it mechanical, and the suite checks it |
@@ -148,7 +148,7 @@ Phase 5 is a milestone: G8.
 
 ### Phase 6: Webpack → esbuild application builder
 
-1. Fix Monaco first (see Decisions): add a `MonacoLoader` service that waits for `ngx-monaco-editor-v2`'s loader and returns `window.monaco`. Change the four `import * as monaco` lines to `import type` and route runtime calls through the service. Delete `setMarkersEverywhere`. Run G2 (the Phase 0 Monaco tests must still pass) and G7 item 1.
+1. Fix Monaco first (see Decisions): add an `app-code-editor` component (`ControlValueAccessor`, `monaco.editor.create`, the worker set up through `MonacoEnvironment.getWorker` with `new Worker(new URL(..., import.meta.url))`) and use it for the two `<ngx-monaco-editor>` elements. Remove `ngx-monaco-editor-v2`, the `MonacoEditorModule.forRoot` setup and the `assets/monaco` glob. Delete `setMarkersEverywhere`. Run G2 (the Phase 0 Monaco tests must still pass) and G7 items 1–2.
 2. `angular.json`: `build` → `@angular/build:application`, `serve` → `@angular/build:dev-server`, `extract-i18n` → `buildTarget` (`browserTarget` is deprecated).
 3. **Output path:** the application builder writes to `<outputPath>/browser/` by default. Quarkus serves `META-INF/resources/` directly, so set `"outputPath": { "base": "target/classes/META-INF/resources", "browser": "" }`. G4 and G5 catch it if this is wrong (the UI would return 404).
 4. `main` → `browser`; polyfills stay `zone.js` + `@angular/localize/init`.
@@ -201,7 +201,7 @@ Each schematic gets its own commit and its own G0–G3 run; G5 runs at the end o
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| Monaco breaks: fonts, the AMD loader path, markers, autocomplete | High (two changes touch it: 0.50→0.56 and the single-copy rework) | Phase 0 tests and DOM checks, G7 item 1 at every phase. The single-copy change is its own commit and easy to revert |
+| Monaco breaks: fonts, CSS, workers, markers, autocomplete | High (two changes touch it: 0.50→0.56 and the single-copy rework) | Phase 0 tests and DOM checks, G7 item 1 at every phase. The single-copy change is its own commit and easy to revert |
 | `marked` 12 → 18 changes rendered SPARQi markdown | Medium | Phase 0 `innerHTML` snapshot for a fixed sample. Review snapshot diffs instead of overwriting them |
 | Material style changes in 19–22 cause visual regressions | High, accepted | G6 review every phase; the real cleanup happens in Phase 9 |
 | A third-party lib lags an Angular major | Low (all four have v22 releases today) | Keep `--legacy-peer-deps` during the climb; if a library breaks for real, pin it and record why |

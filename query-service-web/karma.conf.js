@@ -30,7 +30,11 @@ module.exports = function (config) {
       reporters: [
         { type: 'html' },
         { type: 'text-summary' }
-      ]
+      ],
+      // Coverage floor (docs/web-upgrade-plan.md): the run fails if coverage drops below it. Raise it as tests grow.
+      check: {
+        global: { statements: 50, branches: 37, functions: 49, lines: 49 }
+      }
     },
     reporters: ['progress', 'kjhtml'],
     port: 9876,
