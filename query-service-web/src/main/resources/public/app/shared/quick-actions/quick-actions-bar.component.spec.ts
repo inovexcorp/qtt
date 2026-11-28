@@ -62,8 +62,10 @@ describe('QuickActionsBarComponent', () => {
     fixture.detectChanges();
     answerEntities();
     expect(input.getAttribute('aria-expanded')).toBe('true');
-    expect(groupLabels()).toEqual(['Go to']);
-    expect(labels()).toEqual(['Metrics', 'Routes', 'Datasources', 'Settings']);
+    // Signed-in state unknown in the test: every role, sign-in off (so no "Sign out").
+    expect(groupLabels()).toEqual(['Go to', 'Actions']);
+    expect(labels()).toEqual(['Metrics', 'Routes', 'Datasources', 'Settings',
+      'Add route', 'Add datasource', 'Create API key', 'Clear all caches']);
     expect(input.getAttribute('aria-activedescendant')).toBe(options()[0].id);
   });
 
@@ -93,9 +95,9 @@ describe('QuickActionsBarComponent', () => {
     press('ArrowUp');
     press('ArrowUp');
     expect(input.getAttribute('aria-activedescendant')).toBe(options()[count - 1].id);
-    expect(labels()[count - 1]).toBe('Settings');
+    press('ArrowDown');
     press('Enter');
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/settings');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/metrics');
   });
 
   it('runs a clicked row', () => {

@@ -27,7 +27,7 @@ describe('DatasourceService', () => {
     it('should retrieve all datasources', () => {
       const mockDatasources: Datasources[] = [
         {
-          camelRouteTemplate: [],
+          camelRouteTemplateNames: [],
           dataSourceId: '1',
           timeOutSeconds: '30',
           maxQueryHeaderLength: '1000',
@@ -37,7 +37,7 @@ describe('DatasourceService', () => {
           validateCertificate: true
         } as Datasources,
         {
-          camelRouteTemplate: [],
+          camelRouteTemplateNames: [],
           dataSourceId: '2',
           timeOutSeconds: '30',
           maxQueryHeaderLength: '1000',
@@ -63,7 +63,7 @@ describe('DatasourceService', () => {
   describe('getDatasource', () => {
     it('should retrieve a specific datasource by ID', () => {
       const mockDatasource: Datasources = {
-        camelRouteTemplate: [],
+        camelRouteTemplateNames: [],
         dataSourceId: '123',
         timeOutSeconds: '30',
         maxQueryHeaderLength: '1000',
@@ -87,7 +87,7 @@ describe('DatasourceService', () => {
   describe('modifyDatasource', () => {
     it('should modify a datasource', () => {
       const datasource: Datasources = {
-        camelRouteTemplate: [],
+        camelRouteTemplateNames: [],
         dataSourceId: '123',
         timeOutSeconds: '30',
         maxQueryHeaderLength: '1000',
@@ -125,7 +125,7 @@ describe('DatasourceService', () => {
   describe('testDatasource', () => {
     it('should test a datasource connection', () => {
       const datasource: Datasources = {
-        camelRouteTemplate: [],
+        camelRouteTemplateNames: [],
         dataSourceId: '123',
         timeOutSeconds: '30',
         maxQueryHeaderLength: '1000',

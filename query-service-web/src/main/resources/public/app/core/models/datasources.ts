@@ -1,8 +1,8 @@
 import { AuditInfo } from './audit';
 
 export interface Datasources {
-  // Array of associated route names
-    camelRouteTemplate:string[];
+    // The ids of the routes that use it (read-only)
+    camelRouteTemplateNames?: string[];
     dataSourceId: string;
     timeOutSeconds: string;
     maxQueryHeaderLength: string;

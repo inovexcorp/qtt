@@ -50,6 +50,10 @@ import { CodeEditorComponent } from '../../shared/code-editor/code-editor.compon
 import { SparqiChatComponent } from './sparqi-chat/sparqi-chat.component';
 import { AsyncPipe, JsonPipe } from '@angular/common';
 import { CdkScrollable } from '@angular/cdk/scrolling';
+import { Clipboard } from '@angular/cdk/clipboard';
+import { QuickActionsService } from '../../shared/quick-actions/quick-actions.service';
+import { QuickAction } from '../../shared/quick-actions/quick-action';
+import { endpointUrl } from '../../shared/query-endpoint';
 
 
 
@@ -229,6 +233,11 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   queryBaseUrl: string | null = null;
   serverDefaultAccess: 'open' | 'authenticated' = 'open';
   private settingsService = inject(SettingsService);
+  private quickActions = inject(QuickActionsService);
+  private clipboard = inject(Clipboard);
+  private unregisterQuickActions?: () => void;
+  /** "Run test request" from the quick actions bar: run once the Test tab has loaded the template's variables. */
+  private runTestWhenLoaded = false;
 
   /** The access that applies to this route as currently edited. */
   get effectiveAccessValue(): 'open' | 'authenticated' {
@@ -895,6 +904,8 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     // Check if SPARQI is enabled
     this.checkSparqiStatus();
 
+    this.unregisterQuickActions = this.quickActions.register(this.pageQuickActions());
+
     // Load saved chat panel width from localStorage
     const savedWidth = localStorage.getItem('sparqi-panel-width');
     if (savedWidth) {
@@ -1256,11 +1267,16 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
 
           this.generateTestForm();
           this.isLoadingVariables = false;
+          if (this.runTestWhenLoaded) {
+            this.runTestWhenLoaded = false;
+            this.executeTest();
+          }
         },
         error: (error: any) => {
           console.error('Error extracting variables:', error);
           this.testError = 'Failed to extract template variables: ' + (error.error?.error || error.message);
           this.isLoadingVariables = false;
+          this.runTestWhenLoaded = false;
           this.testErrorExpanded = true;
         }
       });
@@ -1504,7 +1520,106 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     this.generateTestRequestWithSparqi();
   }
 
+  /** What this page adds to the quick actions bar while it is open. Roles as on the page's own buttons. */
+  private pageQuickActions(): QuickAction[] {
+    const datasourceBlocks = (): string | null => {
+      if (this.datasourceStatus === 'UP' || this.datasourceStatus === 'CHECKING') {
+        return null;
+      }
+      const id = this.routeData?.datasources?.dataSourceId ?? 'its datasource';
+      return this.datasourceStatus === 'DISABLED' ? `Datasource ${id} is disabled` : `Datasource ${id} is down`;
+    };
+    return [
+      {
+        id: 'route:save', label: 'Save route', icon: 'save', group: 'page', minRole: 'editor', keywords: ['update'],
+        disabledReason: () => this.configRoute.valid ? null : 'Some required fields are empty',
+        run: () => this.putRoute()
+      },
+      {
+        id: 'route:start', label: 'Turn route on', icon: 'wifi', group: 'page', minRole: 'editor',
+        keywords: ['start', 'enable'],
+        visible: () => this.routeData?.status === 'Stopped',
+        disabledReason: datasourceBlocks,
+        run: () => this.setRouteStatus('Started')
+      },
+      {
+        id: 'route:stop', label: 'Turn route off', icon: 'wifi_off', group: 'page', minRole: 'editor',
+        keywords: ['stop', 'disable'],
+        visible: () => this.routeData?.status === 'Started',
+        run: () => this.setRouteStatus('Stopped')
+      },
+      {
+        id: 'route:clear-cache', label: "Clear this route's cache", icon: 'delete_sweep', group: 'page',
+        minRole: 'editor', keywords: ['flush'],
+        disabledReason: () => !this.cacheEnabled ? 'Caching is off for this route'
+          : this.clearingCache ? 'Already clearing' : null,
+        run: () => this.clearRouteCache()
+      },
+      {
+        id: 'route:test', label: 'Run test request', icon: 'play_arrow', group: 'page', minRole: 'editor',
+        keywords: ['execute', 'try'],
+        disabledReason: () => this.isTestExecuting || this.isGeneratingRequest ? 'A test is already running' : null,
+        run: () => this.runTestFromQuickActions()
+      },
+      {
+        id: 'route:sparqi', label: 'Toggle SPARQi assistant', icon: 'smart_toy', group: 'page', minRole: 'editor',
+        keywords: ['ai', 'chat', 'assistant'],
+        visible: () => this.isSparqiEnabled,
+        run: () => this.toggleChatPanel()
+      },
+      {
+        id: 'route:fullscreen', label: 'Toggle full-screen editor', icon: 'fullscreen', group: 'page',
+        keywords: ['maximize', 'template editor'],
+        run: () => {
+          this.selectedTabIndex = 2;
+          this.toggleFullscreen();
+        }
+      },
+      {
+        id: 'route:copy-url', label: 'Copy endpoint URL', icon: 'content_copy', group: 'page',
+        keywords: ['link', 'url', 'curl'],
+        run: () => this.copyEndpointUrl()
+      }
+    ];
+  }
+
+  /** Turns the route on or off (the Routes table's "Turn On" / "Turn Off", here for the quick actions bar). */
+  private setRouteStatus(status: 'Started' | 'Stopped'): void {
+    const word = status === 'Started' ? 'on' : 'off';
+    this.routesService.updateRouteStatus(this.routeId, status)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          if (this.routeData) {
+            this.routeData.status = status;
+          }
+          this.snackBar.open(`Route ${this.routeId} is ${word}.`, 'Close', { duration: 4000 });
+        },
+        error: error => this.snackBar.open(`Route not turned ${word}: ${saveErrorMessage(error)}`, 'Close',
+          { duration: 10000, panelClass: ['error-snackbar'] })
+      });
+  }
+
+  /** Runs the test request on the Test tab, opening the tab (and loading the template's variables) first. */
+  private runTestFromQuickActions(): void {
+    if (this.selectedTabIndex === 3 && !this.isLoadingVariables) {
+      this.executeTest();
+      return;
+    }
+    this.runTestWhenLoaded = true;
+    // Selecting the tab loads the variables (onTabChange); executeTest runs when they arrive.
+    this.selectedTabIndex = 3;
+  }
+
+  private copyEndpointUrl(): void {
+    const url = endpointUrl(this.queryBaseUrl, this.routeId);
+    const copied = this.clipboard.copy(url);
+    this.snackBar.open(copied ? `Copied ${url}` : 'Could not copy the endpoint URL', 'Close', { duration: 4000 });
+  }
+
   ngOnDestroy(): void {
+    this.unregisterQuickActions?.();
+
     // Signal all subscriptions to complete
     this.destroy$.next();
     this.destroy$.complete();

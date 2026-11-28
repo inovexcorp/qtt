@@ -1,4 +1,4 @@
-import {Component, OnInit, ViewEncapsulation, ViewChild, AfterViewInit, ChangeDetectionStrategy} from '@angular/core';
+import {Component, OnInit, OnDestroy, ViewEncapsulation, ViewChild, AfterViewInit, ChangeDetectionStrategy, inject} from '@angular/core';
 import { AbstractControl, FormControl, FormGroup, ValidationErrors, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import {DatasourceService} from '../../core/services/datasource.service';
@@ -25,6 +25,9 @@ import { MatInput } from '@angular/material/input';
 import { MatSelect, MatOption } from '@angular/material/select';
 import { NgClass, JsonPipe } from '@angular/common';
 import { MatProgressBar } from '@angular/material/progress-bar';
+import { QuickActionsService } from '../../shared/quick-actions/quick-actions.service';
+import { QuickAction } from '../../shared/quick-actions/quick-action';
+import { confirm } from '../../shared/confirm-dialog/confirm-dialog.component';
 
 @Component({
     selector: 'app-config-datasource',
@@ -34,7 +37,7 @@ import { MatProgressBar } from '@angular/material/progress-bar';
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [MatCard, AuditLineComponent, IfRoleDirective, MatIconButton, MatIcon, MatTabGroup, MatTab, MatButton, MatTooltip, MatDivider, FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatSuffix, MatError, MatHint, MatSelect, MatOption, NgClass, MatProgressBar, MatCardHeader, MatCardTitle, MatCardContent, MatTable, MatSort, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatSortHeader, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatPaginator, JsonPipe]
 })
-export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
+export class ConfigDatasourceComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Who created and last changed this datasource. */
   audit?: AuditInfo | null;
 
@@ -75,6 +78,11 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     failedExchanges: 0
   };
   isLoadingMetrics: boolean = false;
+
+  /** The Config tab (0) or the Usage tab (1). */
+  selectedTab = 0;
+  private quickActions = inject(QuickActionsService);
+  private unregisterQuickActions?: () => void;
 
   configDatasource = new FormGroup({
     url: new FormControl('', Validators.required),
@@ -130,6 +138,65 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     this.configDatasource.controls['username'].valueChanges.subscribe(() => this.revalidatePassword());
     this.loadUsageMetrics();
     this.checkHealthCheckStatus();
+    this.unregisterQuickActions = this.quickActions.register(this.pageQuickActions());
+  }
+
+  ngOnDestroy(): void {
+    this.unregisterQuickActions?.();
+  }
+
+  /** What this page adds to the quick actions bar while it is open. Roles and states as on the page's buttons. */
+  private pageQuickActions(): QuickAction[] {
+    const invalid = () => this.configDatasource.valid ? null : 'Some required fields are empty or invalid';
+    return [
+      {
+        id: 'datasource:save', label: 'Save datasource', icon: 'check', group: 'page', minRole: 'admin',
+        keywords: ['submit', 'update'],
+        disabledReason: invalid,
+        run: () => this.config(this.dataSourceId)
+      },
+      {
+        id: 'datasource:test', label: 'Test connection', icon: 'network_check', group: 'page', minRole: 'admin',
+        keywords: ['try', 'ping'],
+        disabledReason: invalid,
+        run: () => {
+          this.selectedTab = 0; // the result shows under the form
+          this.test();
+        }
+      },
+      {
+        id: 'datasource:health', label: 'Run health check', icon: 'refresh', group: 'page', minRole: 'editor',
+        keywords: ['check now', 'status'],
+        disabledReason: () => !this.healthCheckEnabled ? 'Automated health checks are globally disabled'
+          : this.datasourceStatus === 'DISABLED' ? 'The datasource is disabled'
+          : this.datasourceStatus === 'CHECKING' ? 'A check is already running' : null,
+        run: () => this.triggerHealthCheck()
+      },
+      {
+        id: 'datasource:enable', label: 'Enable datasource', icon: 'play_arrow', group: 'page', minRole: 'admin',
+        keywords: ['turn on'],
+        visible: () => this.datasourceStatus !== 'UP' && this.datasourceStatus !== 'CHECKING',
+        disabledReason: () => this.isEnabling ? 'Already enabling' : null,
+        run: () => this.enableDatasource()
+      },
+      {
+        id: 'datasource:disable', label: 'Disable datasource', icon: 'block', group: 'page', minRole: 'admin',
+        keywords: ['turn off'],
+        visible: () => this.datasourceStatus !== 'DISABLED',
+        disabledReason: () => this.isDisabling ? 'Already disabling' : null,
+        run: () => this.disableDatasource()
+      },
+      {
+        id: 'datasource:delete', label: 'Delete datasource', icon: 'delete', group: 'page', minRole: 'admin',
+        keywords: ['remove'],
+        run: () => this.openConfirmDeleteDatasourceModal()
+      },
+      {
+        id: 'datasource:usage', label: 'Show usage', icon: 'insights', group: 'page',
+        keywords: ['metrics', 'routes using'],
+        run: () => { this.selectedTab = 1; }
+      }
+    ];
   }
 
   // Check if health checks are globally enabled
@@ -164,7 +231,7 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
         this.configDatasource.controls['maxQueryHeaderLength'].setValue(datasources.maxQueryHeaderLength);
         this.configDatasource.controls['username'].setValue(datasources.username);
         this.configDatasource.controls['validateCertificate'].setValue(datasources.validateCertificate.toString())
-        this.associatedRoutes = datasources.camelRouteTemplate;
+        this.associatedRoutes = datasources.camelRouteTemplateNames ?? [];
         this.datasourceStatus = datasources.status;
         this.audit = datasources.audit;
       });
@@ -365,8 +432,25 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     });
   }
 
-  // Disable a datasource
+  // Disable a datasource, after asking: its routes stop answering queries
   public disableDatasource(): void {
+    const routes = this.associatedRoutes?.length ?? 0;
+    confirm(this.dialogRef, {
+      title: `Disable ${this.dataSourceId}?`,
+      message: [
+        routes === 0 ? 'No routes use this datasource.'
+          : `${routes === 1 ? 'The route' : `All ${routes} routes`} using it stop answering queries until it is enabled again.`,
+        'Health checks also stop while it is disabled.'
+      ],
+      confirmLabel: 'Disable'
+    }).subscribe(confirmed => {
+      if (confirmed) {
+        this.doDisableDatasource();
+      }
+    });
+  }
+
+  private doDisableDatasource(): void {
     this.isDisabling = true;
     this.datasourceService.disableDatasource(this.dataSourceId).subscribe({
       next: () => {

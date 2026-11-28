@@ -10,6 +10,8 @@ import { ConfigDatasourceComponent } from './config-datasource.component';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { MetricsService } from '../../core/services/metrics.service';
 import { Datasources } from '../../core/models/datasources';
+import { QuickActionsService } from '../../shared/quick-actions/quick-actions.service';
+import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 
 describe('ConfigDatasourceComponent', () => {
   let component: ConfigDatasourceComponent;
@@ -25,7 +27,7 @@ describe('ConfigDatasourceComponent', () => {
     maxQueryHeaderLength: '8192',
     username: 'mock-user',
     validateCertificate: true,
-    camelRouteTemplate: [],
+    camelRouteTemplateNames: [],
     status: 'UP'
   } as unknown as Datasources;
 
@@ -34,6 +36,7 @@ describe('ConfigDatasourceComponent', () => {
       getDatasource: vi.fn().mockName('DatasourceService.getDatasource'),
       getHealthCheckConfig: vi.fn().mockName('DatasourceService.getHealthCheckConfig'),
       testDatasource: vi.fn().mockName('DatasourceService.testDatasource'),
+      disableDatasource: vi.fn().mockName('DatasourceService.disableDatasource'),
       modifyDatasource: vi.fn().mockName('DatasourceService.modifyDatasource')
     } as unknown as MockedObject<DatasourceService>;
     datasourceService.getDatasource.mockReturnValue(of(stored));
@@ -115,5 +118,36 @@ describe('ConfigDatasourceComponent', () => {
     const sent = vi.mocked(datasourceService.testDatasource).mock.lastCall![0];
     expect(sent.password).toBeUndefined();
     expect(sent.dataSourceId).toBe('ds1');
+  });
+
+  it('asks before disabling, and disables only when confirmed', () => {
+    datasourceService.disableDatasource.mockReturnValue(of({}));
+    (component as any).associatedRoutes = ['r1', 'r2'];
+    dialog.open.mockReturnValue({ afterClosed: () => of(false) } as any);
+    component.disableDatasource();
+    const [dialogType, config] = vi.mocked(dialog.open).mock.lastCall! as any[];
+    expect(dialogType).toBe(ConfirmDialogComponent);
+    expect(config.data.title).toBe('Disable ds1?');
+    expect(config.data.message[0]).toContain('All 2 routes');
+    expect(datasourceService.disableDatasource).not.toHaveBeenCalled();
+
+    dialog.open.mockReturnValue({ afterClosed: () => of(true) } as any);
+    component.disableDatasource();
+    expect(datasourceService.disableDatasource).toHaveBeenCalledWith('ds1');
+  });
+
+  it('adds its actions to the quick actions bar while open, by role and state', () => {
+    const labels = () => TestBed.inject(QuickActionsService).actions()
+      .filter(a => a.group === 'page' && (!a.visible || a.visible())).map(a => a.label);
+    // Status UP: enable is not offered.
+    expect(labels()).toEqual(['Save datasource', 'Test connection', 'Run health check', 'Disable datasource',
+      'Delete datasource', 'Show usage']);
+    component.datasourceStatus = 'DISABLED';
+    expect(labels()).toContain('Enable datasource');
+    expect(labels()).not.toContain('Disable datasource');
+    const health = TestBed.inject(QuickActionsService).actions().find(a => a.id === 'datasource:health')!;
+    expect(health.disabledReason!()).toBe('The datasource is disabled');
+    fixture.destroy();
+    expect(TestBed.inject(QuickActionsService).actions().filter(a => a.group === 'page')).toEqual([]);
   });
 });

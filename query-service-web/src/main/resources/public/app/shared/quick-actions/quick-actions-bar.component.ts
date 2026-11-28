@@ -7,11 +7,15 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import { CdkConnectedOverlay, CdkOverlayOrigin, ConnectedPosition } from '@angular/cdk/overlay';
 import { MatIcon } from '@angular/material/icon';
 import { MatIconButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { AuthService } from '../../core/services/auth.service';
+import { CacheService } from '../../core/services/cache.service';
 import { Subscription, map } from 'rxjs';
 import { QuickActionsService } from './quick-actions.service';
 import { EntityIndexService } from './entity-index.service';
 import { GlobalShortcutsService } from './global-shortcuts.service';
-import { navigationActions } from './global-actions';
+import { globalActions, navigationActions } from './global-actions';
 import { ResultItem, flatten, search } from './search';
 import { Segment, segments } from './match';
 
@@ -42,6 +46,10 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
   private readonly shortcuts = inject(GlobalShortcutsService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly document = inject(DOCUMENT);
+  private readonly globalDeps = {
+    router: this.router, auth: inject(AuthService), dialog: inject(MatDialog), snackBar: inject(MatSnackBar),
+    cache: inject(CacheService)
+  };
 
   @ViewChild('input', { static: true }) input!: ElementRef<HTMLInputElement>;
 
@@ -92,7 +100,7 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
   private unregister?: () => void;
 
   ngOnInit(): void {
-    this.unregister = this.registry.register(navigationActions(this.router));
+    this.unregister = this.registry.register([...globalActions(this.globalDeps), ...navigationActions(this.router)]);
     this.shortcuts.start();
     this.subscription = this.shortcuts.shortcut$.subscribe(shortcut => {
       if (shortcut === 'open') {

@@ -41,8 +41,10 @@ export const GROUP_LABELS: Record<GroupId, string> = {
   navigation: 'Go to'
 };
 
-/** Group order when nothing is typed, and between groups whose best matches score the same. */
+/** Group order between groups whose best matches score the same. */
 const GROUP_ORDER: GroupId[] = ['page', 'routes', 'datasources', 'actions', 'navigation'];
+/** Group order when nothing is typed: this page's actions, then where to go, then the rest. */
+const EMPTY_ORDER: GroupId[] = ['page', 'routes', 'datasources', 'navigation', 'actions'];
 
 export interface SearchInput {
   query: string;
@@ -54,7 +56,7 @@ export interface SearchInput {
 }
 
 /**
- * The bar's results, grouped. With nothing typed: the page's actions, the global actions and the places to go.
+ * The bar's results, grouped. With nothing typed: the page's actions, the places to go and the global actions.
  * With a query: every match, each group sorted best first and the groups ordered by their best match.
  */
 export function search(input: SearchInput): ResultGroup[] {
@@ -83,13 +85,15 @@ export function search(input: SearchInput): ResultGroup[] {
   }
 
   const groups: ResultGroup[] = [];
-  for (const id of GROUP_ORDER) {
+  for (const id of query ? GROUP_ORDER : EMPTY_ORDER) {
     const items = buckets.get(id);
     if (!items?.length) {
       continue;
     }
     const sorted = query ? [...items].sort((a, b) => b.score - a.score) : items;
-    groups.push({ id, label: GROUP_LABELS[id], items: sorted.slice(0, limit), more: Math.max(0, sorted.length - limit) });
+    // With nothing typed, the page's own actions are listed in full: they are what the bar is usually opened for.
+    const max = !query && id === 'page' ? sorted.length : limit;
+    groups.push({ id, label: GROUP_LABELS[id], items: sorted.slice(0, max), more: Math.max(0, sorted.length - max) });
   }
   if (query) {
     // Stable sort: equal best scores keep GROUP_ORDER.

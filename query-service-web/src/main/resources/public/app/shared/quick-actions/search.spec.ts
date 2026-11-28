@@ -10,7 +10,8 @@ const actions: QuickAction[] = [
   action('go:settings:caching', 'Settings: Caching', 'navigation', { searchOnly: true }),
   action('page:clear', "Clear this route's cache", 'page', { keywords: ['flush'] }),
   action('page:on', 'Turn route on', 'page', { visible: () => false }),
-  action('page:test', 'Run test request', 'page', { disabledReason: () => 'The datasource is down' })
+  action('page:test', 'Run test request', 'page', { disabledReason: () => 'The datasource is down' }),
+  action('add-route', 'Add route', 'actions')
 ];
 const routes = [
   { routeId: 'people-search', description: 'Find people', status: 'Started', dataSourceId: 'anzo-prod' },
@@ -19,9 +20,9 @@ const routes = [
 const datasources = [{ dataSourceId: 'anzo-prod', url: 'https://anzo.example.org', status: 'UP' }];
 
 describe('quick actions search', () => {
-  it('lists page actions, then places to go, when nothing is typed; no routes or datasources', () => {
+  it('lists page actions, places to go, then other actions when nothing is typed; no routes or datasources', () => {
     const groups = search({ query: '', actions, routes, datasources });
-    expect(groups.map(g => g.id)).toEqual(['page', 'navigation']);
+    expect(groups.map(g => g.id)).toEqual(['page', 'navigation', 'actions']);
     expect(groups[0].items.map(i => i.label)).toEqual(["Clear this route's cache", 'Run test request']);
   });
 
@@ -69,6 +70,12 @@ describe('quick actions search', () => {
     const [group] = search({ query: 'r', actions: [], routes: many, datasources: [] });
     expect(group.items.length).toBe(5);
     expect(group.more).toBe(3);
+  });
+
+  it('lists all of the page\'s actions when nothing is typed, and limits them when searching', () => {
+    const many = Array.from({ length: 7 }, (_, i) => action('p' + i, 'Page action ' + i, 'page'));
+    expect(search({ query: '', actions: many, routes: [], datasources: [] })[0].items.length).toBe(7);
+    expect(search({ query: 'page', actions: many, routes: [], datasources: [] })[0].items.length).toBe(5);
   });
 
   it('returns no groups when nothing matches', () => {

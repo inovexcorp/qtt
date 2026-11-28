@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { catchError, forkJoin, of } from 'rxjs';
+import { NavigationEnd, Router } from '@angular/router';
+import { catchError, filter, forkJoin, of } from 'rxjs';
 import { RoutesService } from '../../pages/routes/routes.service';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { DatasourceEntry, RouteEntry } from './quick-action';
@@ -9,7 +10,8 @@ export const REUSE_MS = 30_000;
 
 /**
  * Routes and datasources for the quick actions bar. Nothing is fetched until the bar first opens; after that, the
- * lists are fetched again on an opening at least 30 seconds after the last fetch. No polling.
+ * lists are fetched again on an opening at least 30 seconds after the last fetch, or after the app navigated (adding,
+ * deleting or changing a route or datasource ends with a navigation). No polling.
  */
 @Injectable({ providedIn: 'root' })
 export class EntityIndexService {
@@ -22,8 +24,13 @@ export class EntityIndexService {
   /** True until the first fetch answers. */
   readonly loading = signal(false);
 
+  private loaded = false;
   private fetchedAt = 0;
   private inFlight = false;
+
+  constructor() {
+    inject(Router).events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => this.invalidate());
+  }
 
   /** Fetches both lists unless they are fresh (or a fetch is under way). */
   refresh(now: number = Date.now()): void {
@@ -31,7 +38,7 @@ export class EntityIndexService {
       return;
     }
     this.inFlight = true;
-    this.loading.set(this.fetchedAt === 0);
+    this.loading.set(!this.loaded);
     forkJoin({
       // A list that fails to load is left as it was; the other still updates.
       routes: this.routesService.getRoutes().pipe(catchError(() => of(null))),
@@ -50,6 +57,7 @@ export class EntityIndexService {
           .sort((a, b) => a.dataSourceId.localeCompare(b.dataSourceId)));
       }
       this.fetchedAt = now;
+      this.loaded = true;
       this.inFlight = false;
       this.loading.set(false);
     });
