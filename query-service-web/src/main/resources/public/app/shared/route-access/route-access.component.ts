@@ -21,14 +21,18 @@ import { effectiveAccess } from '../query-endpoint';
         </mat-select>
         <mat-icon matSuffix>{{ effective === 'open' ? 'public' : 'lock' }}</mat-icon>
       </mat-form-field>
-      <mat-form-field appearance="outline" class="roles-input" *ngIf="effective === 'authenticated'">
-        <mat-label>Required roles (optional)</mat-label>
-        <input matInput formControlName="requiredRoles" placeholder="e.g. finance-apps">
-        <mat-hint>Comma-separated identity-provider roles or groups that callers must also hold. API keys must name this route.</mat-hint>
-      </mat-form-field>
-      <p class="access-note" *ngIf="effective === 'open'">
-        <mat-icon>warning_amber</mat-icon> Anyone who can reach this server can run this query.
-      </p>
+      @if (effective === 'authenticated') {
+        <mat-form-field appearance="outline" class="roles-input">
+          <mat-label>Required roles (optional)</mat-label>
+          <input matInput formControlName="requiredRoles" placeholder="e.g. finance-apps">
+          <mat-hint>Comma-separated identity-provider roles or groups that callers must also hold. API keys must name this route.</mat-hint>
+        </mat-form-field>
+      }
+      @if (effective === 'open') {
+        <p class="access-note">
+          <mat-icon>warning_amber</mat-icon> Anyone who can reach this server can run this query.
+        </p>
+      }
     </div>`,
     styles: [`
     .route-access { margin: 8px 0 16px; }

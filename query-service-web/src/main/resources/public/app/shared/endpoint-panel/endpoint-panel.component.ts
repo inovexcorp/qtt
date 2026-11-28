@@ -11,7 +11,7 @@ import { curlExample, endpointUrl } from '../query-endpoint';
       <h3>Endpoint</h3>
       <div class="endpoint-row">
         <mat-icon [matTooltip]="access === 'open' ? 'Open: no credentials needed' : 'Needs a token with qtt-query or an API key'">
-          {{ access === 'open' ? 'public' : 'lock' }}</mat-icon>
+        {{ access === 'open' ? 'public' : 'lock' }}</mat-icon>
         <code class="endpoint-url">{{ url }}</code>
         <button mat-icon-button type="button" (click)="copy(url, 'URL')" matTooltip="Copy URL"><mat-icon>content_copy</mat-icon></button>
       </div>
@@ -20,9 +20,11 @@ import { curlExample, endpointUrl } from '../query-endpoint';
         <code class="endpoint-curl">{{ curl }}</code>
         <button mat-icon-button type="button" (click)="copy(curl, 'curl command')" matTooltip="Copy curl command"><mat-icon>content_copy</mat-icon></button>
       </div>
-      <p class="endpoint-hint" *ngIf="access === 'authenticated'">
-        Set <code>QTT_TOKEN</code> to an OIDC access token that carries <code>qtt-query</code>, or to a QTT API key (Settings › Query Access).
-      </p>
+      @if (access === 'authenticated') {
+        <p class="endpoint-hint">
+          Set <code>QTT_TOKEN</code> to an OIDC access token that carries <code>qtt-query</code>, or to a QTT API key (Settings › Query Access).
+        </p>
+      }
     </div>`,
     styles: [`
     .endpoint-panel { margin: 8px 0 16px; }

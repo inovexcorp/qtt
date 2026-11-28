@@ -5,13 +5,25 @@ import { AuditInfo } from '../../core/models/audit';
 @Component({
     selector: 'app-audit-line',
     template: `
-    <p class="audit-line" *ngIf="audit && (audit.createdBy || audit.modifiedBy)">
-      <ng-container *ngIf="audit.createdBy">Created by <strong>{{ audit.createdBy }}</strong>
-        <span *ngIf="audit.createdAt"> on {{ audit.createdAt | date:'medium' }}</span></ng-container>
-      <ng-container *ngIf="audit.createdBy && audit.modifiedBy"> · </ng-container>
-      <ng-container *ngIf="audit.modifiedBy">Last changed by <strong>{{ audit.modifiedBy }}</strong>
-        <span *ngIf="audit.modifiedAt"> on {{ audit.modifiedAt | date:'medium' }}</span></ng-container>
-    </p>`,
+    @if (audit && (audit.createdBy || audit.modifiedBy)) {
+      <p class="audit-line">
+        @if (audit.createdBy) {
+          Created by <strong>{{ audit.createdBy }}</strong>
+          @if (audit.createdAt) {
+            <span> on {{ audit.createdAt | date:'medium' }}</span>
+          }
+        }
+        @if (audit.createdBy && audit.modifiedBy) {
+          ·
+        }
+        @if (audit.modifiedBy) {
+          Last changed by <strong>{{ audit.modifiedBy }}</strong>
+          @if (audit.modifiedAt) {
+            <span> on {{ audit.modifiedAt | date:'medium' }}</span>
+          }
+        }
+      </p>
+    }`,
     styles: [`.audit-line { margin: 4px 0 8px; font-size: 12px; color: rgba(0, 0, 0, 0.6); }`],
     standalone: false
 })
