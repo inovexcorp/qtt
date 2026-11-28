@@ -1,7 +1,8 @@
 /*
  * Characterization tests for the third-party UI libraries, rendered for real (no NO_ERRORS_SCHEMA): ngx-markdown
- * (SPARQi chat), ngx-charts (Metrics, SPARQi metrics) and xng-breadcrumb. They pin what the app relies on so a
- * library upgrade that changes rendering or inputs fails here rather than in the browser.
+ * (SPARQi chat), ngx-charts (Metrics, SPARQi metrics), xng-breadcrumb, and Monaco's keyboard handling next to the
+ * quick actions bar. They pin what the app relies on so a library upgrade that changes rendering or inputs fails here
+ * rather than in the browser.
  */
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -11,6 +12,11 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MarkdownComponent, provideMarkdown } from 'ngx-markdown';
 import { NgxChartsModule, ScaleType, Color } from '@swimlane/ngx-charts';
 import { BreadcrumbComponent } from 'xng-breadcrumb';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import * as monaco from 'monaco-editor';
+import { CodeEditorComponent } from './code-editor/code-editor.component';
+import { QuickActionsBarComponent } from './quick-actions/quick-actions-bar.component';
 
 const SPARQI_REPLY = [
   '## Suggested query',
@@ -214,5 +220,53 @@ describe('xng-breadcrumb (app toolbar)', () => {
     expect(items[0].querySelector('a')?.getAttribute('href')).toContain('/datasources');
     expect(items[1].querySelector('a')).toBeNull();
     expect(TestBed.inject(Router).url).toBe('/datasources/config-datasource/d1');
+  });
+});
+
+@Component({
+  imports: [CodeEditorComponent, QuickActionsBarComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  template: `<app-quick-actions-bar></app-quick-actions-bar>
+    <app-code-editor (editorInit)="editor = $event" style="display: block; height: 120px; width: 400px"></app-code-editor>`
+})
+class EditorWithBarHost {
+  editor?: monaco.editor.IStandaloneCodeEditor;
+}
+
+describe('Monaco editor and the quick actions bar', () => {
+  it('Cmd/Ctrl+K in the editor opens the bar; Monaco never sees the key (no chord starts)', async () => {
+    await TestBed.configureTestingModule({
+      imports: [EditorWithBarHost],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()]
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EditorWithBarHost);
+    document.body.appendChild(fixture.nativeElement);
+    fixture.detectChanges();
+    const editor = fixture.componentInstance.editor!;
+    const seenByMonaco: string[] = [];
+    editor.onKeyDown(e => seenByMonaco.push(e.browserEvent.key));
+    editor.focus();
+    const target = document.activeElement!;
+    expect(target.closest('.monaco-editor')).not.toBeNull();
+
+    // A plain key reaches Monaco, so the listener above works.
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
+    expect(seenByMonaco).toEqual(['a']);
+    // "/" is typing in the editor: Monaco gets it, the bar stays closed.
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true }));
+    expect(seenByMonaco).toEqual(['a', '/']);
+
+    for (const init of [{ metaKey: true }, { ctrlKey: true }]) {
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', bubbles: true, cancelable: true, ...init }));
+    }
+    fixture.detectChanges();
+    await new Promise(resolve => setTimeout(resolve));
+    expect(seenByMonaco).toEqual(['a', '/']);
+    const input = fixture.nativeElement.querySelector('app-quick-actions-bar input') as HTMLInputElement;
+    expect(document.activeElement).toBe(input);
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    TestBed.inject(HttpTestingController).match(() => true).forEach(r => r.flush([]));
+    fixture.destroy();
+    fixture.nativeElement.remove();
   });
 });

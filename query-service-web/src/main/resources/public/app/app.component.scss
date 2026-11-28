@@ -22,6 +22,8 @@
 
 // Purple gradient for top toolbar
 mat-toolbar {
+  // The quick actions field is laid over the toolbar when it opens on a narrow screen.
+  position: relative;
   background: linear-gradient(to right, #4a148c, #7b1fa2, #9c27b0, #ba68c8) !important;
   color: white !important;
 
@@ -83,4 +85,11 @@ mat-list-item {
 .no-access {
   max-width: 560px;
   margin: 48px auto;
+}
+
+// The title gives way to the quick actions field on narrower screens.
+@media (max-width: 959.98px) {
+  .app-title {
+    display: none;
+  }
 }

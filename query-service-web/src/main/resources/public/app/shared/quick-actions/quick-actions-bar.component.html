@@ -1,0 +1,72 @@
+<button mat-icon-button type="button" class="qa-trigger" aria-label="Search or jump to" (click)="openFromButton()">
+  <mat-icon>search</mat-icon>
+</button>
+
+<div class="qa-field" cdkOverlayOrigin #origin="cdkOverlayOrigin" (click)="input.focus()">
+  <mat-icon class="qa-field-icon" aria-hidden="true">search</mat-icon>
+  <input #input class="qa-input" type="text" role="combobox" autocomplete="off" spellcheck="false"
+         placeholder="Search or jump to…" aria-label="Search or jump to" aria-autocomplete="list"
+         aria-haspopup="listbox" aria-controls="qa-listbox" [attr.aria-expanded]="open()"
+         [attr.aria-activedescendant]="activeId()"
+         (focus)="onFocus()" (input)="onInput(input.value)" (keydown)="onKeydown($event)" />
+  @if (!open()) {
+    <kbd class="qa-kbd" aria-hidden="true">/</kbd>
+  }
+</div>
+
+<span class="cdk-visually-hidden" aria-live="polite">{{ announcement() }}</span>
+
+<ng-template cdkConnectedOverlay
+             [cdkConnectedOverlayOrigin]="origin"
+             [cdkConnectedOverlayOpen]="open()"
+             [cdkConnectedOverlayPositions]="positions"
+             [cdkConnectedOverlayViewportMargin]="8"
+             cdkConnectedOverlayPanelClass="qa-overlay-pane"
+             (overlayOutsideClick)="onOutsideClick($event)"
+             (detach)="close(false)">
+  <!-- mousedown keeps focus in the field, so clicking a row doesn't blur and close before the click lands -->
+  <div class="qa-panel" (mousedown)="$event.preventDefault()">
+    <div id="qa-listbox" class="qa-list" role="listbox" aria-label="Search results">
+      @for (group of groups(); track group.id) {
+        <div role="group" class="qa-group" [attr.aria-labelledby]="'qa-group-' + group.id">
+          <div class="qa-group-label" [id]="'qa-group-' + group.id" role="presentation">{{ group.label }}</div>
+          @for (item of group.items; track item.key) {
+            <div role="option" class="qa-option" [id]="optionId(item)"
+                 [class.active]="item === active()" [class.disabled]="!!item.disabledReason"
+                 [attr.aria-selected]="item === active()" [attr.aria-disabled]="item.disabledReason ? true : null"
+                 (mousemove)="setActive(item)" (click)="execute(item)">
+              <mat-icon class="qa-option-icon" aria-hidden="true">{{ item.icon }}</mat-icon>
+              <span class="qa-option-text">
+                <span class="qa-option-label">@for (seg of segments(item); track $index) {@if (seg.hit) {<mark>{{ seg.text }}</mark>} @else {{{ seg.text }}}}</span>
+                @if (item.disabledReason) {
+                  <span class="qa-option-detail">{{ item.disabledReason }}</span>
+                } @else if (item.detail) {
+                  <span class="qa-option-detail">{{ item.detail }}</span>
+                }
+              </span>
+              @if (item.hint) {
+                <span class="qa-hint" [attr.data-tone]="item.tone ?? null">{{ item.hint }}</span>
+              }
+            </div>
+          }
+          @if (group.more > 0) {
+            <div class="qa-more" role="presentation">{{ group.more }} more — keep typing to narrow</div>
+          }
+        </div>
+      } @empty {
+        <div class="qa-empty" role="presentation">
+          @if (entities.loading()) {
+            Loading…
+          } @else {
+            No matches for “{{ query() }}”
+          }
+        </div>
+      }
+    </div>
+    <div class="qa-footer" aria-hidden="true">
+      <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
+      <span><kbd>↵</kbd> open</span>
+      <span><kbd>esc</kbd> close</span>
+    </div>
+  </div>
+</ng-template>

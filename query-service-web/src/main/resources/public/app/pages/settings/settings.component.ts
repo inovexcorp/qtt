@@ -17,8 +17,9 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatButton } from '@angular/material/button';
 import { DatePipe } from '@angular/common';
 
-/** The sections of the Settings page; the current one is in the URL (?section=…). */
-export type SettingsSection = 'overview' | 'sign-in' | 'access' | 'caching' | 'sparqi';
+import { SETTINGS_SECTIONS, SettingsSection } from './settings-sections';
+
+export type { SettingsSection } from './settings-sections';
 
 /** How a subsystem is doing, for the status list on the overview and the warnings in the section nav. */
 export type StatusTone = 'ok' | 'warn' | 'off' | 'pending';
@@ -30,13 +31,7 @@ export interface StatusLine {
   section: SettingsSection;
 }
 
-const SECTIONS: { id: SettingsSection; label: string; icon: string }[] = [
-  { id: 'overview', label: 'Overview', icon: 'space_dashboard' },
-  { id: 'sign-in', label: 'Sign-in', icon: 'lock' },
-  { id: 'access', label: 'Query access', icon: 'vpn_key' },
-  { id: 'caching', label: 'Caching', icon: 'cached' },
-  { id: 'sparqi', label: 'SPARQi', icon: 'smart_toy' }
-];
+const SECTIONS = SETTINGS_SECTIONS;
 
 @Component({
     selector: 'app-settings',
