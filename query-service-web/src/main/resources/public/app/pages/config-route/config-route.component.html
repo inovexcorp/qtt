@@ -5,7 +5,7 @@
     </button>
     <div class="title-block">
       <h1 class="card-header">Config Route: {{routeId}}</h1>
-      <app-audit-line [audit]="routeData?.audit"></app-audit-line>
+      <app-audit-line [audit]="$safeNavigationMigration(routeData?.audit)"></app-audit-line>
     </div>
     <div class="header-actions">
       <!-- Save/Cancel Buttons -->

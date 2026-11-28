@@ -1,4 +1,4 @@
-import { Component, ViewChild, ViewEncapsulation } from '@angular/core';
+import { Component, ViewChild, ViewEncapsulation, ChangeDetectionStrategy } from '@angular/core';
 import { MetricsService } from '../../core/services/metrics.service';
 import { RouteMetric, RouteMetricsResponse } from '../../core/models/metric-data';
 import { DatasourceService } from '../../core/services/datasource.service';
@@ -24,6 +24,7 @@ import { ScaleType } from '@swimlane/ngx-charts';
     templateUrl: './metrics.component.html',
     styleUrls: ['./metrics.component.scss'],
     encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class MetricsComponent {

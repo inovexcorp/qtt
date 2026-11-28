@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Routes } from '../../core/models/routes-interfaces/routes';
 import { TableData } from '../../core/models/routes-interfaces/table-data';
 import { RoutesService } from './routes.service';
@@ -17,6 +17,7 @@ import { effectiveAccess, endpointUrl } from '../../shared/query-endpoint';
     selector: 'app-routes',
     templateUrl: './routes.component.html',
     styleUrls: ['./routes.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class RoutesComponent implements OnInit {

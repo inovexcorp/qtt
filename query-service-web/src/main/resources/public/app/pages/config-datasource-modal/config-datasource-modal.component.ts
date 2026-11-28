@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { Inject, ViewEncapsulation } from '@angular/core';
@@ -10,6 +10,7 @@ import { DatasourceService } from '../../core/services/datasource.service';
     templateUrl: './config-datasource-modal.component.html',
     styleUrls: ['./config-datasource-modal.component.scss'],
     encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class ConfigDatasourceModalComponent {

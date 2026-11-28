@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { curlExample, endpointUrl } from '../query-endpoint';
@@ -32,6 +32,7 @@ import { curlExample, endpointUrl } from '../query-endpoint';
     .endpoint-row code { flex: 1; overflow-x: auto; white-space: nowrap; padding: 6px 8px; background: rgba(0,0,0,0.05); border-radius: 4px; font-size: 13px; }
     .endpoint-hint { font-size: 12px; color: rgba(0,0,0,0.6); margin: 4px 0 0 32px; }
   `],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class EndpointPanelComponent {

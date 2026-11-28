@@ -133,7 +133,7 @@
           <div>
             <dt>Roles claim</dt>
             <dd><span class="mono">{{ ssoInfo?.rolesClaim ?? 'provider default' }}</span>
-            <span class="sub">{{ formatRolesSource(ssoInfo?.rolesSource) }}</span></dd>
+            <span class="sub">{{ formatRolesSource($safeNavigationMigration(ssoInfo?.rolesSource)) }}</span></dd>
           </div>
         </dl>
         <h4 class="group-title">Groups that grant each role</h4>
@@ -162,7 +162,7 @@
         <h3 class="panel-title">Browser session</h3>
         <dl class="kv">
           <div><dt>Flow</dt><dd>{{ ssoInfo?.applicationType === 'hybrid' ? 'Browser sign-in and bearer tokens' : ssoInfo?.applicationType }}</dd></div>
-          <div><dt>Cookie encryption key</dt><dd>{{ formatSessionKey(ssoInfo?.sessionKey) }}</dd></div>
+          <div><dt>Cookie encryption key</dt><dd>{{ formatSessionKey($safeNavigationMigration(ssoInfo?.sessionKey)) }}</dd></div>
           <div><dt>Force HTTPS redirect</dt><dd>{{ ssoInfo?.forceHttpsRedirect ? 'Yes' : 'No' }}</dd></div>
           <div><dt>Sign-out path</dt><dd class="mono">{{ ssoInfo?.logoutPath }}</dd></div>
         </dl>
@@ -194,7 +194,7 @@
             <span class="sub mono">QUERY_AUTH_DEFAULT={{ ssoInfo?.queryAuthDefault ?? 'open' }}</span>
           </dd>
         </div>
-        @if (ssoInfo?.queryRoutes !== undefined) {
+        @if ($safeNavigationMigration(ssoInfo?.queryRoutes) !== undefined) {
           <div>
             <dt>Open routes</dt>
             <dd>
@@ -228,12 +228,12 @@
     <section class="panel">
       <h3 class="panel-title">Ontology cache</h3>
       <dl class="kv kv-compact">
-        <div><dt>Entries</dt><dd class="num">{{ formatNumber(cacheStats?.size) }}</dd></div>
-        <div><dt>Hit rate</dt><dd class="num">{{ formatHitRate(cacheStats?.hitRate) }}</dd></div>
-        <div><dt>Hits</dt><dd class="num">{{ formatNumber(cacheStats?.hitCount) }}</dd></div>
-        <div><dt>Misses</dt><dd class="num">{{ formatNumber(cacheStats?.missCount) }}</dd></div>
-        <div><dt>Evictions</dt><dd class="num">{{ formatNumber(cacheStats?.evictionCount) }}</dd></div>
-        <div><dt>Total load time</dt><dd class="num">{{ formatLoadTime(cacheStats?.totalLoadTime) }}</dd></div>
+        <div><dt>Entries</dt><dd class="num">{{ formatNumber($safeNavigationMigration(cacheStats?.size)) }}</dd></div>
+        <div><dt>Hit rate</dt><dd class="num">{{ formatHitRate($safeNavigationMigration(cacheStats?.hitRate)) }}</dd></div>
+        <div><dt>Hits</dt><dd class="num">{{ formatNumber($safeNavigationMigration(cacheStats?.hitCount)) }}</dd></div>
+        <div><dt>Misses</dt><dd class="num">{{ formatNumber($safeNavigationMigration(cacheStats?.missCount)) }}</dd></div>
+        <div><dt>Evictions</dt><dd class="num">{{ formatNumber($safeNavigationMigration(cacheStats?.evictionCount)) }}</dd></div>
+        <div><dt>Total load time</dt><dd class="num">{{ formatLoadTime($safeNavigationMigration(cacheStats?.totalLoadTime)) }}</dd></div>
       </dl>
     </section>
     <section class="panel">
@@ -258,13 +258,13 @@
       @if (isCacheEnabled()) {
         <dl class="kv kv-compact">
           <div><dt>Server</dt><dd><span class="mono">{{ redisCacheInfo?.host }}:{{ redisCacheInfo?.port }}</span><span class="muted"> · DB {{ redisCacheInfo?.database }}</span></dd></div>
-          <div><dt>Keys</dt><dd class="num">{{ formatNumber(redisCacheStats?.keyCount) }}</dd></div>
-          <div><dt>Memory</dt><dd class="num">{{ formatBytes(redisCacheStats?.memoryUsageBytes) }}</dd></div>
+          <div><dt>Keys</dt><dd class="num">{{ formatNumber($safeNavigationMigration(redisCacheStats?.keyCount)) }}</dd></div>
+          <div><dt>Memory</dt><dd class="num">{{ formatBytes($safeNavigationMigration(redisCacheStats?.memoryUsageBytes)) }}</dd></div>
           <div><dt>Hit rate</dt><dd class="num">{{ formatCacheHitRate(redisCacheStats) }}</dd></div>
-          <div><dt>Hits</dt><dd class="num">{{ formatNumber(redisCacheStats?.hits) }}</dd></div>
-          <div><dt>Misses</dt><dd class="num">{{ formatNumber(redisCacheStats?.misses) }}</dd></div>
-          <div><dt>Evictions</dt><dd class="num">{{ formatNumber(redisCacheStats?.evictions) }}</dd></div>
-          <div><dt>Default TTL</dt><dd>{{ formatTtl(redisCacheInfo?.defaultTtlSeconds) }}</dd></div>
+          <div><dt>Hits</dt><dd class="num">{{ formatNumber($safeNavigationMigration(redisCacheStats?.hits)) }}</dd></div>
+          <div><dt>Misses</dt><dd class="num">{{ formatNumber($safeNavigationMigration(redisCacheStats?.misses)) }}</dd></div>
+          <div><dt>Evictions</dt><dd class="num">{{ formatNumber($safeNavigationMigration(redisCacheStats?.evictions)) }}</dd></div>
+          <div><dt>Default TTL</dt><dd>{{ formatTtl($safeNavigationMigration(redisCacheInfo?.defaultTtlSeconds)) }}</dd></div>
           <div><dt>Compression</dt><dd>{{ redisCacheInfo?.compressionEnabled ? 'On' : 'Off' }}</dd></div>
         </dl>
       }

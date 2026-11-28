@@ -1,4 +1,4 @@
-import {Component, OnInit, ViewEncapsulation, ViewChild, AfterViewInit} from '@angular/core';
+import {Component, OnInit, ViewEncapsulation, ViewChild, AfterViewInit, ChangeDetectionStrategy} from '@angular/core';
 import {AbstractControl, FormControl, FormGroup, ValidationErrors, Validators} from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import {DatasourceService} from '../../core/services/datasource.service';
@@ -18,6 +18,7 @@ import {MatSort} from '@angular/material/sort';
     templateUrl: './config-datasource.component.html',
     styleUrls: ['./config-datasource.component.scss'],
     encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class ConfigDatasourceComponent implements OnInit, AfterViewInit {

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewChecked, ChangeDetectionStrategy } from '@angular/core';
 import { SparqiService } from '../../../core/services/sparqi.service';
 import { SparqiMessage, SparqiContext, SparqiSession } from '../../../core/models/sparqi.models';
 import { MatDialog } from '@angular/material/dialog';
@@ -8,6 +8,7 @@ import { OntologyVisualizationDialogComponent } from './ontology-visualization-d
     selector: 'app-sparqi-chat',
     templateUrl: './sparqi-chat.component.html',
     styleUrls: ['./sparqi-chat.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class SparqiChatComponent implements OnInit, OnChanges, AfterViewChecked {

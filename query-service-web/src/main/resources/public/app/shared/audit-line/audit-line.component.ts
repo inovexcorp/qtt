@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { AuditInfo } from '../../core/models/audit';
 
 /** One quiet line: "Created by alice on … · Last changed by bob on …". Renders nothing without audit data. */
@@ -25,6 +25,7 @@ import { AuditInfo } from '../../core/models/audit';
       </p>
     }`,
     styles: [`.audit-line { margin: 4px 0 8px; font-size: 12px; color: rgba(0, 0, 0, 0.6); }`],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class AuditLineComponent {

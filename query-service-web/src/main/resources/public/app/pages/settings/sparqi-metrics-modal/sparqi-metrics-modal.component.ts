@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { SparqiService } from '../../../core/services/sparqi.service';
 import { SparqiMetricRecord } from '../../../core/models/sparqi.models';
@@ -8,6 +8,7 @@ import { ScaleType } from '@swimlane/ngx-charts';
     selector: 'app-sparqi-metrics-modal',
     templateUrl: './sparqi-metrics-modal.component.html',
     styleUrls: ['./sparqi-metrics-modal.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class SparqiMetricsModalComponent implements OnInit {

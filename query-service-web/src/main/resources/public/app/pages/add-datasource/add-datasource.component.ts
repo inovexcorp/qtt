@@ -1,4 +1,4 @@
-import {Component, OnInit, ViewEncapsulation} from '@angular/core';
+import {Component, OnInit, ViewEncapsulation, ChangeDetectionStrategy} from '@angular/core';
 import {FormControl, FormGroup, Validators} from '@angular/forms';
 import {AddDatasourceService} from './add-datasource.service';
 import {Router} from '@angular/router';
@@ -10,6 +10,7 @@ import {DatasourceService} from "../../core/services/datasource.service";
     templateUrl: './add-datasource.component.html',
     styleUrls: ['./add-datasource.component.scss'],
     encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class AddDatasourceComponent implements OnInit {

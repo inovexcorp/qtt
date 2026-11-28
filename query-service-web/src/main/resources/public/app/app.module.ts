@@ -20,7 +20,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { BreadcrumbComponent } from 'xng-breadcrumb';
 import { QsBreadcrumbComponent } from './shared/qs-breadcrumb/qs-breadcrumb.component';
-import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
 import { AddDatasourceComponent } from './pages/add-datasource/add-datasource.component';
 import { DeleteDatasourceModalComponent } from './pages/delete-datasource-modal/delete-datasource-modal.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -132,7 +132,7 @@ import { ClipboardModule } from '@angular/cdk/clipboard';
         NgOptimizedImage
     ],
   providers: [
-    provideHttpClient(withInterceptorsFromDi()),
+    provideHttpClient(withXhr(), withInterceptorsFromDi()),
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
     // Who is signed in, before the first page renders (so role-dependent controls don't flicker).
     provideAppInitializer(() => inject(AuthService).load())

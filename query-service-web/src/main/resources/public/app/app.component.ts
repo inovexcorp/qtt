@@ -1,4 +1,4 @@
-import { Component, ViewChild, OnInit, OnDestroy } from '@angular/core';
+import { Component, ViewChild, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { MatDrawer } from '@angular/material/sidenav';
 import { DrawerService } from './core/services/drawer.service';
 import { Subscription } from 'rxjs';
@@ -8,6 +8,7 @@ import { AuthService } from './core/services/auth.service';
     selector: 'app-root',
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class AppComponent implements OnInit, OnDestroy {

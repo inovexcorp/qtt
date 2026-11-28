@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { Datasources } from '../../core/models/datasources';
@@ -12,6 +12,7 @@ import { filter } from 'rxjs';
     selector: 'app-datasources',
     templateUrl: './datasources.component.html',
     styleUrls: ['./datasources.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class DatasourcesComponent implements OnInit {

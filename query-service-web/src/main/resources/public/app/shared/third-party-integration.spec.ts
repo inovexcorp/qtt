@@ -3,7 +3,7 @@
  * (SPARQi chat), ngx-charts (Metrics, SPARQi metrics) and xng-breadcrumb. They pin what the app relies on so a
  * library upgrade that changes rendering or inputs fails here rather than in the browser.
  */
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router, RouterOutlet } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -38,6 +38,7 @@ const SPARQI_REPLY = [
 
 @Component({
     imports: [MarkdownComponent],
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: `<markdown [data]="text" class="markdown-content"></markdown>`
 })
 class MarkdownHost {
@@ -95,6 +96,7 @@ const PURPLE: Color = {
 
 @Component({
     imports: [NgxChartsModule],
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: `
     <ngx-charts-number-card id="cards" [results]="cards" [scheme]="scheme" [view]="[850,180]" cardColor="#4a148c">
     </ngx-charts-number-card>
@@ -160,15 +162,18 @@ describe('ngx-charts rendering (Metrics)', () => {
 });
 
 @Component({
-    selector: 'test-section', template: '<router-outlet></router-outlet>', imports: [RouterOutlet]
+    selector: 'test-section', template: '<router-outlet></router-outlet>', changeDetection: ChangeDetectionStrategy.Eager,
+ imports: [RouterOutlet]
 })
 class Section {}
 
-@Component({ standalone: true, selector: 'test-page', template: 'page' })
+@Component({ standalone: true, selector: 'test-page', changeDetection: ChangeDetectionStrategy.Eager,
+ template: 'page' })
 class Page {}
 
 @Component({
     imports: [BreadcrumbComponent, RouterOutlet],
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: `<xng-breadcrumb separator="/"></xng-breadcrumb><router-outlet></router-outlet>`
 })
 class BreadcrumbHost {}

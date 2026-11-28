@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { OntologyService } from '../../../../core/services/ontology/ontology.service';
 import { OntologyElement, OntologyElementType } from '../../../../core/models/ontology/ontology-element';
@@ -24,6 +24,7 @@ interface ElementStatistics {
     selector: 'app-ontology-visualization-dialog',
     templateUrl: './ontology-visualization-dialog.component.html',
     styleUrls: ['./ontology-visualization-dialog.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class OntologyVisualizationDialogComponent implements OnInit {

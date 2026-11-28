@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormGroup } from '@angular/forms';
 import { SettingsService } from '../../core/services/settings.service';
 import { effectiveAccess } from '../query-endpoint';
@@ -40,6 +40,7 @@ import { effectiveAccess } from '../query-endpoint';
     .access-note { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8a6d00; margin: 0; }
     .access-note mat-icon { font-size: 18px; width: 18px; height: 18px; }
   `],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class RouteAccessComponent implements OnInit {
