@@ -47,6 +47,18 @@ async function signIn(page, user, hash = '#/metrics') {
 const visible = (page, text) => page.evaluate(t => [...document.querySelectorAll('button, a')]
   .some(b => b.offsetParent !== null && b.innerText.replace(/\s+/g, ' ').includes(t)), text);
 
+/** Opens the quick actions bar with Ctrl+K, optionally types, and lists the rows by group: { group: [labels] }. */
+async function quickActions(page, text = '') {
+  await page.keyboard.down('Control'); await page.keyboard.press('k'); await page.keyboard.up('Control');
+  await page.waitForSelector('.qa-panel', { visible: true, timeout: 5000 });
+  // Typed straight after the shortcut, as a person would: the field must already have focus.
+  if (text) await page.keyboard.type(text);
+  await new Promise(r => setTimeout(r, 600)); // the route and datasource lists load on the first opening
+  return page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.qa-group')].map(g => [
+    g.querySelector('.qa-group-label').textContent.trim(),
+    [...g.querySelectorAll('.qa-option-label')].map(o => o.textContent.trim())])));
+}
+
 const suffix = Math.random().toString(16).slice(2, 8);
 const ds = `ui-ds-${suffix}`;
 const route = `ui-route-${suffix}`;
@@ -304,6 +316,35 @@ try {
     await page.close();
   }
 
+  // Quick actions bar: find the route from another page with the keyboard, then the route page's own actions.
+  {
+    const name = 'quick actions';
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1440, height: 900 });
+    const errs = [];
+    page.on('pageerror', e => errs.push(`pageerror: ${e.message}`));
+    try {
+      await page.goto(`${base}/#/metrics`, { waitUntil: 'networkidle0', timeout: 60000 });
+      const found = await quickActions(page, route);
+      if (found['Routes']?.[0] !== route) errs.push(`searching "${route}" lists ${JSON.stringify(found)}`);
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(r => document.body.innerText.includes('Config Route: ' + r), { timeout: 20000 }, route)
+        .catch(() => errs.push(`Enter did not open the route page (at ${page.url()})`));
+      const onPage = await quickActions(page);
+      for (const label of ['Save route', 'Run test request', 'Copy endpoint URL']) {
+        if (!onPage['This page']?.includes(label)) errs.push(`route page actions lack "${label}": ${JSON.stringify(onPage['This page'])}`);
+      }
+      if (shots) await page.screenshot({ path: `${shots}/quick-actions.png` });
+      await page.keyboard.press('Escape');
+    } catch (e) {
+      errs.push(e.message);
+    }
+    console.log(`${errs.length ? 'FAIL' : 'PASS'} ${name}${errs.length ? '\n    ' + errs.join('\n    ') : ''}`);
+    problems.push(...errs.map(e => `${name}: ${e}`));
+    pages.push([name]);
+    await page.close();
+  }
+
   if (oidc) {
     // [name, check(page) -> list of problems], each in a fresh browser context (its own cookies)
     const checks = [
@@ -322,6 +363,31 @@ try {
         await page.goto(`${base}/#/datasources`, { waitUntil: 'networkidle0', timeout: 60000 });
         if (await visible(page, 'Add DataSource')) errs.push('"Add DataSource" shown to a viewer');
         if (forbidden.length) errs.push(`opening pages as a viewer got 403 from: ${forbidden.join(', ')}`);
+        return errs;
+      }],
+      ['oidc quick actions follow the role', async page => {
+        const errs = [];
+        await signIn(page, 'viewer'); // the sign-in round trip drops the #fragment
+        await page.goto(`${base}/#/routes/config-route/${route}`, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.waitForFunction(r => document.body.innerText.includes('Config Route: ' + r), { timeout: 20000 }, route);
+        let bar = await quickActions(page);
+        const viewerPage = JSON.stringify(bar['This page']);
+        if (viewerPage !== JSON.stringify(['Toggle full-screen editor', 'Copy endpoint URL'])) errs.push(`viewer's route page actions: ${viewerPage}`);
+        if (JSON.stringify(bar['Actions']) !== JSON.stringify(['Keyboard shortcuts', 'Sign out'])) errs.push(`viewer's actions: ${JSON.stringify(bar['Actions'])}`);
+        await page.keyboard.press('Escape');
+        await page.goto(`${base}/#/datasources/config-datasource/${ds}`, { waitUntil: 'networkidle0', timeout: 60000 });
+        bar = await quickActions(page);
+        if (JSON.stringify(bar['This page']) !== JSON.stringify(['Show usage'])) errs.push(`viewer's datasource page actions: ${JSON.stringify(bar['This page'])}`);
+        return errs;
+      }],
+      ['oidc quick actions for an editor', async page => {
+        const errs = [];
+        await signIn(page, 'editor');
+        await page.goto(`${base}/#/datasources/config-datasource/${ds}`, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.waitForFunction(d => document.body.innerText.includes(d), { timeout: 20000 }, ds);
+        const bar = await quickActions(page);
+        if (JSON.stringify(bar['This page']) !== JSON.stringify(['Run health check', 'Show usage'])) errs.push(`editor's datasource page actions: ${JSON.stringify(bar['This page'])}`);
+        if (JSON.stringify(bar['Actions']) !== JSON.stringify(['Add route', 'Keyboard shortcuts', 'Sign out'])) errs.push(`editor's actions: ${JSON.stringify(bar['Actions'])}`);
         return errs;
       }],
       ['oidc user without a role sees "no access"', async page => {

@@ -2,7 +2,18 @@
 
 Goal: a search field in the top toolbar, in the style of GitLab's and GitHub's, that lets a user jump to any page, route or datasource and run common actions from the keyboard.
 
-Status: plan only, nothing built. Branch `feature/quick-actions` (from `refactor/optimize` at `08c8ae8`), worktree `../qtt-quick-actions`. Drafted 2026-11-28.
+Status: Phases 1–3 built on `feature/quick-actions` (from `refactor/optimize` at `08c8ae8`), 2026-11-28; Phase 4 (two-step actions) not started. Each phase passed `ng test`, `ng build` and a browser check against an isolated stack before the next began; results are under [Checks](#checks).
+
+Where the build differs from the plan below:
+- **Keyboard listener on `window`, not `document`.** zone.js shares one native listener per target, event and phase, with the options of the first one added. The CDK's focus tracking adds a *passive* capturing `keydown` listener to the document first, so ours inherited `passive` and `preventDefault()` was silently ignored (Ctrl+K would still focus the browser's address bar). A spec pins this.
+- **No `ActiveDescendantKeyManager`.** The highlighted row is a plain index over the flattened results; the ARIA wiring (`aria-activedescendant`, `aria-selected`) is the same.
+- **Refetching the lists:** also after any navigation, not only after 30 seconds, so a route just added or deleted shows correctly the next time the bar opens.
+- **Empty bar:** the page's own actions are listed in full (other groups show 5); Settings sections are listed only once something is typed; groups go *This page, Recent, Go to, Actions*.
+- **Closing the bar clears** its text and narrowing.
+- **Clear all caches** says how many cached *results* will go (the server can't count affected routes), and skips the question when the cache is off or empty.
+- **More page actions:** Save datasource and Show usage on the datasource page.
+- **Fixed on the way:** `CacheService.clearAllCache()` called `DELETE /routes/cache/all`, which doesn't exist (the server has `DELETE /routes/cache`); the datasource page read its route list from `camelRouteTemplate`, but the API sends `camelRouteTemplateNames`, so the list was always undefined (and the delete dialog read `.length` of undefined).
+- **Test harness:** `scripts/stack.sh` takes `QTT_STACK` (name suffix) and `QTT_PORT_OFFSET`, and `gate.sh`, `tls_check.sh` and `encryption_check.sh` follow them, so a second stack can run beside another session's. `proxy.conf.js` takes `QTT_PROXY_TARGET`.
 
 ## What the user gets
 
@@ -155,6 +166,11 @@ Done when: a viewer sees no editor or admin actions; an editor can clear a route
 - **Headless UI check (`scripts/ui_check.mjs`):** open with the keyboard, search for the seeded route, press `Enter`, land on its page; as a viewer, confirm that editor actions are absent.
 - **Accessibility:** combobox/listbox roles, `aria-activedescendant`, visible focus, and a screen-reader announcement of the result count.
 - **Full gate (`scripts/gate.sh`)** before merging.
+
+Results, 2026-11-28, image `localhost/qtt:quick-actions` built from this branch, run as `QTT_STACK=qa QTT_PORT_OFFSET=2000` beside another session's stack:
+- `ng test`: 331 tests pass (252 before); `ng build`: no warnings, initial bundle 1.65 MB (1.64 MB before).
+- Gate: IT suites pass on Derby, PostgreSQL+Redis, MSSQL, Derby with sign-in, closed-by-default and Derby+Redis (93–94 tests each); restart persistence, custom TLS keystore and encryption at rest pass. The first UI check run failed only the new quick-actions checks: keys typed straight after Ctrl+K were lost, because the field was focused one tick late (fixed: focus at once), and the OIDC checks expected the sign-in round trip to keep the `#fragment` (it doesn't; the checks now navigate after signing in). After the fix, both UI checks pass: 17/17 with sign-in (viewer and editor see only their actions), 11/11 without.
+- Browser checks per phase (scratch scripts against `ng serve` on port 4410 and the offset stack): opening from `/`, Cmd+K and Ctrl+K, including from inside Monaco with the editor's text unchanged; Escape returning focus to the editor; every route and datasource page action against the real server; the confirmations; clearing a route's cache and all caches with Redis; narrow screens; prefixes, recents across reloads and the shortcut list.
 
 ## After v1
 

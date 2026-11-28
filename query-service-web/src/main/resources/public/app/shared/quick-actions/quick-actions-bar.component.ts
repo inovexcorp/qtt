@@ -312,12 +312,16 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
     this.open.set(true);
   }
 
+  /**
+   * Focuses the field at once, so keys typed right after the shortcut land in it. On narrow screens the field is
+   * hidden until the "open" class is applied, so focus then waits for the next tick.
+   */
   private focusInput(): void {
-    // On narrow screens the field only becomes visible once the "open" class is applied.
-    setTimeout(() => {
-      this.input.nativeElement.focus();
-      this.input.nativeElement.select();
-    });
+    const field = this.input.nativeElement;
+    field.focus();
+    if (this.document.activeElement !== field) {
+      setTimeout(() => field.focus());
+    }
   }
 
   private move(step: number): void {

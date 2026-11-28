@@ -131,7 +131,8 @@ start_keycloak() {
   # The realm lists the UI's redirect URIs: with a port offset, import a copy that names the stack's API port.
   local realm="$ROOT/scripts/keycloak"
   if (( OFFSET != 0 )); then
-    realm=$(mktemp -d)
+    realm="$ROOT/target/keycloak-realm$SUFFIX"   # under the repo: the podman VM mounts it
+    mkdir -p "$realm"
     sed "s#https://localhost:18443/#https://localhost:$API_PORT/#" "$ROOT/scripts/keycloak/qtt-realm.json" > "$realm/qtt-realm.json"
     chmod 755 "$realm"; chmod 644 "$realm/qtt-realm.json"
   fi

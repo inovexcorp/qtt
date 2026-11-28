@@ -140,9 +140,9 @@ describe('QuickActionsBarComponent', () => {
     document.body.appendChild(before);
     before.focus();
     component.openFromShortcut();
-    fixture.detectChanges();
-    await new Promise(resolve => setTimeout(resolve));
+    // Focused at once, so keys typed right after the shortcut aren't lost.
     expect(document.activeElement).toBe(input);
+    fixture.detectChanges();
     answerEntities();
     type('#peo');
     press('Escape');
