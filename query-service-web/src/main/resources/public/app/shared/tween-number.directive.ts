@@ -1,5 +1,5 @@
 import { DestroyRef, Directive, effect, ElementRef, inject, input, untracked } from '@angular/core';
-import { prefersReducedMotion } from './chart-theme';
+import { prefersReducedMotion } from './motion';
 
 const DURATION_MS = 600;
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));

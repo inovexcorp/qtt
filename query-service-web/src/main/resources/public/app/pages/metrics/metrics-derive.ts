@@ -204,3 +204,36 @@ export function trendLines(data: TrendData, metric: TrendMetric, maxRoutes: numb
 
 /** `HH:MM` from a minute bucket. */
 export const clockLabel = (bucket: string) => bucket.substring(11, 16);
+
+// --- Routes table ---------------------------------------------------------------------------------------------
+
+/** A row of the routes table. */
+export interface RouteRow {
+  route: string;
+  state: string;
+  completed: number;
+  failed: number;
+  total: number;
+  successRate: number | null;
+  mean: number | null;
+  min: number | null;
+  max: number | null;
+  uptime: string;
+}
+
+/** A route's totals as a table row; values that need an exchange are null until it has one. */
+export function toRow(r: RouteMetric): RouteRow {
+  const has = r.exchangesTotal > 0;
+  return {
+    route: r.route,
+    state: r.state,
+    completed: r.exchangesCompleted,
+    failed: r.exchangesFailed,
+    total: r.exchangesTotal,
+    successRate: has ? (r.exchangesCompleted / r.exchangesTotal) * 100 : null,
+    mean: has && r.meanProcessingTime >= 0 ? r.meanProcessingTime : null,
+    min: has ? r.minProcessingTime : null,
+    max: has ? r.maxProcessingTime : null,
+    uptime: r.uptime,
+  };
+}

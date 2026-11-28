@@ -9,6 +9,9 @@ import { MetricsService } from './metrics.service';
 /** How often the page asks for fresh metrics. */
 export const METRICS_POLL_MS = new InjectionToken<number>('METRICS_POLL_MS', { factory: () => 15000 });
 
+/** Whether to fetch the 30-minute history (a page that shows only current metrics turns it off). */
+export const METRICS_HISTORY = new InjectionToken<boolean>('METRICS_HISTORY', { factory: () => true });
+
 /** History snapshots are taken once a minute, so fetching them every few polls is enough. */
 const HISTORY_EVERY_N_POLLS = 4;
 
@@ -35,6 +38,7 @@ export class MetricsLiveService {
   private readonly api = inject(MetricsService);
   private readonly pollMs = inject(METRICS_POLL_MS);
   private readonly document = inject(DOCUMENT);
+  private readonly withHistory = inject(METRICS_HISTORY);
 
   /** Current route metrics; null until the first response. */
   readonly routes = signal<RouteMetric[] | null>(null);
@@ -92,9 +96,10 @@ export class MetricsLiveService {
     this.kick$.next(this.kick$.value + 1);
   }
 
-  private fetch(datasource: string, withHistory: boolean): Observable<unknown> {
+  private fetch(datasource: string, historyDue: boolean): Observable<unknown> {
     const routes$ = this.capture(datasource ? this.api.getDatasourceRouteMetrics(datasource) : this.api.getRouteMetrics());
-    const history$ = withHistory || this.history() === null ? this.capture(this.api.getPersistedMetrics()) : of(undefined);
+    const history$ = !this.withHistory ? of(undefined)
+      : historyDue || this.history() === null ? this.capture(this.api.getPersistedMetrics()) : of(undefined);
     return forkJoin([routes$, history$]).pipe(map(([routes, history]) => {
       const now = Date.now();
       if (routes) {

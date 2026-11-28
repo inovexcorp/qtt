@@ -36,11 +36,11 @@ const auth = oidc ? { Authorization: `Bearer ${await serviceToken()}` } : {};
 
 /** Signs in through the Keycloak form in this page's browser context; ends on the QTT page that was asked for. */
 async function signIn(page, user, hash = '#/metrics') {
-  await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle0', timeout: 60000 });
+  await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle2', timeout: 60000 });
   if (!page.url().startsWith(realm)) throw new Error(`expected the Keycloak login page, got ${page.url()}`);
   await page.type('#username', user);
   await page.type('#password', `${user}-pw`);
-  await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 }), page.click('#kc-login')]);
+  await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }), page.click('#kc-login')]);
   if (!page.url().startsWith(base)) throw new Error(`sign-in as ${user} did not return to QTT: ${page.url()}`);
 }
 
@@ -105,7 +105,7 @@ const domChecks = {
   },
   'config-datasource': () => {
     const crumbs = [...document.querySelectorAll('.xng-breadcrumb-item')].map(c => c.innerText.trim());
-    return crumbs.join(' / ') === 'DataSources / Config-Datasource' ? [] : [`breadcrumbs: ${crumbs.join(' / ')}`];
+    return crumbs.join(' / ') === 'Datasources / Datasource' ? [] : [`breadcrumbs: ${crumbs.join(' / ')}`];
   },
   'config-route': () => {
     const crumbs = [...document.querySelectorAll('.xng-breadcrumb-item')].map(c => c.innerText.trim());
@@ -131,7 +131,7 @@ try {
     page.on('pageerror', e => errs.push(`pageerror: ${e.message}`));
     page.on('requestfailed', r => errs.push(`requestfailed: ${r.url()} ${r.failure()?.errorText}`));
     page.on('response', r => { if (r.status() >= 400) errs.push(`HTTP ${r.status()}: ${r.url()}`); });
-    await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle0', timeout: 60000 });
+    await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle2', timeout: 60000 });
     await new Promise(r => setTimeout(r, 1500));
     const text = await page.evaluate(() => document.body.innerText);
     if (expectText && !text.includes(expectText)) errs.push(`expected text not found: ${expectText}`);
@@ -161,7 +161,7 @@ try {
     // Monaco warns, and runs worker code on the UI thread, when it can't start its web workers.
     page.on('console', m => { if (/web worker|MonacoEnvironment/i.test(m.text())) errs.push(`console ${m.type()}: ${m.text()}`); });
     try {
-      await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle0', timeout: 60000 });
+      await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle2', timeout: 60000 });
       for (const step of openSteps) {
         if (step.startsWith('tab:')) {
           const label = step.slice(4);
@@ -245,7 +245,7 @@ try {
     };
     let step = 'open the route page';
     try {
-      await page.goto(`${base}/#/routes/config-route/${route}`, { waitUntil: 'networkidle0', timeout: 60000 });
+      await page.goto(`${base}/#/routes/config-route/${route}`, { waitUntil: 'networkidle2', timeout: 60000 });
       await new Promise(r => setTimeout(r, 1500));
       let text = await page.evaluate(() => document.body.innerText);
       if (!text.includes(`/query/${route}`)) errs.push('endpoint URL not shown on the route page');
@@ -269,7 +269,7 @@ try {
 
       step = 'check the routes list';
       // The routes list marks it.
-      await page.goto(`${base}/#/routes`, { waitUntil: 'networkidle0', timeout: 60000 });
+      await page.goto(`${base}/#/routes`, { waitUntil: 'networkidle2', timeout: 60000 });
       await new Promise(r => setTimeout(r, 1000));
       const marked = await page.evaluate(r => [...document.querySelectorAll('tr')]
         .some(tr => tr.innerText.includes(r) && tr.querySelector('[aria-label="Authenticated route"]')), route);
@@ -277,7 +277,7 @@ try {
 
       step = 'create an API key';
       // Create an API key for it on the Settings page, call the route with it, then revoke it.
-      await page.goto(`${base}/#/settings?section=access`, { waitUntil: 'networkidle0', timeout: 60000 });
+      await page.goto(`${base}/#/settings?section=access`, { waitUntil: 'networkidle2', timeout: 60000 });
       await page.waitForSelector('app-api-keys .new-key-button', { visible: true, timeout: 10000 });
       await reveal('app-api-keys .new-key-button');
       await page.click('app-api-keys .new-key-button');
@@ -324,12 +324,12 @@ try {
         if (await visible(page, 'Add Route')) errs.push('"Add Route" shown to a viewer');
         const forbidden = [];
         page.on('response', r => { if (r.status() === 403) forbidden.push(r.url()); });
-        await page.goto(`${base}/#/routes/config-route/${route}`, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.goto(`${base}/#/routes/config-route/${route}`, { waitUntil: 'networkidle2', timeout: 60000 });
         await new Promise(r => setTimeout(r, 1500));
         if (!(await page.evaluate(() => document.body.innerText)).includes(route)) errs.push('route page did not load');
         if (await visible(page, 'Save')) errs.push('"Save" shown to a viewer');
-        await page.goto(`${base}/#/datasources`, { waitUntil: 'networkidle0', timeout: 60000 });
-        if (await visible(page, 'Add DataSource')) errs.push('"Add DataSource" shown to a viewer');
+        await page.goto(`${base}/#/datasources`, { waitUntil: 'networkidle2', timeout: 60000 });
+        if (await visible(page, 'Add datasource')) errs.push('"Add datasource" shown to a viewer');
         if (forbidden.length) errs.push(`opening pages as a viewer got 403 from: ${forbidden.join(', ')}`);
         return errs;
       }],
@@ -347,7 +347,7 @@ try {
         if (!session.length) return ['no q_session cookie after signing in'];
         for (const c of session) await page.deleteCookie({ name: c.name, url: base });
         // The next API call gets 499; the UI reloads, Keycloak's own session signs the user straight back in.
-        await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 }),
+        await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }),
           page.evaluate(() => { window.location.hash = '#/datasources'; })]);
         await page.waitForFunction(d => document.body.innerText.includes(d), { timeout: 20000 }, ds).catch(() => {});
         const errs = [];
@@ -360,7 +360,7 @@ try {
         await page.click('.user-button');
         await page.waitForSelector('a[href="/logout"]', { visible: true, timeout: 5000 });
         await new Promise(r => setTimeout(r, 500)); // let the menu finish opening
-        await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 }),
+        await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }),
           page.click('a[href="/logout"]')]);
         // Keycloak shows its login page again once QTT's post-logout redirect asks for a new session.
         return page.url().startsWith(realm) ? [] : [`after signing out, ended on ${page.url()}`];

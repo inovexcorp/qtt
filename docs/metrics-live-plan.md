@@ -4,6 +4,38 @@ Goal: the metrics page updates when the numbers change, pushed by the server, in
 
 Status: plan, 2026-11-28; nothing on the server is built yet. The UI side is ready for it: the metrics page (branch `feature/beautification`) reads all its data from `MetricsLiveService` (`query-service-web/.../core/services/metrics-live.service.ts`), whose signals (`routes`, `history`, `status`, `updatedAt`, …) are the only contract with the page. Today that service polls; this plan replaces its insides with a server push and keeps polling as the fallback.
 
+## Status: the shared `/api/events` channel (2026-11-28)
+
+The shared channel this plan's last risk mentions now exists, with one topic, `datasources`. Metrics are not on it
+yet; moving them is the remaining work (phase 1 below, as a `metrics` topic instead of a separate
+`/metrics/stream`).
+
+| Piece | Built |
+|---|---|
+| Stream | `GET /queryrest/api/events?topics=datasources` (`qtt-viewer`, `text/event-stream`). A missing, empty or unknown topic answers 400. The first event (`event: datasources`, `data:` the snapshot JSON) goes out on connect, then one only when the snapshot changed, plus `: keep-alive` every 20 s. The stream ends after `qtt.events.max-age`; the client reconnects. Headers `Cache-Control: no-store`, `X-Accel-Buffering: no`; HTTP compression is off (`quarkus.http.enable-compression` is not set) |
+| Polling fallback | `GET /queryrest/api/events/datasources`: the same snapshot as JSON |
+| Snapshot | `healthCheckEnabled`, and per datasource (sorted by id): `dataSourceId`, `url`, `status`, `lastHealthCheck`, `lastHealthError`, `consecutiveFailures`, `routeCount`, `recentChecks` (last 10, oldest first). Times are ISO-8601 instants (`…Z`). Records, never the entity, so no password |
+| Server | `DatasourceHealthBroadcaster` (`routebuilder.events`): one shared tick while any stream is open, a rescan per tick, published only when it differs from the last snapshot; recent checks re-read only when a datasource's `lastHealthCheck` changed. `DataSourcesController` fires `DatasourcesChanged` (async CDI event) after create, modify, delete, enable, disable and a manual health check, and the broadcaster rescans at once. Scans run on the worker pool; each stream keeps only the latest snapshot on overflow. `EventsController` merges topics and keep-alives, caps the stream's life and counts open streams |
+| Limits | Past `qtt.events.max-subscribers` open streams the endpoint answers 503 |
+| Auth | Unchanged OIDC config: `X-Requested-With: JavaScript` on an expired session gets 499 (covered in `SignInOnTest`) |
+| Tests | `DatasourceHealthBroadcasterTest`, `EventsControllerTest` (route-builder); `EventsStreamTest`, `SignInOnTest` (app) |
+
+| Setting | Env var | Default |
+|---|---|---|
+| `qtt.events.interval` | `QTT_EVENTS_INTERVAL` | `5s` |
+| `qtt.events.max-age` | `QTT_EVENTS_MAX_AGE` | `10m` |
+| `qtt.events.keep-alive` | `QTT_EVENTS_KEEP_ALIVE` | `20s` |
+| `qtt.events.max-subscribers` | `QTT_EVENTS_MAX_SUBSCRIBERS` | `200` |
+
+The settings and the cap are shared by every topic, so the `qtt.metrics.stream.*` names proposed below become these.
+The nginx notes are in `administration.md` (Live updates through a reverse proxy).
+
+Wire detail: Quarkus writes fields without a space after the colon (`event:datasources`, `data:{…}`); SSE parsers
+must accept both forms, as the spec says.
+
+To add a topic: a broadcaster with a `stream()` of snapshots, a name in `EventsController.KNOWN_TOPICS`, and a branch
+mapping it to named events.
+
 ## Where we are
 
 | Piece | Today |

@@ -37,6 +37,18 @@ class SignInOnTest {
     void scriptRequestsGet499InsteadOfARedirect() {
         given().redirects().follow(false).header("X-Requested-With", "JavaScript")
                 .when().get("/queryrest/api/routes").then().statusCode(499);
+        // The event stream too: the UI reads it with fetch() and the same header, so it can sign in again.
+        given().redirects().follow(false).header("X-Requested-With", "JavaScript").header("Accept", "text/event-stream")
+                .when().get("/queryrest/api/events?topics=datasources").then().statusCode(499);
+    }
+
+    @Test
+    void eventsNeedTheViewerRole() {
+        as("nobody", "offline_access").when().get("/queryrest/api/events/datasources").then().statusCode(403);
+        as("nobody", "offline_access").header("Accept", "text/event-stream")
+                .when().get("/queryrest/api/events?topics=datasources").then().statusCode(403);
+        as("viewer", "qtt-viewer").when().get("/queryrest/api/events/datasources").then().statusCode(200)
+                .body("healthCheckEnabled", equalTo(true));
     }
 
     @Test

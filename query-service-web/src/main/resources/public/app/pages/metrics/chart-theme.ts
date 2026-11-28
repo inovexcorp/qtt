@@ -1,5 +1,6 @@
 import { BarController, BarElement, CategoryScale, Chart, ChartType, Filler, LinearScale, LineController, LineElement,
   Plugin, PointElement, Tooltip, TooltipModel } from 'chart.js';
+import { prefersReducedMotion } from '../../shared/motion';
 
 /**
  * Chart.js look and behaviour shared by the metrics charts: colours from the app's Material theme, hairline recessive
@@ -32,8 +33,7 @@ export const ROUTE_COLORS = ['#7d00fa', '#f47230', '#00b894', '#f2a600', '#ee7fa
 
 export const FONT_FAMILY = 'Roboto, sans-serif';
 
-export const prefersReducedMotion = (): boolean =>
-  typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+export { prefersReducedMotion };
 
 /** Data updates morph from the old values (a live refresh reads as change, not a redraw). */
 export const motion = () => prefersReducedMotion()

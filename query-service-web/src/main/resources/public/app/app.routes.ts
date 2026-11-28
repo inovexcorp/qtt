@@ -9,15 +9,15 @@ import { SettingsComponent } from './pages/settings/settings.component';
 export const routes: Routes = [
   { path: '', redirectTo: 'metrics', pathMatch: 'full' },
   {
-    path: 'datasources', component: DatasourcesComponent, data: { breadcrumb: 'DataSources' },
+    path: 'datasources', component: DatasourcesComponent, data: { breadcrumb: 'Datasources' },
     children: [
       { path: '', redirectTo: 'datasources', pathMatch: 'full' },
       {
         path: 'config-datasource/:dataSourceId',
         component: ConfigDatasourceComponent,
-        data: { breadcrumb: 'Config-Datasource' }
+        data: { breadcrumb: 'Datasource' }
       },
-      { path: 'add-datasource', component: AddDatasourceComponent, data: { breadcrumb: 'Add DataSource' } }
+      { path: 'add-datasource', component: AddDatasourceComponent, data: { breadcrumb: 'Add datasource' } }
     ]
   },
   {

@@ -1,420 +1,454 @@
-import {Component, OnInit, ViewEncapsulation, ViewChild, AfterViewInit, ChangeDetectionStrategy} from '@angular/core';
-import { AbstractControl, FormControl, FormGroup, ValidationErrors, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import {ActivatedRoute, Router} from '@angular/router';
-import {DatasourceService} from '../../core/services/datasource.service';
-import {AuditInfo} from '../../core/models/audit';
-import {Datasources} from '../../core/models/datasources';
-import {MatDialog} from '@angular/material/dialog';
-import {DeleteDatasourceModalComponent} from '../delete-datasource-modal/delete-datasource-modal.component';
-import {ConfigDatasourceModalComponent} from '../config-datasource-modal/config-datasource-modal.component';
-import {MetricsService} from '../../core/services/metrics.service';
-import {RouteMetric, RouteMetricsResponse} from '../../core/models/metric-data';
-import { MatTableDataSource, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow } from '@angular/material/table';
-import {MatPaginator} from '@angular/material/paginator';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal, untracked,
+  viewChild } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { DecimalPipe } from '@angular/common';
+import { interval, map } from 'rxjs';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatAnchor, MatButton, MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatFormField, MatError, MatHint, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatCell, MatCellDef, MatColumnDef, MatHeaderCell, MatHeaderCellDef, MatHeaderRow, MatHeaderRowDef, MatNoDataRow,
+  MatRow, MatRowDef, MatTable, MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
 import { MatSort, MatSortHeader } from '@angular/material/sort';
-import { MatCard, MatCardHeader, MatCardTitle, MatCardContent } from '@angular/material/card';
+import { DatasourceService } from '../../core/services/datasource.service';
+import { DatasourceLiveService } from '../../core/services/datasource-live.service';
+import { METRICS_HISTORY, MetricsLiveService } from '../../core/services/metrics-live.service';
+import { AuthService } from '../../core/services/auth.service';
+import { Datasources } from '../../core/models/datasources';
+import { saveErrorMessage } from '../../core/http-error-message';
+import { DatasourceStatus } from '../../core/models/datasource-health';
 import { AuditLineComponent } from '../../shared/audit-line/audit-line.component';
 import { IfRoleDirective } from '../../shared/if-role.directive';
-import { MatIconButton, MatButton } from '@angular/material/button';
-import { MatIcon } from '@angular/material/icon';
-import { MatTabGroup, MatTab } from '@angular/material/tabs';
-import { MatTooltip } from '@angular/material/tooltip';
-import { MatDivider } from '@angular/material/list';
-import { MatFormField, MatLabel, MatSuffix, MatError, MatHint } from '@angular/material/form-field';
-import { MatInput } from '@angular/material/input';
-import { MatSelect, MatOption } from '@angular/material/select';
-import { NgClass, JsonPipe } from '@angular/common';
-import { MatProgressBar } from '@angular/material/progress-bar';
+import { TweenNumberDirective } from '../../shared/tween-number.directive';
+import { HealthPillComponent } from '../../shared/datasource-health/health-pill.component';
+import { CheckHistoryComponent } from '../../shared/datasource-health/check-history.component';
+import { relativeTime } from '../../shared/datasource-health/health-status';
+import { LiveIndicatorComponent } from '../../shared/live-indicator/live-indicator.component';
+import { liveAnnouncement, liveText } from '../datasources/datasources.component';
+import { RouteRow, summarize, toRow } from '../metrics/metrics-derive';
+import { DeleteDatasourceModalComponent } from '../delete-datasource-modal/delete-datasource-modal.component';
+import { ConfigDatasourceModalComponent, DatasourceChange, SaveDatasourceDialogData } from '../config-datasource-modal/config-datasource-modal.component';
 
+/** The form's fields, labelled for the confirmation's list of changes. */
+const FIELD_LABELS: Record<string, string> = {
+  url: 'URL', username: 'Username', password: 'Password', timeOutSeconds: 'Timeout',
+  maxQueryHeaderLength: 'Max query header length', validateCertificate: 'HTTPS certificates',
+};
+
+const WHOLE_NUMBER = Validators.pattern(/^\d+$/);
+
+/**
+ * One datasource: its live health (status, the last checks, what failed), how QTT connects to it (edit, test,
+ * save), and the routes that query it with their live totals. Health comes from the datasources page's
+ * {@link DatasourceLiveService} (pushed by the server); usage from a {@link MetricsLiveService} scoped to it.
+ */
 @Component({
-    selector: 'app-config-datasource',
-    templateUrl: './config-datasource.component.html',
-    styleUrls: ['./config-datasource.component.scss'],
-    encapsulation: ViewEncapsulation.None,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    imports: [MatCard, AuditLineComponent, IfRoleDirective, MatIconButton, MatIcon, MatTabGroup, MatTab, MatButton, MatTooltip, MatDivider, FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatSuffix, MatError, MatHint, MatSelect, MatOption, NgClass, MatProgressBar, MatCardHeader, MatCardTitle, MatCardContent, MatTable, MatSort, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatSortHeader, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatPaginator, JsonPipe]
+  selector: 'app-config-datasource',
+  templateUrl: './config-datasource.component.html',
+  styleUrls: ['./config-datasource.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [MetricsLiveService, { provide: METRICS_HISTORY, useValue: false }],
+  imports: [ReactiveFormsModule, RouterLink, DecimalPipe, MatAnchor, MatButton, MatIconButton, MatIcon, MatTooltip, MatFormField,
+    MatLabel, MatInput, MatSuffix, MatError, MatHint, MatSlideToggle, MatProgressSpinner, MatTable, MatSort,
+    MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatSortHeader, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow,
+    MatRowDef, MatRow, MatNoDataRow, MatPaginator, AuditLineComponent, IfRoleDirective, TweenNumberDirective,
+    HealthPillComponent, CheckHistoryComponent, LiveIndicatorComponent],
 })
-export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
-  /** Who created and last changed this datasource. */
-  audit?: AuditInfo | null;
+export class ConfigDatasourceComponent {
+  protected readonly live = inject(DatasourceLiveService);
+  protected readonly usage = inject(MetricsLiveService);
+  private readonly api = inject(DatasourceService);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
-  private sub: any;
-  dataSourceId: string = '';
-  private associatedRoutes: string[] = [];
-  // The stored password can only be kept while these are unchanged (the API never returns it)
-  private storedUrl: string = '';
-  private storedUsername: string = '';
-  testResponse: any;
-  testResponseStatus: 'success' | 'error' | null = null;
+  protected readonly dataSourceId = toSignal(inject(ActivatedRoute).paramMap.pipe(map(p => p.get('dataSourceId') ?? '')),
+    { initialValue: '' });
 
-  // Health status fields
-  datasourceStatus?: string;
-  isEnabling: boolean = false;
-  isDisabling: boolean = false;
-  healthCheckEnabled: boolean = true;
+  /** The stored settings (the API never returns the password); null while loading. */
+  protected readonly datasource = signal<Datasources | null>(null);
+  protected readonly notFound = signal(false);
+  protected readonly loadFailed = signal(false);
 
-  // Usage tab data
-  routeMetrics: RouteMetric[] = [];
-  routeMetricsDataSource = new MatTableDataSource<RouteMetric>([]);
-  displayedColumns: string[] = ['route', 'state', 'processingTime', 'exchanges', 'uptime'];
+  protected readonly health = computed(() => this.live.datasources()?.find(d => d.dataSourceId === this.dataSourceId()));
+  protected readonly status = computed<DatasourceStatus>(() =>
+    this.health()?.status ?? (this.datasource()?.status as DatasourceStatus) ?? 'UNKNOWN');
 
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
+  protected readonly now = toSignal(interval(15000).pipe(map(() => Date.now())), { initialValue: Date.now() });
+  protected readonly ready = signal(false);
+  protected readonly isAdmin = toSignal(this.auth.user$.pipe(map(() => this.auth.hasRole('admin'))),
+    { initialValue: this.auth.hasRole('admin') });
 
-  aggregateMetrics: {
-    totalRoutes: number;
-    totalExchanges: number;
-    avgLatency: number;
-    successRate: number;
-    failedExchanges: number;
-  } = {
-    totalRoutes: 0,
-    totalExchanges: 0,
-    avgLatency: 0,
-    successRate: 0,
-    failedExchanges: 0
-  };
-  isLoadingMetrics: boolean = false;
+  // --- Health ------------------------------------------------------------------------------------------------------
 
-  configDatasource = new FormGroup({
-    url: new FormControl('', Validators.required),
-    timeOutSeconds: new FormControl('', Validators.required),
-    maxQueryHeaderLength: new FormControl('', Validators.required),
-    username: new FormControl('', Validators.required),
+  /** The action under way, for its button's progress. */
+  protected readonly busy = signal<'check' | 'enable' | 'disable' | null>(null);
+
+  protected readonly statement = computed(() => {
+    const health = this.health();
+    const failures = health?.consecutiveFailures ?? 0;
+    const checks = health?.recentChecks ?? [];
+    switch (this.status()) {
+      case 'UP': {
+        const last = checks.at(-1);
+        const streak = trailing(checks, 'UP');
+        return {
+          title: last?.status === 'UP' && last.responseTimeMs != null ? `Responding in ${last.responseTimeMs} ms` : 'Responding',
+          detail: streak > 1 ? `Up for the last ${streak} checks` : 'Answering health checks',
+        };
+      }
+      case 'DOWN': {
+        // When the current run of failures began (as far back as the history goes).
+        const run = trailing(checks, 'DOWN');
+        const since = run ? relativeTime(checks[checks.length - run].checkTime, this.now()) : '';
+        return {
+          title: !since || since === 'just now' ? 'Failing' : since.endsWith(' ago') ? `Failing for ${since.slice(0, -4)}` : `Failing since ${since}`,
+          detail: failures > 1 ? `${failures} failed checks in a row` : 'The last check failed',
+        };
+      }
+      case 'CHECKING':
+        return { title: 'Checking now…', detail: 'Asking the server for its graphmarts' };
+      case 'DISABLED':
+        return { title: 'Disabled', detail: 'Health checks don\'t run while it is disabled' };
+      default:
+        return { title: 'Not checked yet', detail: this.live.healthCheckEnabled() ? 'Waiting for the next scheduled check' : 'Run a check to see its status' };
+    }
+  });
+
+  protected readonly lastChecked = computed(() =>
+    relativeTime(this.health()?.lastHealthCheck ?? null, this.now()));
+
+  protected readonly liveText = computed(() => liveText(this.live.status(), this.live.transport(), this.live.failed(),
+    this.live.updatedAt(), this.now()));
+  protected readonly liveAnnouncement = computed(() => liveAnnouncement(this.live.status()));
+
+  // --- Usage -------------------------------------------------------------------------------------------------------
+
+  protected readonly summary = computed(() => {
+    const routes = this.usage.routes();
+    return routes ? summarize(routes) : null;
+  });
+  protected readonly stopped = computed(() => (this.usage.routes() ?? []).filter(r => r.state !== 'Started').length);
+  protected readonly failedTotal = computed(() => (this.usage.routes() ?? []).reduce((sum, r) => sum + r.exchangesFailed, 0));
+  protected readonly avgParts = computed(() => {
+    const ms = this.summary()?.avgProcessingMs;
+    return ms == null ? null : ms >= 1000 ? { value: ms / 1000, unit: 's' } : { value: ms, unit: 'ms' };
+  });
+  protected readonly missingReason = computed(() => this.usage.routesFailed() ? 'Unavailable'
+    : this.summary()?.endpoints ? 'No exchanges yet' : 'No routes use it');
+
+  protected readonly columns = ['route', 'state', 'completed', 'failed', 'successRate', 'mean', 'range', 'uptime'];
+  protected readonly table = new MatTableDataSource<RouteRow>([]);
+  protected readonly tableMode = computed<'loading' | 'error' | 'empty' | null>(() => {
+    const routes = this.usage.routes();
+    if (routes === null) {
+      return this.usage.routesFailed() ? 'error' : 'loading';
+    }
+    return routes.length ? null : 'empty';
+  });
+  private readonly sort = viewChild(MatSort);
+  private readonly paginator = viewChild(MatPaginator);
+
+  // --- Connection form ---------------------------------------------------------------------------------------------
+
+  protected readonly form = new FormGroup({
+    url: new FormControl('', { nonNullable: true, validators: Validators.required }),
+    username: new FormControl('', { nonNullable: true, validators: Validators.required }),
     // Blank keeps the stored password, unless the URL or username changes
-    password: new FormControl('', (control: AbstractControl): ValidationErrors | null =>
-      this.passwordRequiredForChange(control) ? {requiredForChange: true} : null),
-    validateCertificate: new FormControl('true', Validators.required)
-  })
-  hide = true;
+    password: new FormControl('', {
+      nonNullable: true,
+      validators: (control: AbstractControl): ValidationErrors | null =>
+        this.passwordRequiredForChange(control) ? { requiredForChange: true } : null,
+    }),
+    timeOutSeconds: new FormControl('', { nonNullable: true, validators: [Validators.required, WHOLE_NUMBER] }),
+    maxQueryHeaderLength: new FormControl('', { nonNullable: true, validators: [Validators.required, WHOLE_NUMBER] }),
+    validateCertificate: new FormControl(true, { nonNullable: true }),
+  });
+  protected readonly hidePassword = signal(true);
+  /** Re-evaluated on every form change (the form isn't a signal). */
+  private readonly formTick = toSignal(this.form.valueChanges.pipe(map(() => Date.now())), { initialValue: 0 });
+  protected readonly changes = computed(() => {
+    this.formTick();
+    return this.diff();
+  });
 
-  get url() {
-    return this.configDatasource.get('url');
-  }
+  protected readonly test = signal<{ state: 'idle' | 'testing' | 'success' | 'error'; message?: string }>({ state: 'idle' });
 
-  get timeOutSeconds() {
-    return this.configDatasource.get('timeOutSeconds');
-  }
-
-  get maxQueryHeaderLength() {
-    return this.configDatasource.get('maxQueryHeaderLength');
-  }
-
-  get username() {
-    return this.configDatasource.get('username');
-  }
-
-  get password() {
-    return this.configDatasource.get('password');
-  }
-
-  get validateCertificate() {
-    return this.configDatasource.get('validateCertificate');
-  }
-
-  constructor(
-    private route: ActivatedRoute,
-    public router: Router,
-    private datasourceService: DatasourceService,
-    private dialogRef: MatDialog,
-    private metricsService: MetricsService) {
-  }
-
-  ngOnInit(): void {
-    // Grab dataSourceId from URL
-    this.sub = this.route.params.subscribe(params => {
-      this.dataSourceId = params['dataSourceId'];
+  constructor() {
+    this.table.filterPredicate = (row, term) => row.route.toLowerCase().includes(term);
+    this.table.sortingDataAccessor = (row, column) => {
+      const value = row[column === 'range' ? 'max' : column as keyof RouteRow];
+      return value === null ? -1 : value;
+    };
+    effect(() => {
+      this.table.data = (this.usage.routes() ?? []).map(toRow);
     });
-    this.getDatasource();
-    this.configDatasource.controls['url'].valueChanges.subscribe(() => this.revalidatePassword());
-    this.configDatasource.controls['username'].valueChanges.subscribe(() => this.revalidatePassword());
-    this.loadUsageMetrics();
-    this.checkHealthCheckStatus();
-  }
+    effect(() => {
+      this.table.sort = this.sort() ?? null;
+      this.table.paginator = this.paginator() ?? null;
+    });
 
-  // Check if health checks are globally enabled
-  private checkHealthCheckStatus(): void {
-    this.datasourceService.getHealthCheckConfig().subscribe({
-      next: (config) => {
-        this.healthCheckEnabled = config.enabled && config.available;
-      },
-      error: (err) => {
-        console.error('Failed to fetch health check configuration:', err);
-        // Default to enabled if we can't fetch the config
-        this.healthCheckEnabled = true;
+    // A new datasource id (also the first): load it, scope the usage to it, start the form over.
+    effect(() => {
+      const id = this.dataSourceId();
+      if (id) {
+        untracked(() => {
+          this.usage.setDatasource(id);
+          this.test.set({ state: 'idle' });
+          this.load(id);
+        });
       }
     });
+
+    effect(() => {
+      if (this.isAdmin()) {
+        this.form.enable({ emitEvent: false });
+      } else {
+        this.form.disable({ emitEvent: false });
+      }
+    });
+
+    this.form.controls.url.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.revalidatePassword());
+    this.form.controls.username.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.revalidatePassword());
+    // A test result describes the settings it tested; editing them makes it stale.
+    this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+      if (this.test().state !== 'testing' && this.test().state !== 'idle') {
+        this.test.set({ state: 'idle' });
+      }
+    });
+
+    afterNextRender(() => this.ready.set(true));
   }
 
-  ngAfterViewInit(): void {
-    // Set up paginator and sort after view is initialized
-    this.routeMetricsDataSource.paginator = this.paginator;
-    this.routeMetricsDataSource.sort = this.sort;
+  // --- Loading -----------------------------------------------------------------------------------------------------
+
+  private load(id: string): void {
+    this.api.getDatasource(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: datasource => {
+        this.datasource.set(datasource);
+        this.notFound.set(false);
+        this.loadFailed.set(false);
+        this.resetForm(datasource);
+      },
+      error: error => {
+        console.error('Failed to load datasource:', error);
+        this.notFound.set(error?.status === 404);
+        this.loadFailed.set(error?.status !== 404);
+      },
+    });
   }
 
-  // Set the values of all the form fields of the datasource you are trying to edit
-  public getDatasource(): void {
-    this.datasourceService.getDatasource(this.dataSourceId)
-      .subscribe((datasources) => {
-        this.dataSourceId = datasources.dataSourceId;
-        this.storedUrl = datasources.url;
-        this.storedUsername = datasources.username;
-        this.configDatasource.controls['url'].setValue(datasources.url);
-        this.configDatasource.controls['timeOutSeconds'].setValue(datasources.timeOutSeconds);
-        this.configDatasource.controls['maxQueryHeaderLength'].setValue(datasources.maxQueryHeaderLength);
-        this.configDatasource.controls['username'].setValue(datasources.username);
-        this.configDatasource.controls['validateCertificate'].setValue(datasources.validateCertificate.toString())
-        this.associatedRoutes = datasources.camelRouteTemplate;
-        this.datasourceStatus = datasources.status;
-        this.audit = datasources.audit;
+  private resetForm(datasource: Datasources): void {
+    this.form.reset({
+      url: datasource.url,
+      username: datasource.username,
+      password: '',
+      timeOutSeconds: String(datasource.timeOutSeconds ?? ''),
+      maxQueryHeaderLength: String(datasource.maxQueryHeaderLength ?? ''),
+      validateCertificate: datasource.validateCertificate !== false,
+    });
+  }
+
+  protected retryLoad(): void {
+    this.load(this.dataSourceId());
+  }
+
+  // --- Health actions ----------------------------------------------------------------------------------------------
+
+  protected checkNow(): void {
+    const id = this.dataSourceId();
+    const before = this.status();
+    this.busy.set('check');
+    this.live.patch(id, { status: 'CHECKING' });
+    this.api.triggerHealthCheck(id).subscribe({
+      next: result => {
+        this.busy.set(null);
+        // Shown at once; the pushed snapshot that follows brings the new check into the history.
+        if (result?.status) {
+          this.live.patch(id, { status: result.status, lastHealthError: result.lastHealthError ?? null });
+        }
+      },
+      error: error => {
+        this.busy.set(null);
+        this.live.patch(id, { status: before });
+        this.snackBar.open(`Couldn't run the check: ${saveErrorMessage(error)}`, 'Dismiss', { duration: 6000, panelClass: 'error-snackbar' });
+      },
+    });
+  }
+
+  protected setEnabled(enabled: boolean): void {
+    const id = this.dataSourceId();
+    const before = this.status();
+    this.busy.set(enabled ? 'enable' : 'disable');
+    this.live.patch(id, { status: enabled ? 'UNKNOWN' : 'DISABLED' });
+    (enabled ? this.api.enableDatasource(id) : this.api.disableDatasource(id)).subscribe({
+      next: () => {
+        this.busy.set(null);
+        this.snackBar.open(enabled ? `Enabled ${id}; health checks resume` : `Disabled ${id}; health checks stop`,
+          'Dismiss', { duration: 4000 });
+      },
+      error: error => {
+        this.busy.set(null);
+        this.live.patch(id, { status: before });
+        this.snackBar.open(`Couldn't ${enabled ? 'enable' : 'disable'} ${id}: ${saveErrorMessage(error)}`, 'Dismiss',
+          { duration: 6000, panelClass: 'error-snackbar' });
+      },
+    });
+  }
+
+  protected openDelete(): void {
+    this.dialog.open(DeleteDatasourceModalComponent, {
+      data: { dataSourceId: this.dataSourceId(), associatedRoutes: this.datasource()?.camelRouteTemplateNames ?? [] },
+      panelClass: 'qtt-dialog-panel',
+      autoFocus: 'dialog',
+    });
+  }
+
+  // --- Usage -------------------------------------------------------------------------------------------------------
+
+  protected search(term: string): void {
+    this.table.filter = term.trim().toLowerCase();
+    this.table.paginator?.firstPage();
+  }
+
+  protected togglePause(): void {
+    if (this.live.status() === 'paused') {
+      this.live.resume();
+      this.usage.resume();
+    } else {
+      this.live.pause();
+      this.usage.pause();
+    }
+  }
+
+  protected refreshAll(): void {
+    this.live.refresh();
+    this.usage.refresh();
+  }
+
+  // --- Connection --------------------------------------------------------------------------------------------------
+
+  protected runTest(): void {
+    this.test.set({ state: 'testing' });
+    this.api.testDatasource(this.payload()).subscribe({
+      next: response => this.test.set(response?.status === 'success'
+        ? { state: 'success' }
+        : { state: 'error', message: response?.message || 'The server gave no reason.' }),
+      error: error => this.test.set({ state: 'error', message: saveErrorMessage(error) }),
+    });
+  }
+
+  protected discard(): void {
+    const datasource = this.datasource();
+    if (datasource) {
+      this.resetForm(datasource);
+    }
+  }
+
+  protected save(): void {
+    if (this.form.invalid || this.changes().length === 0) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    const data: SaveDatasourceDialogData = {
+      datasource: this.payload(),
+      changes: this.changes(),
+      associatedRoutes: this.datasource()?.camelRouteTemplateNames ?? [],
+    };
+    this.dialog.open(ConfigDatasourceModalComponent, { data, panelClass: 'qtt-dialog-panel', autoFocus: 'dialog', width: '34rem' })
+      .afterClosed().subscribe(saved => {
+        if (saved) {
+          this.snackBar.open(`Saved changes to ${data.datasource.dataSourceId}`, 'Dismiss', { duration: 4000 });
+          this.load(this.dataSourceId());
+        }
       });
   }
 
-  // Get all form fields and submit edit to datasource
-  public config(dataSourceId: string): void {
-    let url: string = this.configDatasource.value['url'] as string;
-    let timeOutSeconds: string = this.configDatasource.value['timeOutSeconds'] as string;
-    let maxQueryHeaderLength: string = this.configDatasource.value['maxQueryHeaderLength'] as string;
-    let username: string = this.configDatasource.value['username'] as string;
-    let password: string | undefined = (this.configDatasource.value['password'] as string) || undefined;
-    let validateCertificate: boolean = this.configDatasource.value['validateCertificate'] === 'true';
-    if (!dataSourceId || !url || !timeOutSeconds || !maxQueryHeaderLength || !username) {
-      return;
-    }
-    if (this.password?.invalid) {
-      return;
-    }
-
-    this.dialogRef.open(ConfigDatasourceModalComponent, {
-      data: {
-        associatedRoutes: this.associatedRoutes,
-        datasource: {
-          dataSourceId,
-          url,
-          timeOutSeconds,
-          maxQueryHeaderLength,
-          username,
-          password,
-          validateCertificate
-        } as Datasources
-      }
-    })
-
-
+  private payload(): Datasources {
+    const value = this.form.getRawValue();
+    return {
+      dataSourceId: this.dataSourceId(),
+      url: value.url.trim(),
+      username: value.username,
+      password: value.password || undefined,
+      timeOutSeconds: value.timeOutSeconds,
+      maxQueryHeaderLength: value.maxQueryHeaderLength,
+      validateCertificate: value.validateCertificate,
+    } as Datasources;
   }
 
-
-  public openConfirmDeleteDatasourceModal() {
-    this.dialogRef.open(DeleteDatasourceModalComponent, {
-      data: {
-        associatedRoutes: this.associatedRoutes,
-        dataSourceId: this.dataSourceId
-
-      }
-    });
-  }
-
-  public openConfirmConfigDatasourceModal(datasourceId: string) {
-    this.dialogRef.open(ConfigDatasourceModalComponent, {
-      data: {
-        associatedRoutes: this.associatedRoutes,
-        dataSourceId: this.dataSourceId
-
-      }
-    });
+  /** What the form changes, for the confirmation. */
+  private diff(): DatasourceChange[] {
+    const stored = this.datasource();
+    if (!stored) {
+      return [];
+    }
+    const value = this.form.getRawValue();
+    const cert = (v: boolean) => v ? 'Validated' : 'Not validated';
+    const pairs: [keyof typeof value, string, string][] = [
+      ['url', stored.url, value.url.trim()],
+      ['username', stored.username, value.username],
+      ['timeOutSeconds', String(stored.timeOutSeconds), value.timeOutSeconds],
+      ['maxQueryHeaderLength', String(stored.maxQueryHeaderLength), value.maxQueryHeaderLength],
+      ['validateCertificate', cert(stored.validateCertificate !== false), cert(value.validateCertificate)],
+    ];
+    const changes: DatasourceChange[] = pairs.filter(([, from, to]) => from !== to)
+      .map(([field, from, to]) => ({ label: FIELD_LABELS[field], from, to }));
+    if (value.password) {
+      changes.push({ label: FIELD_LABELS['password'], from: null, to: null });
+    }
+    return changes;
   }
 
   /** True when the URL or username differs from the stored datasource and no new password was entered. */
   private passwordRequiredForChange(password: AbstractControl): boolean {
     const group = password.parent;
-    if (!group || password.value || !this.storedUrl) {
+    const stored = this.datasource?.();
+    if (!group || password.value || !stored) {
       return false;
     }
-    return group.get('url')?.value !== this.storedUrl || group.get('username')?.value !== this.storedUsername;
+    return group.get('url')?.value.trim() !== stored.url || group.get('username')?.value !== stored.username;
   }
 
   private revalidatePassword(): void {
-    this.password?.updateValueAndValidity({emitEvent: false});
-    if (this.password?.invalid) {
-      this.password.markAsTouched();
+    const password = this.form.controls.password;
+    password.updateValueAndValidity({ emitEvent: false });
+    if (password.invalid) {
+      password.markAsTouched();
     }
   }
 
-  public test(): void {
-    this.datasourceService.testDatasource(this.asDataSource()).subscribe({
-      next: response => {
-        this.testResponseStatus = response.status;
-        this.testResponse = this.testResponseStatus === 'success' ? null : response.message;
-      },
-      error: err => {
-        this.testResponseStatus = 'error';
-        this.testResponse = err.error ?? err;
-        console.error(err);
-      }
-    });
+  // Fixed precision, so a figure keeps its width while it counts to a new value (as on the metrics page).
+  protected readonly formatOneDecimal = (v: number) =>
+    v.toLocaleString(undefined, v >= 100 ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  protected readonly formatPercent = (v: number) => v === 100 ? '100'
+    : Math.min(v, 99.9).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  protected readonly formatInteger = (v: number) => Math.round(v).toLocaleString();
+
+  protected routeLink(route: string): string[] {
+    return ['/routes', 'config-route', route];
   }
 
-  private asDataSource(): Datasources {
-    return {
-      dataSourceId: this.dataSourceId,
-      url: this.configDatasource.value['url'] as string,
-      timeOutSeconds: this.configDatasource.value['timeOutSeconds'] as string,
-      maxQueryHeaderLength: this.configDatasource.value['maxQueryHeaderLength'] as string,
-      username: this.configDatasource.value['username'] as string,
-      password: (this.configDatasource.value['password'] as string) || undefined,
-      validateCertificate: this.configDatasource.value['validateCertificate'] === 'true'
-    } as Datasources;
+  protected backToList(): void {
+    void this.router.navigate(['/datasources']);
   }
+}
 
-  // Load metrics for routes using this datasource
-  public loadUsageMetrics(): void {
-    this.isLoadingMetrics = true;
-
-    // Custom sorting for nested properties
-    this.routeMetricsDataSource.sortingDataAccessor = (item: RouteMetric, property: string) => {
-      switch (property) {
-        case 'processingTime':
-          return item.meanProcessingTime;
-        case 'exchanges':
-          return item.exchangesTotal;
-        default:
-          return (item as any)[property];
-      }
-    };
-
-    this.metricsService.getDatasourceRouteMetrics(this.dataSourceId).subscribe({
-      next: (response: RouteMetricsResponse) => {
-        this.routeMetrics = response.metrics;
-        this.routeMetricsDataSource.data = response.metrics;
-
-        this.calculateAggregateMetrics(response.metrics);
-        this.isLoadingMetrics = false;
-
-        // After data is loaded and *ngIf renders the table, connect paginator and sort
-        setTimeout(() => {
-          this.routeMetricsDataSource.paginator = this.paginator;
-          this.routeMetricsDataSource.sort = this.sort;
-        });
-      },
-      error: (error: any) => {
-        console.error('Failed to fetch datasource metrics:', error);
-        this.isLoadingMetrics = false;
-      }
-    });
+/** How many of the most recent checks in a row have this status. */
+function trailing(checks: { status: string }[], status: string): number {
+  let n = 0;
+  for (let i = checks.length - 1; i >= 0 && checks[i].status === status; i--) {
+    n++;
   }
-
-  // Filter the routes table
-  public applyRouteFilter(filterValue: string): void {
-    this.routeMetricsDataSource.filter = filterValue.trim().toLowerCase();
-
-    if (this.routeMetricsDataSource.paginator) {
-      this.routeMetricsDataSource.paginator.firstPage();
-    }
-  }
-
-  // Calculate aggregate metrics for the usage tab
-  private calculateAggregateMetrics(metrics: RouteMetric[]): void {
-    if (metrics.length === 0) {
-      this.aggregateMetrics = {
-        totalRoutes: 0,
-        totalExchanges: 0,
-        avgLatency: 0,
-        successRate: 0,
-        failedExchanges: 0
-      };
-      return;
-    }
-
-    let totalExchanges = 0;
-    let totalCompleted = 0;
-    let totalFailed = 0;
-    let totalProcessingTime = 0;
-    let totalMeanProcessingTime = 0;
-
-    for (const metric of metrics) {
-      totalExchanges += metric.exchangesTotal;
-      totalCompleted += metric.exchangesCompleted;
-      totalFailed += metric.exchangesFailed;
-      totalProcessingTime += metric.totalProcessingTime;
-      totalMeanProcessingTime += metric.meanProcessingTime;
-    }
-
-    this.aggregateMetrics = {
-      totalRoutes: metrics.length,
-      totalExchanges: totalExchanges,
-      avgLatency: totalExchanges > 0 ? Math.round(totalProcessingTime / totalExchanges) : 0,
-      successRate: totalExchanges > 0 ? Math.round((totalCompleted / totalExchanges) * 100) : 0,
-      failedExchanges: totalFailed
-    };
-  }
-
-  // Enable a datasource
-  public enableDatasource(): void {
-    this.isEnabling = true;
-    this.datasourceService.enableDatasource(this.dataSourceId).subscribe({
-      next: () => {
-        this.datasourceStatus = 'UNKNOWN';
-        this.isEnabling = false;
-        // Refresh datasource to get updated status
-        this.getDatasource();
-      },
-      error: (error) => {
-        console.error('Failed to enable datasource:', error);
-        this.isEnabling = false;
-      }
-    });
-  }
-
-  // Disable a datasource
-  public disableDatasource(): void {
-    this.isDisabling = true;
-    this.datasourceService.disableDatasource(this.dataSourceId).subscribe({
-      next: () => {
-        this.datasourceStatus = 'DISABLED';
-        this.isDisabling = false;
-        // Refresh datasource to get updated status
-        this.getDatasource();
-      },
-      error: (error) => {
-        console.error('Failed to disable datasource:', error);
-        this.isDisabling = false;
-      }
-    });
-  }
-
-  // Trigger manual health check
-  public triggerHealthCheck(): void {
-    this.datasourceService.triggerHealthCheck(this.dataSourceId).subscribe({
-      next: () => {
-        // Wait a moment then refresh to get updated status
-        setTimeout(() => {
-          this.getDatasource();
-        }, 1000);
-      },
-      error: (error) => {
-        console.error('Failed to trigger health check:', error);
-      }
-    });
-  }
-
-  // Helper methods for status display
-  public getStatusIcon(status?: string): string {
-    switch(status) {
-      case 'UP': return 'check_circle';
-      case 'DOWN': return 'error';
-      case 'DISABLED': return 'block';
-      case 'CHECKING': return 'sync';
-      default: return 'help';
-    }
-  }
-
-  public getStatusClass(status?: string): string {
-    switch(status) {
-      case 'UP': return 'status-up';
-      case 'DOWN': return 'status-down';
-      case 'DISABLED': return 'status-disabled';
-      case 'CHECKING': return 'status-checking';
-      default: return 'status-unknown';
-    }
-  }
+  return n;
 }

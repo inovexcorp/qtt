@@ -16,27 +16,14 @@ import { DecimalPipe } from '@angular/common';
 import { RouteMetric } from '../../core/models/metric-data';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { MetricsLiveService } from '../../core/services/metrics-live.service';
-import { inScope, summarize } from './metrics-derive';
+import { inScope, RouteRow, summarize, toRow } from './metrics-derive';
 import { prefersReducedMotion } from './chart-theme';
 import { MetricsStatusComponent } from './metrics-status.component';
 import { TrendCardComponent } from './trend-card.component';
 import { ExchangesCardComponent } from './exchanges-card.component';
 import { LatencyCardComponent } from './latency-card.component';
-import { TweenNumberDirective } from './tween-number.directive';
+import { TweenNumberDirective } from '../../shared/tween-number.directive';
 
-/** A row of the routes table. */
-export interface RouteRow {
-  route: string;
-  state: string;
-  completed: number;
-  failed: number;
-  total: number;
-  successRate: number | null;
-  mean: number | null;
-  min: number | null;
-  max: number | null;
-  uptime: string;
-}
 
 /**
  * The metrics dashboard: summary tiles, a per-minute trend, exchanges and processing time by route, and the routes
@@ -219,20 +206,4 @@ export class MetricsComponent {
   protected readonly formatPercent = (v: number) => v === 100 ? '100'
     : Math.min(v, 99.9).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   protected readonly formatInteger = (v: number) => Math.round(v).toLocaleString();
-}
-
-function toRow(r: RouteMetric): RouteRow {
-  const has = r.exchangesTotal > 0;
-  return {
-    route: r.route,
-    state: r.state,
-    completed: r.exchangesCompleted,
-    failed: r.exchangesFailed,
-    total: r.exchangesTotal,
-    successRate: has ? (r.exchangesCompleted / r.exchangesTotal) * 100 : null,
-    mean: has && r.meanProcessingTime >= 0 ? r.meanProcessingTime : null,
-    min: has ? r.minProcessingTime : null,
-    max: has ? r.maxProcessingTime : null,
-    uptime: r.uptime,
-  };
 }

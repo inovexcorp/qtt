@@ -1,13 +1,34 @@
-<h2 class="modal-text">Are you sure you'd like to delete Datasource: {{data.dataSourceId}}?</h2>
-@if (data.associatedRoutes.length>0) {
-  <div class="associated-routes">
-    <div>These are the associated routes:</div>
-    @for (route of data.associatedRoutes; track route) {
-      <div><strong>{{route}}</strong></div>
+<div class="qtt-dialog">
+  <h2 mat-dialog-title>Delete {{ data.dataSourceId }}?</h2>
+  <mat-dialog-content>
+    @if (routes.length) {
+      <p class="qtt-dialog__note">
+        {{ routes.length === 1 ? 'This route uses' : 'These ' + routes.length + ' routes use' }} it and will be deleted with it:
+      </p>
+      <ul class="qtt-dialog__chips" aria-label="Routes using this datasource">
+        @for (route of routes; track route) {
+          <li>{{ route }}</li>
+        }
+      </ul>
+    } @else {
+      <p class="qtt-dialog__note">No routes use it. This can't be undone.</p>
     }
-  </div>
-}
-<div class="btn-sec">
-  <button mat-raised-button type="submit" class="close-btn" (click)="closeDialog()">Cancel</button>
-  <button mat-raised-button type="button" class="confirm-btn" color="primary" (click)="deleteDatasource(data.dataSourceId)">Confirm</button>
+    @if (error()) {
+      <p class="qtt-dialog__error" role="alert">
+        <mat-icon aria-hidden="true">error_outline</mat-icon>
+        <span><strong>Couldn't delete.</strong> {{ error() }}</span>
+      </p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button [mat-dialog-close]="false" [disabled]="deleting()" cdkFocusInitial>Cancel</button>
+    <button mat-flat-button class="qtt-dialog__danger" (click)="deleteDatasource()" [disabled]="deleting()">
+      @if (deleting()) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" aria-label="Deleting"></mat-progress-spinner>
+        Deleting…
+      } @else {
+        Delete datasource
+      }
+    </button>
+  </mat-dialog-actions>
 </div>

@@ -1,308 +1,391 @@
-<mat-card appearance="outlined" class="config-panel">
-  <div class="datasource-card-header">
-    <div class="title-block">
-      <h1 class="card-header">{{ dataSourceId }}</h1>
-      <app-audit-line [audit]="audit"></app-audit-line>
+<div class="qtt-page ds-detail" [class.is-ready]="ready()">
+  <header class="qtt-page-header">
+    <div class="qtt-page-header__heading">
+      <div class="ds-detail__title-row">
+        <h1 class="qtt-page-header__title">{{ dataSourceId() }}</h1>
+        <qtt-health-pill size="lg" [status]="status()"></qtt-health-pill>
+      </div>
+      <app-audit-line [audit]="datasource()?.audit"></app-audit-line>
     </div>
-    <button *qttIfRole="'admin'" class="delete-datasource" (click)="openConfirmDeleteDatasourceModal()" mat-icon-button>
-      <mat-icon>delete</mat-icon>
-    </button>
-  </div>
-  <mat-tab-group class="remove-border-bottom" mat-stretch-tabs animationDuration="500ms">
-    <mat-tab label="Config">
-      <div class="example-spacer"></div>
+    <div class="qtt-page-header__actions">
+      <qtt-live-indicator [status]="live.status()" [text]="liveText()" [announcement]="liveAnnouncement()"
+        [landed]="live.updatedAt()" (togglePause)="togglePause()" (refresh)="refreshAll()"></qtt-live-indicator>
+      <button *qttIfRole="'editor'" mat-stroked-button (click)="checkNow()"
+        [disabled]="busy() !== null || status() === 'DISABLED' || status() === 'CHECKING' || !live.healthCheckEnabled()"
+        [matTooltip]="!live.healthCheckEnabled() ? 'Automated health checks are off on the server' : status() === 'DISABLED' ? 'Enable the datasource to check it' : ''">
+        @if (busy() === 'check') {
+          <mat-progress-spinner mode="indeterminate" diameter="18" aria-hidden="true"></mat-progress-spinner>
+        } @else {
+          <mat-icon>monitor_heart</mat-icon>
+        }
+        {{ busy() === 'check' ? 'Checking…' : 'Check now' }}
+      </button>
+      @if (isAdmin()) {
+        @if (status() === 'DISABLED') {
+          <button mat-stroked-button (click)="setEnabled(true)" [disabled]="busy() !== null">
+            @if (busy() === 'enable') {
+              <mat-progress-spinner mode="indeterminate" diameter="18" aria-hidden="true"></mat-progress-spinner>
+            } @else {
+              <mat-icon>play_arrow</mat-icon>
+            }
+            Enable
+          </button>
+        } @else {
+          <button mat-stroked-button (click)="setEnabled(false)" [disabled]="busy() !== null"
+            matTooltip="Stop health checks for this datasource">
+            @if (busy() === 'disable') {
+              <mat-progress-spinner mode="indeterminate" diameter="18" aria-hidden="true"></mat-progress-spinner>
+            } @else {
+              <mat-icon>block</mat-icon>
+            }
+            Disable
+          </button>
+        }
+        <button mat-icon-button class="ds-delete" (click)="openDelete()" matTooltip="Delete datasource"
+          aria-label="Delete datasource">
+          <mat-icon>delete</mat-icon>
+        </button>
+      }
+    </div>
+  </header>
 
-      <!-- Health Status Section -->
-      <div class="health-status-section">
-        <!-- Health Checks Disabled Banner -->
-        @if (!healthCheckEnabled) {
-          <div class="health-disabled-banner">
-            <mat-icon>info</mat-icon>
-            <div class="banner-content">
-              <strong>Automated health checks are globally disabled.</strong>
-              <span>Health status may be stale. Use the "Test" button for manual verification.</span>
+  @if (notFound()) {
+    <div class="qtt-card">
+      <div class="qtt-empty" role="alert">
+        <mat-icon class="qtt-empty__icon">search_off</mat-icon>
+        <p class="qtt-empty__title">There's no datasource “{{ dataSourceId() }}”</p>
+        <p class="qtt-empty__detail">It may have been deleted or renamed.</p>
+        <button mat-stroked-button (click)="backToList()">Back to datasources</button>
+      </div>
+    </div>
+  } @else {
+    @if (loadFailed()) {
+      <div class="qtt-banner qtt-banner--error" role="alert">
+        <mat-icon class="qtt-banner__icon">error_outline</mat-icon>
+        <p class="qtt-banner__text"><strong>Couldn't load this datasource's settings.</strong> Check that the service is reachable.</p>
+        <button mat-stroked-button (click)="retryLoad()">Retry</button>
+      </div>
+    }
+    @if (!live.healthCheckEnabled()) {
+      <div class="qtt-banner qtt-banner--warn" role="status">
+        <mat-icon class="qtt-banner__icon">pause_circle</mat-icon>
+        <p class="qtt-banner__text">
+          <strong>Automated health checks are off.</strong>
+          The status stays as last checked; use Test connection below to try the settings.
+        </p>
+      </div>
+    }
+
+    <!-- Health -->
+    <section class="qtt-card ds-health" aria-labelledby="health-title">
+      <h2 id="health-title" class="qtt-card__title">Health</h2>
+      <div class="ds-health__grid">
+        <div class="ds-health__status">
+          @for (s of [statement()]; track s.title) {
+            <p class="ds-health__statement" [attr.data-status]="status()" animate.enter="ds-swap-in">{{ s.title }}</p>
+            <p class="ds-health__detail">{{ s.detail }}</p>
+          }
+          @if (lastChecked()) {
+            <p class="ds-health__detail">Last checked {{ lastChecked() }}</p>
+          }
+          @if (status() === 'DOWN' && health()?.lastHealthError) {
+            <div class="ds-health__error" animate.enter="ds-swap-in">
+              <mat-icon class="ds-health__error-icon" aria-hidden="true">error_outline</mat-icon>
+              <p>{{ health()!.lastHealthError }}</p>
             </div>
+          }
+        </div>
+        <div class="ds-health__history">
+          @if (live.datasources() === null && !live.failed()) {
+            <span class="ds-health__skeleton qtt-shimmer" aria-label="Loading checks"></span>
+          } @else {
+            <qtt-check-history size="full" [checks]="health()?.recentChecks ?? []" [now]="now()"
+              [dimmed]="status() === 'DISABLED'"></qtt-check-history>
+            <p class="ds-health__legend">
+              <span><span class="ds-health__key" aria-hidden="true"></span>Response time</span>
+              <span><span class="ds-health__key ds-health__key--down" aria-hidden="true"></span>Failed</span>
+            </p>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Connection -->
+    <section class="qtt-card ds-connection" aria-labelledby="connection-title">
+      <header class="qtt-card__header">
+        <div>
+          <h2 id="connection-title" class="qtt-card__title">Connection</h2>
+          <p class="qtt-card__subtitle">How QTT reaches this Graph Studio server.</p>
+        </div>
+      </header>
+
+      <form class="ds-form" [formGroup]="form" (ngSubmit)="save()">
+        @if (datasource() === null && !loadFailed()) {
+          @for (i of [0, 1, 2, 3]; track i) {
+            <span class="ds-form__skeleton qtt-shimmer" [class.ds-form__wide]="i === 0" aria-hidden="true"></span>
+          }
+        } @else {
+          <mat-form-field class="ds-form__wide" appearance="outline">
+            <mat-label>URL</mat-label>
+            <input matInput formControlName="url" type="url" autocomplete="off" spellcheck="false">
+            <mat-icon matSuffix>link</mat-icon>
+            <mat-error>Enter the Graph Studio URL</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Username</mat-label>
+            <input matInput formControlName="username" autocomplete="off" spellcheck="false">
+            <mat-icon matSuffix>account_circle</mat-icon>
+            <mat-error>Enter the username QTT signs in with</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Password</mat-label>
+            <input matInput [type]="hidePassword() ? 'password' : 'text'" formControlName="password"
+              placeholder="Unchanged" autocomplete="new-password">
+            <button mat-icon-button matSuffix type="button" (click)="hidePassword.set(!hidePassword())"
+              [attr.aria-label]="hidePassword() ? 'Show password' : 'Hide password'" [attr.aria-pressed]="!hidePassword()">
+              <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <mat-hint>Leave blank to keep the current password</mat-hint>
+            @if (form.controls.password.hasError('requiredForChange')) {
+              <mat-error>Enter the password when changing the URL or username</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Timeout</mat-label>
+            <input matInput formControlName="timeOutSeconds" inputmode="numeric">
+            <span matTextSuffix class="ds-form__unit">seconds</span>
+            <mat-hint>How long a query may run</mat-hint>
+            <mat-error>Enter a whole number of seconds</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Max query header length</mat-label>
+            <input matInput formControlName="maxQueryHeaderLength" inputmode="numeric">
+            <mat-hint>Longest query sent in a header</mat-hint>
+            <mat-error>Enter a whole number</mat-error>
+          </mat-form-field>
+
+          <div class="ds-form__wide ds-form__toggle">
+            <mat-slide-toggle formControlName="validateCertificate">Validate HTTPS certificates</mat-slide-toggle>
+            <p class="ds-form__toggle-hint">
+              @if (form.controls.validateCertificate.value) {
+                The server's certificate must be trusted.
+              } @else {
+                Any certificate is accepted. Use only for test servers with self-signed certificates.
+              }
+            </p>
           </div>
         }
 
-        <div class="status-display">
-          <span class="status-label">Health Status:</span>
-          <div class="status-badge-large"
-            [class]="getStatusClass(datasourceStatus)">
-            <mat-icon>{{getStatusIcon(datasourceStatus)}}</mat-icon>
-            <span class="status-text">{{datasourceStatus || 'UNKNOWN'}}</span>
+        @if (isAdmin()) {
+          <div class="ds-form__actions ds-form__wide">
+            <button mat-stroked-button type="button" (click)="runTest()"
+              [disabled]="form.invalid || test().state === 'testing' || datasource() === null">
+              @if (test().state === 'testing') {
+                <mat-progress-spinner mode="indeterminate" diameter="18" aria-hidden="true"></mat-progress-spinner>
+              } @else {
+                <mat-icon>network_check</mat-icon>
+              }
+              {{ test().state === 'testing' ? 'Testing…' : 'Test connection' }}
+            </button>
+            <span class="ds-form__spacer"></span>
+            @if (changes().length) {
+              <span class="ds-form__dirty" animate.enter="ds-swap-in">
+                {{ changes().length }} unsaved {{ changes().length === 1 ? 'change' : 'changes' }}
+              </span>
+              <button mat-button type="button" (click)="discard()">Discard</button>
+            }
+            <button mat-flat-button type="submit" [disabled]="form.invalid || changes().length === 0">Save changes</button>
           </div>
-        </div>
-        <div class="health-actions">
-          <button *qttIfRole="'admin'" mat-raised-button
-            color="primary"
-            [disabled]="isEnabling || datasourceStatus === 'UP' || datasourceStatus === 'CHECKING'"
-            (click)="enableDatasource()">
-            <mat-icon>play_arrow</mat-icon>
-            @if (!isEnabling) {
-              <span>Enable</span>
-            }
-            @if (isEnabling) {
-              <span>Enabling...</span>
-            }
-          </button>
+        }
 
-          <button *qttIfRole="'admin'" mat-raised-button
-            color="warn"
-            [disabled]="isDisabling || datasourceStatus === 'DISABLED'"
-            (click)="disableDatasource()">
-            <mat-icon>block</mat-icon>
-            @if (!isDisabling) {
-              <span>Disable</span>
+        <div class="ds-form__wide" aria-live="polite">
+          @switch (test().state) {
+            @case ('success') {
+              <div class="ds-test ds-test--success" animate.enter="ds-reveal" animate.leave="ds-conceal">
+                <mat-icon aria-hidden="true">check_circle</mat-icon>
+                <p><strong>Connection succeeded.</strong> QTT signed in and read the server's graphmarts with these settings.</p>
+              </div>
             }
-            @if (isDisabling) {
-              <span>Disabling...</span>
+            @case ('error') {
+              <div class="ds-test ds-test--error" animate.enter="ds-reveal" animate.leave="ds-conceal">
+                <mat-icon aria-hidden="true">error_outline</mat-icon>
+                <div>
+                  <p><strong>Connection failed.</strong></p>
+                  <p class="ds-test__message">{{ test().message }}</p>
+                </div>
+              </div>
             }
-          </button>
-
-          <button *qttIfRole="'editor'" mat-raised-button
-            color="accent"
-            [disabled]="datasourceStatus === 'DISABLED' || datasourceStatus === 'CHECKING' || !healthCheckEnabled"
-            [matTooltip]="!healthCheckEnabled ? 'Automated health checks are globally disabled' : ''"
-            (click)="triggerHealthCheck()">
-            <mat-icon>refresh</mat-icon>
-            Check Now
-          </button>
-        </div>
-      </div>
-
-      <mat-divider></mat-divider>
-
-      <form [formGroup]="configDatasource">
-        <div>
-          <mat-form-field class="config-datasource-form-field" appearance="outline">
-            <mat-label>URL</mat-label>
-            <input type="text" matInput formControlName="url">
-            <mat-icon matSuffix>link</mat-icon>
-            @if (url && url.invalid && url.touched) {
-              <mat-error>Require a URL</mat-error>
-            }
-          </mat-form-field>
-        </div>
-        <div>
-          <mat-form-field class="config-datasource-form-field" appearance="outline">
-            <mat-label>Time Out Seconds</mat-label>
-            <input height="50rem" matInput formControlName="timeOutSeconds">
-            <mat-icon matSuffix>timelapse</mat-icon>
-            @if (timeOutSeconds && timeOutSeconds.invalid && timeOutSeconds.touched) {
-              <mat-error>Require a
-                TimeOutSeconds number
-              </mat-error>
-            }
-          </mat-form-field>
-        </div>
-        <div>
-          <mat-form-field class="config-datasource-form-field" appearance="outline">
-            <mat-label>Max Query Header Length</mat-label>
-            <input matInput formControlName="maxQueryHeaderLength">
-            <mat-icon matSuffix>settings_ethernet</mat-icon>
-            @if (maxQueryHeaderLength && maxQueryHeaderLength.invalid && maxQueryHeaderLength.touched) {
-              <mat-error>
-                Require a Max Query Header Length
-              </mat-error>
-            }
-          </mat-form-field>
-        </div>
-        <div>
-          <mat-form-field class="config-datasource-form-field" appearance="outline">
-            <mat-label>Username</mat-label>
-            <input matInput formControlName="username">
-            <mat-icon matSuffix>account_circle</mat-icon>
-            @if (username && username.invalid && username.touched) {
-              <mat-error>Require a Username</mat-error>
-            }
-          </mat-form-field>
-        </div>
-        <div>
-          <mat-form-field class="config-datasource-form-field" appearance="outline">
-            <mat-label>Password</mat-label>
-            <input matInput [type]="hide ? 'password' : 'text'" formControlName="password"
-              placeholder="Unchanged" autocomplete="new-password">
-            <mat-icon matSuffix (click)="hide = !hide">{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
-            <mat-hint>Leave blank to keep the current password</mat-hint>
-            @if (password?.hasError('requiredForChange')) {
-              <mat-error>
-                Enter the password when changing the URL or username
-              </mat-error>
-            }
-          </mat-form-field>
-        </div>
-        <div>
-          <mat-form-field class="config-datasource-form-field" appearance="outline">
-            <mat-label>Validate HTTPS Certificates</mat-label>
-            <mat-select formControlName="validateCertificate">
-              <mat-option value="true">
-                <mat-icon>key</mat-icon>
-                Validate Certificates
-              </mat-option>
-              <mat-option value="false">
-                <mat-icon>key_off</mat-icon>
-                Ignore Certificates
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+          }
         </div>
       </form>
-      <button *qttIfRole="'admin'" type="submit" [disabled]="!configDatasource.valid" mat-raised-button color="primary" id="submit-button"
-        (click)="config(dataSourceId); "><mat-icon>check</mat-icon>Submit
-      </button>
-      <button *qttIfRole="'admin'" type="button" [disabled]="!configDatasource.valid" mat-raised-button color="accent" id="test-button"
-        (click)="test()"><mat-icon>network_check</mat-icon>Test
-      </button>
-      @if (testResponseStatus) {
-<div class="test-response" [ngClass]="{
-          'success': testResponseStatus === 'success',
-          'error': testResponseStatus === 'error'
-        }">
-          @if (testResponseStatus === 'success') {
-            <div>
-              Connection successful!
-              @if (testResponse) {
-                <pre>{{ testResponse | json }}</pre>
-              }
-            </div>
-          }
-          @if (testResponseStatus === 'error') {
-            <div>
-              Connection failed!
-              @if (testResponse) {
-                <pre>{{ testResponse | json }}</pre>
-              }
-            </div>
-          }
-        </div>
-      }
-    </mat-tab>
-    <mat-tab label="Usage">
-      <div class="usage-tab-content">
-        @if (isLoadingMetrics) {
-          <div class="loading-container">
-            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-            <p>Loading metrics...</p>
-          </div>
-        }
+    </section>
 
-        @if (!isLoadingMetrics) {
-          <div class="metrics-container">
-            <!-- Aggregate Metrics Cards -->
-            <div class="aggregate-metrics">
-              <mat-card class="metric-card">
-                <mat-card-header>
-                  <mat-card-title>Total Routes</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  <div class="metric-value">{{ aggregateMetrics.totalRoutes }}</div>
-                  <div class="metric-label">routes using this datasource</div>
-                </mat-card-content>
-              </mat-card>
-              <mat-card class="metric-card">
-                <mat-card-header>
-                  <mat-card-title>Total Exchanges</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  <div class="metric-value">{{ aggregateMetrics.totalExchanges }}</div>
-                  <div class="metric-label">total processed</div>
-                </mat-card-content>
-              </mat-card>
-              <mat-card class="metric-card">
-                <mat-card-header>
-                  <mat-card-title>Avg Latency</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  <div class="metric-value">{{ aggregateMetrics.avgLatency }}ms</div>
-                  <div class="metric-label">average processing time</div>
-                </mat-card-content>
-              </mat-card>
-              <mat-card class="metric-card">
-                <mat-card-header>
-                  <mat-card-title>Success Rate</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  <div class="metric-value">{{ aggregateMetrics.successRate }}%</div>
-                  <div class="metric-label">exchanges completed</div>
-                </mat-card-content>
-              </mat-card>
-              <mat-card class="metric-card">
-                <mat-card-header>
-                  <mat-card-title>Failed Exchanges</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  <div class="metric-value">{{ aggregateMetrics.failedExchanges }}</div>
-                  <div class="metric-label">total failed</div>
-                </mat-card-content>
-              </mat-card>
+    <!-- Usage -->
+    <section class="ds-usage" aria-labelledby="usage-title">
+      <div class="ds-section-head">
+        <h2 id="usage-title" class="ds-section-head__title">Usage</h2>
+        <p class="ds-section-head__subtitle">Routes that query this datasource, with totals since each started.</p>
+      </div>
+
+      <div class="qtt-tiles">
+        <article class="qtt-tile">
+          <h3 class="qtt-tile__label">Routes</h3>
+          @if (summary(); as s) {
+            <p class="qtt-tile__value"><span [qttTweenNumber]="s.endpoints" [format]="formatInteger"></span></p>
+            <p class="qtt-tile__hint">
+              @if (s.endpoints === 0) { None use it yet }
+              @else if (stopped() > 0) { <mat-icon inline class="qtt-tile__warn">warning</mat-icon>{{ stopped() }} not started }
+              @else { All started }
+            </p>
+          } @else if (usage.routesFailed()) {
+            <p class="qtt-tile__value qtt-tile__value--missing">—</p>
+            <p class="qtt-tile__hint">Unavailable</p>
+          } @else {
+            <span class="qtt-tile__skeleton" aria-label="Loading"></span>
+          }
+        </article>
+
+        <article class="qtt-tile">
+          <h3 class="qtt-tile__label">Exchanges</h3>
+          @if (summary(); as s) {
+            <p class="qtt-tile__value"><span [qttTweenNumber]="s.totalExchanges" [format]="formatInteger"></span></p>
+            <p class="qtt-tile__hint">{{ s.totalExchanges ? 'Since the routes started' : missingReason() }}</p>
+          } @else if (usage.routesFailed()) {
+            <p class="qtt-tile__value qtt-tile__value--missing">—</p>
+            <p class="qtt-tile__hint">Unavailable</p>
+          } @else {
+            <span class="qtt-tile__skeleton" aria-label="Loading"></span>
+          }
+        </article>
+
+        <article class="qtt-tile">
+          <h3 class="qtt-tile__label">Avg processing time</h3>
+          @if (avgParts(); as avg) {
+            <p class="qtt-tile__value">
+              <span [qttTweenNumber]="avg.value" [format]="formatOneDecimal"></span><span class="qtt-tile__unit">{{ avg.unit }}</span>
+            </p>
+            <p class="qtt-tile__hint">Per exchange</p>
+          } @else if (summary() || usage.routesFailed()) {
+            <p class="qtt-tile__value qtt-tile__value--missing" matTooltip="An average needs at least one exchange">—</p>
+            <p class="qtt-tile__hint">{{ missingReason() }}</p>
+          } @else {
+            <span class="qtt-tile__skeleton" aria-label="Loading"></span>
+          }
+        </article>
+
+        <article class="qtt-tile">
+          <h3 class="qtt-tile__label">Success rate</h3>
+          @if (summary()?.successRate != null) {
+            <p class="qtt-tile__value">
+              <span [qttTweenNumber]="summary()!.successRate!" [format]="formatPercent"></span><span class="qtt-tile__unit qtt-tile__unit--tight">%</span>
+            </p>
+            <div class="qtt-meter" role="meter" aria-label="Success rate" aria-valuemin="0" aria-valuemax="100"
+              [attr.aria-valuenow]="summary()!.successRate">
+              <span class="qtt-meter__fill" [style.transform]="'scaleX(' + summary()!.successRate! / 100 + ')'"></span>
             </div>
-            <!-- Routes Table -->
-            <div class="routes-table-container">
-              <div class="table-header">
-                <h3>Routes Using This Datasource ({{ routeMetrics.length }} total)</h3>
-                <mat-form-field appearance="outline" class="filter-field">
-                  <mat-label>Search routes</mat-label>
-                  <input #filterInput matInput (keyup)="applyRouteFilter(filterInput.value)" placeholder="Filter by route name, state, etc.">
-                  <mat-icon matSuffix>search</mat-icon>
-                </mat-form-field>
-              </div>
-              <table mat-table [dataSource]="routeMetricsDataSource" matSort class="elevated-table">
-                <!-- Route Name Column -->
-                <ng-container matColumnDef="route">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Route</th>
-                  <td mat-cell *matCellDef="let metric">{{ metric.route }}</td>
-                </ng-container>
-                <!-- State Column -->
-                <ng-container matColumnDef="state">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>State</th>
-                  <td mat-cell *matCellDef="let metric">
-                    <span [ngClass]="{'state-started': metric.state === 'Started', 'state-stopped': metric.state === 'Stopped'}">
-                      {{ metric.state }}
-                    </span>
-                  </td>
-                </ng-container>
-                <!-- Processing Time Column -->
-                <ng-container matColumnDef="processingTime">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Processing Time (Min/Avg/Max)</th>
-                  <td mat-cell *matCellDef="let metric">
-                    {{ metric.minProcessingTime }}ms / {{ metric.meanProcessingTime }}ms / {{ metric.maxProcessingTime }}ms
-                  </td>
-                </ng-container>
-                <!-- Total Exchanges Column -->
-                <ng-container matColumnDef="exchanges">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Exchanges</th>
-                  <td mat-cell *matCellDef="let metric">
-                    <span class="success-count">{{ metric.exchangesCompleted }} completed</span> /
-                    <span class="failed-count">{{ metric.exchangesFailed }} failed</span>
-                  </td>
-                </ng-container>
-                <!-- Uptime Column -->
-                <ng-container matColumnDef="uptime">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Uptime</th>
-                  <td mat-cell *matCellDef="let metric">{{ metric.uptime }}</td>
-                </ng-container>
-                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-              </table>
-              <mat-paginator
-                #paginator
-                [pageSize]="10"
-                [pageSizeOptions]="[5, 10, 25, 50]"
-                [showFirstLastButtons]="true"
-                aria-label="Select page of routes">
-              </mat-paginator>
-              @if (routeMetrics.length === 0) {
-                <div class="no-routes-message">
-                  <mat-icon>info</mat-icon>
-                  <p>No routes are currently using this datasource.</p>
-                </div>
+            <p class="qtt-tile__hint">{{ failedTotal() | number }} failed</p>
+          } @else if (summary() || usage.routesFailed()) {
+            <p class="qtt-tile__value qtt-tile__value--missing" matTooltip="A success rate needs at least one exchange">—</p>
+            <p class="qtt-tile__hint">{{ missingReason() }}</p>
+          } @else {
+            <span class="qtt-tile__skeleton" aria-label="Loading"></span>
+          }
+        </article>
+      </div>
+
+      <div class="qtt-card ds-routes">
+        <header class="qtt-card__header">
+          <div>
+            <h3 class="qtt-card__title">Routes using {{ dataSourceId() }}</h3>
+            <p class="qtt-card__subtitle">Open a route to edit its query</p>
+          </div>
+          @if (tableMode() === null) {
+            <mat-form-field class="qtt-search" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Find a route</mat-label>
+              <input #searchBox matInput (input)="search(searchBox.value)">
+              <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
+          }
+        </header>
+
+        @switch (tableMode()) {
+          @case ('loading') {
+            <div class="ds-routes__skeleton" role="status" aria-label="Loading routes">
+              @for (w of [78, 52, 64]; track $index) {
+                <span class="qtt-shimmer" [style.width.%]="w"></span>
               }
             </div>
-          </div>
+          }
+          @case ('error') {
+            <div class="qtt-empty" role="status">
+              <mat-icon class="qtt-empty__icon">error_outline</mat-icon>
+              <p class="qtt-empty__title">Couldn't load route metrics</p>
+              <p class="qtt-empty__detail">Retrying automatically.</p>
+            </div>
+          }
+          @case ('empty') {
+            <div class="qtt-empty" role="status">
+              <mat-icon class="qtt-empty__icon">alt_route</mat-icon>
+              <p class="qtt-empty__title">No routes use this datasource</p>
+              <p class="qtt-empty__detail">Routes appear here once one is built on it.</p>
+              <a mat-stroked-button routerLink="/routes">Go to routes</a>
+            </div>
+          }
         }
+        <div class="qtt-table-wrap" [hidden]="tableMode() !== null">
+          <table mat-table [dataSource]="table" matSort matSortActive="completed" matSortDirection="desc" class="qtt-table ds-routes__table">
+            <ng-container matColumnDef="route">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Route</th>
+              <td mat-cell *matCellDef="let row"><a class="ds-routes__link" [routerLink]="routeLink(row.route)">{{ row.route }}</a></td>
+            </ng-container>
+            <ng-container matColumnDef="state">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>State</th>
+              <td mat-cell *matCellDef="let row"><span class="qtt-state" [class.qtt-state--started]="row.state === 'Started'">{{ row.state }}</span></td>
+            </ng-container>
+            <ng-container matColumnDef="completed">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="qtt-num">Successful</th>
+              <td mat-cell *matCellDef="let row" class="qtt-num">{{ row.completed | number }}</td>
+            </ng-container>
+            <ng-container matColumnDef="failed">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="qtt-num">Failed</th>
+              <td mat-cell *matCellDef="let row" class="qtt-num" [class.qtt-num--bad]="row.failed > 0">{{ row.failed | number }}</td>
+            </ng-container>
+            <ng-container matColumnDef="successRate">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="qtt-num">Success</th>
+              <td mat-cell *matCellDef="let row" class="qtt-num">
+                @if (row.successRate !== null) { {{ row.successRate | number:'1.0-1' }}% } @else { <span class="qtt-missing" matTooltip="No exchanges yet">—</span> }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="mean">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="qtt-num">Avg</th>
+              <td mat-cell *matCellDef="let row" class="qtt-num">
+                @if (row.mean !== null) { {{ row.mean | number }} ms } @else { <span class="qtt-missing" matTooltip="No exchanges yet">—</span> }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="range">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="qtt-num">Min – max</th>
+              <td mat-cell *matCellDef="let row" class="qtt-num">
+                @if (row.min !== null) { {{ row.min | number }} – {{ row.max | number }} ms } @else { <span class="qtt-missing" matTooltip="No exchanges yet">—</span> }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="uptime">
+              <th mat-header-cell *matHeaderCellDef class="qtt-num">Uptime</th>
+              <td mat-cell *matCellDef="let row" class="qtt-num">{{ row.uptime }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="columns"></tr>
+            <tr mat-row *matRowDef="let row; columns: columns"></tr>
+            <tr class="mat-mdc-row" *matNoDataRow>
+              <td class="mat-mdc-cell qtt-table__none" [attr.colspan]="columns.length">No routes match “{{ table.filter }}”</td>
+            </tr>
+          </table>
+          <mat-paginator [pageSize]="10" [pageSizeOptions]="[10, 25, 50]" [hidePageSize]="table.data.length <= 10"
+            aria-label="Routes table pages"></mat-paginator>
+        </div>
       </div>
-    </mat-tab>
-  </mat-tab-group>
-  <div></div>
-</mat-card>
+    </section>
+  }
+</div>

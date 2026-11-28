@@ -51,7 +51,8 @@ export function isSameOrigin(url: string): boolean {
   }
 }
 
-function signInAgain(snackBar: MatSnackBar): void {
+/** Reload the page so the browser signs in again (guarded against a reload loop when signing in keeps failing). */
+export function signInAgain(snackBar: MatSnackBar): void {
   let last = 0;
   try {
     last = Number(sessionStorage.getItem(SIGN_IN_RELOAD_KEY) ?? 0);

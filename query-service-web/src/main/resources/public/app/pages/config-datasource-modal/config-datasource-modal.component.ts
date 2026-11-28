@@ -1,40 +1,59 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
-import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { Router } from '@angular/router';
-import { Inject, ViewEncapsulation } from '@angular/core';
-import { DatasourceService } from '../../core/services/datasource.service';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogRef, MatDialogTitle } from '@angular/material/dialog';
 import { MatButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { DatasourceService } from '../../core/services/datasource.service';
+import { Datasources } from '../../core/models/datasources';
+import { saveErrorMessage } from '../../core/http-error-message';
 
-
-@Component({
-    selector: 'app-config-datasource-modal',
-    templateUrl: './config-datasource-modal.component.html',
-    styleUrls: ['./config-datasource-modal.component.scss'],
-    encapsulation: ViewEncapsulation.None,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    imports: [MatButton]
-})
-export class ConfigDatasourceModalComponent {
-
-  associatedRoutes!: string[];
-
-  constructor(public dialog: MatDialog, @Inject(MAT_DIALOG_DATA) public data: any, public router: Router, private datasourceService: DatasourceService) { }
-
-
-
-  ngOnInit(): void {
-  }
-
-  closeDialog(): void {
-    this.dialog.closeAll();
-  }
-
-
-  configDatasource(){
-    this.datasourceService.modifyDatasource(this.data.datasource).subscribe(()=>{
-      this.closeDialog();
-      this.router.navigate(['../datasources']);
-    });
+/** One changed setting; from/to are null for a secret (the password). */
+export interface DatasourceChange {
+  label: string;
+  from: string | null;
+  to: string | null;
 }
 
+export interface SaveDatasourceDialogData {
+  datasource: Datasources;
+  changes: DatasourceChange[];
+  associatedRoutes: string[];
+}
+
+/**
+ * Confirms saving a datasource's settings: what changes, and which routes use it. Saves itself (so progress and
+ * a failure show here) and closes with true once saved.
+ */
+@Component({
+  selector: 'app-config-datasource-modal',
+  templateUrl: './config-datasource-modal.component.html',
+  styleUrls: ['./config-datasource-modal.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, MatIcon, MatProgressSpinner],
+})
+export class ConfigDatasourceModalComponent {
+  protected readonly data = inject<SaveDatasourceDialogData>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject<MatDialogRef<ConfigDatasourceModalComponent, boolean>>(MatDialogRef);
+  private readonly api = inject(DatasourceService);
+
+  protected readonly saving = signal(false);
+  protected readonly error = signal<string | null>(null);
+
+  protected get routes(): string[] {
+    return this.data.associatedRoutes ?? [];
+  }
+
+  protected save(): void {
+    this.saving.set(true);
+    this.error.set(null);
+    this.dialogRef.disableClose = true;
+    this.api.modifyDatasource(this.data.datasource).subscribe({
+      next: () => this.dialogRef.close(true),
+      error: error => {
+        this.saving.set(false);
+        this.dialogRef.disableClose = false;
+        this.error.set(saveErrorMessage(error));
+      },
+    });
+  }
 }
