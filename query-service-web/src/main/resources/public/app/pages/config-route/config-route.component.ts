@@ -1,15 +1,14 @@
 import { Component, ElementRef, OnInit, AfterViewInit, OnDestroy, ViewChild, Inject, inject, ChangeDetectionStrategy } from '@angular/core';
 import { SettingsService } from '../../core/services/settings.service';
 import { effectiveAccess } from '../../shared/query-endpoint';
-import { FormGroup, FormControl, Validators } from '@angular/forms';
+import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ViewEncapsulation } from '@angular/core';
-import { trigger, state, style, transition, animate } from '@angular/animations';
 import { Datasources } from '../../core/models/datasources';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { ConfigRouteService } from './config-route.service';
 import { NewRoute } from '../../core/models/routes-interfaces/new-route';
-import { Router, ActivatedRoute } from '@angular/router';
-import { MatIconRegistry } from '@angular/material/icon';
+import { Router, ActivatedRoute, RouterLink } from '@angular/router';
+import { MatIconRegistry, MatIcon } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { map, Observable, startWith, Subject, takeUntil } from 'rxjs';
 import { Graphmarts } from '../../core/models/graphmarts';
@@ -17,8 +16,8 @@ import { GraphmartsService } from '../../core/services/graphmarts.service';
 import { GraphmartLayers } from '../../core/models/graphmart-layers';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { LayersService } from '../../core/services/layers.service';
-import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { MatChipInputEvent } from '@angular/material/chips';
+import { MatAutocompleteSelectedEvent, MatAutocompleteTrigger, MatAutocomplete } from '@angular/material/autocomplete';
+import { MatChipInputEvent, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput } from '@angular/material/chips';
 import { OntologyService } from '../../core/services/ontology/ontology.service';
 import { registerOntologyAutocomplete, OntologyAutocompleteProvider } from '../../core/services/ontology/ontology-autocomplete.provider';
 import { RoutesService } from '../routes/routes.service';
@@ -27,12 +26,30 @@ import { DrawerService } from '../../core/services/drawer.service';
 import { SparqiService } from '../../core/services/sparqi.service';
 import { CacheService } from '../../core/services/cache.service';
 import { CacheInfo, RouteCacheStats } from '../../core/models/cache-info';
-import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialog, MAT_DIALOG_DATA, MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTabChangeEvent } from '@angular/material/tabs';
+import { MatTabChangeEvent, MatTabGroup, MatTab } from '@angular/material/tabs';
 import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
 import * as monaco from 'monaco-editor'; // the full editor: every contribution (suggest, find, ...) and language
 import { loadMonacoStyles } from '../../shared/code-editor/monaco-environment';
+import { MatCard, MatCardContent } from '@angular/material/card';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
+import { AuditLineComponent } from '../../shared/audit-line/audit-line.component';
+import { IfRoleDirective } from '../../shared/if-role.directive';
+import { EndpointPanelComponent } from '../../shared/endpoint-panel/endpoint-panel.component';
+import { RouteAccessComponent } from '../../shared/route-access/route-access.component';
+import { MatFormField, MatLabel, MatSuffix, MatHint } from '@angular/material/form-field';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { MatInput } from '@angular/material/input';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatExpansionPanel, MatExpansionPanelHeader, MatExpansionPanelTitle, MatExpansionPanelDescription } from '@angular/material/expansion';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { CodeEditorComponent } from '../../shared/code-editor/code-editor.component';
+import { SparqiChatComponent } from './sparqi-chat/sparqi-chat.component';
+import { AsyncPipe, JsonPipe } from '@angular/common';
+import { CdkScrollable } from '@angular/cdk/scrolling';
 
 
 
@@ -41,19 +58,8 @@ import { loadMonacoStyles } from '../../shared/code-editor/monaco-environment';
     templateUrl: './config-route.component.html',
     styleUrls: ['./config-route.component.scss'],
     encapsulation: ViewEncapsulation.None,
-    animations: [
-        trigger('slideDown', [
-            transition(':enter', [
-                style({ height: 0, opacity: 0, overflow: 'hidden' }),
-                animate('300ms ease-out', style({ height: '*', opacity: 1 }))
-            ]),
-            transition(':leave', [
-                animate('300ms ease-in', style({ height: 0, opacity: 0, overflow: 'hidden' }))
-            ])
-        ])
-    ],
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [MatCard, MatIconButton, MatTooltip, MatIcon, AuditLineComponent, MatButton, IfRoleDirective, RouterLink, FormsModule, ReactiveFormsModule, MatTabGroup, MatTab, EndpointPanelComponent, RouteAccessComponent, MatFormField, MatLabel, MatSelect, MatOption, MatSuffix, MatInput, MatAutocompleteTrigger, MatAutocomplete, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput, MatSlideToggle, MatProgressSpinner, MatCardContent, MatExpansionPanel, MatExpansionPanelHeader, MatExpansionPanelTitle, MatExpansionPanelDescription, MatHint, MatCheckbox, CodeEditorComponent, SparqiChatComponent, AsyncPipe, JsonPipe]
 })
 export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
 
@@ -1558,7 +1564,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   `],
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [MatDialogTitle, CdkScrollable, MatDialogContent, MatIcon, MatDialogActions, MatButton, MatDialogClose]
 })
 export class CacheClearConfirmDialog {
   constructor(

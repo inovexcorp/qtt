@@ -11,8 +11,7 @@ describe('RouteAccessComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [RouteAccessComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, RouteAccessComponent],
       schemas: [NO_ERRORS_SCHEMA]
     }).compileComponents();
     fixture = TestBed.createComponent(RouteAccessComponent);

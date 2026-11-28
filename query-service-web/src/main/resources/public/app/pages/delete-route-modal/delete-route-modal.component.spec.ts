@@ -11,11 +11,10 @@ describe('DeleteModalComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [DeleteRouteModalComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, DeleteRouteModalComponent],
       providers: [
-        { provide: MAT_DIALOG_DATA, useValue: {} },
-        { provide: MatDialogRef, useValue: { close: () => {} } }
+          { provide: MAT_DIALOG_DATA, useValue: {} },
+          { provide: MatDialogRef, useValue: { close: () => { } } }
       ],
       schemas: [NO_ERRORS_SCHEMA]
     })

@@ -11,17 +11,16 @@ describe('ConfirmDialogComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [DeleteDatasourceModalComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, DeleteDatasourceModalComponent],
       providers: [
-        {
-          provide: MAT_DIALOG_DATA,
-          useValue: {
-            dataSourceId: '1',
-            associatedRoutes: []
-          }
-        },
-        { provide: MatDialogRef, useValue: { close: () => {} } }
+          {
+              provide: MAT_DIALOG_DATA,
+              useValue: {
+                  dataSourceId: '1',
+                  associatedRoutes: []
+              }
+          },
+          { provide: MatDialogRef, useValue: { close: () => { } } }
       ],
       schemas: [NO_ERRORS_SCHEMA]
     })

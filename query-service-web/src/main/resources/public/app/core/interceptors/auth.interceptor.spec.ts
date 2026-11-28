@@ -1,12 +1,12 @@
 import type { MockedObject } from 'vitest';
 import { TestBed } from '@angular/core/testing';
-import { HTTP_INTERCEPTORS, HttpClient, provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
+import { HttpClient, provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { AuthInterceptor, REQUESTED_WITH } from './auth.interceptor';
+import { authInterceptor, isSameOrigin, REQUESTED_WITH } from './auth.interceptor';
 import { SIGN_IN_RELOAD_KEY } from '../services/auth.service';
 
-describe('AuthInterceptor', () => {
+describe('authInterceptor', () => {
   let http: HttpClient;
   let backend: HttpTestingController;
   let snackBar: MockedObject<MatSnackBar>;
@@ -17,9 +17,8 @@ describe('AuthInterceptor', () => {
     } as unknown as MockedObject<MatSnackBar>;
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(withXhr(), withInterceptorsFromDi()),
+        provideHttpClient(withXhr(), withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
-        { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
         { provide: MatSnackBar, useValue: snackBar }
       ]
     });
@@ -55,10 +54,10 @@ describe('AuthInterceptor', () => {
   });
 
   it('recognises same-origin URLs', () => {
-    expect(AuthInterceptor.isSameOrigin('/queryrest/api/me')).toBe(true);
-    expect(AuthInterceptor.isSameOrigin('assets/i18n.json')).toBe(true);
-    expect(AuthInterceptor.isSameOrigin(window.location.origin + '/queryrest/api/me')).toBe(true);
-    expect(AuthInterceptor.isSameOrigin('https://example.com/x')).toBe(false);
-    expect(AuthInterceptor.isSameOrigin('//example.com/x')).toBe(false);
+    expect(isSameOrigin('/queryrest/api/me')).toBe(true);
+    expect(isSameOrigin('assets/i18n.json')).toBe(true);
+    expect(isSameOrigin(window.location.origin + '/queryrest/api/me')).toBe(true);
+    expect(isSameOrigin('https://example.com/x')).toBe(false);
+    expect(isSameOrigin('//example.com/x')).toBe(false);
   });
 });

@@ -5,7 +5,7 @@
     </button>
     <div class="title-block">
       <h1 class="card-header">Config Route: {{routeId}}</h1>
-      <app-audit-line [audit]="$safeNavigationMigration(routeData?.audit)"></app-audit-line>
+      <app-audit-line [audit]="routeData?.audit"></app-audit-line>
     </div>
     <div class="header-actions">
       <!-- Save/Cancel Buttons -->
@@ -421,7 +421,7 @@
                       </div>
                       <!-- Progress Indicator -->
                       @if (isGeneratingRequest) {
-                        <div class="sparqi-gen-progress" @slideDown>
+                        <div class="sparqi-gen-progress" animate.enter="slide-down-enter" animate.leave="slide-down-leave">
                           <div class="progress-header">
                             <mat-spinner diameter="24"></mat-spinner>
                             <span class="progress-title">SPARQi is working...</span>
@@ -448,7 +448,7 @@
                       }
                       <!-- Success Banner -->
                       @if (generationSuccess) {
-                        <div class="sparqi-gen-success" @slideDown>
+                        <div class="sparqi-gen-success" animate.enter="slide-down-enter" animate.leave="slide-down-leave">
                           <mat-icon>check_circle</mat-icon>
                           <div class="success-content">
                             <strong>Test data generated successfully!</strong>

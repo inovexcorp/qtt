@@ -2,6 +2,7 @@ import { Component, Inject, OnInit, ViewEncapsulation, ChangeDetectionStrategy }
 import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { DeleteRouteModalService } from './delete-route-modal.service';
 import { Router } from '@angular/router';
+import { MatButton } from '@angular/material/button';
 
 
 @Component({
@@ -10,7 +11,7 @@ import { Router } from '@angular/router';
     styleUrls: ['./delete-route-modal.component.scss'],
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [MatButton]
 })
 export class DeleteRouteModalComponent implements OnInit {
 

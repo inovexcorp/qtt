@@ -1,5 +1,6 @@
 import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { AuditInfo } from '../../core/models/audit';
+import { DatePipe } from '@angular/common';
 
 /** One quiet line: "Created by alice on … · Last changed by bob on …". Renders nothing without audit data. */
 @Component({
@@ -26,7 +27,7 @@ import { AuditInfo } from '../../core/models/audit';
     }`,
     styles: [`.audit-line { margin: 4px 0 8px; font-size: 12px; color: rgba(0, 0, 0, 0.6); }`],
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [DatePipe]
 })
 export class AuditLineComponent {
   @Input() audit?: AuditInfo | null;

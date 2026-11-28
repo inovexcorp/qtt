@@ -10,8 +10,7 @@ describe('QsBreadcrumbComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [QsBreadcrumbComponent],
-      imports: [RouterTestingModule],
+      imports: [RouterTestingModule, QsBreadcrumbComponent],
       schemas: [NO_ERRORS_SCHEMA]
     })
     .compileComponents();

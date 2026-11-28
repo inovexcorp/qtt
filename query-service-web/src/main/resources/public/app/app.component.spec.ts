@@ -14,16 +14,16 @@ describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [
-        RouterTestingModule,
-        HttpClientTestingModule,
-        MatToolbarModule,
-        MatSidenavModule,
-        MatIconModule,
-        MatListModule,
-        MatButtonModule,
-        BrowserAnimationsModule
+          RouterTestingModule,
+          HttpClientTestingModule,
+          MatToolbarModule,
+          MatSidenavModule,
+          MatIconModule,
+          MatListModule,
+          MatButtonModule,
+          BrowserAnimationsModule,
+          AppComponent
       ],
-      declarations: [AppComponent],
       schemas: [NO_ERRORS_SCHEMA]
     }).compileComponents();
   });

@@ -122,7 +122,7 @@
             <mat-icon class="info-icon" matTooltip="When enabled, query results will be cached to improve performance">info</mat-icon>
           </div>
           @if (cacheEnabled) {
-            <div class="cache-details" [@slideDown]>
+            <div class="cache-details" animate.enter="slide-down-enter" animate.leave="slide-down-leave">
               <div class="cache-expand-header" (click)="toggleCacheExpanded()">
                 <span>Cache Settings</span>
                 <mat-icon>{{ cacheExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>

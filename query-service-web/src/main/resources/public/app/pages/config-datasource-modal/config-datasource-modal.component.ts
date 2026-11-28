@@ -3,6 +3,7 @@ import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { Inject, ViewEncapsulation } from '@angular/core';
 import { DatasourceService } from '../../core/services/datasource.service';
+import { MatButton } from '@angular/material/button';
 
 
 @Component({
@@ -11,7 +12,7 @@ import { DatasourceService } from '../../core/services/datasource.service';
     styleUrls: ['./config-datasource-modal.component.scss'],
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [MatButton]
 })
 export class ConfigDatasourceModalComponent {
 

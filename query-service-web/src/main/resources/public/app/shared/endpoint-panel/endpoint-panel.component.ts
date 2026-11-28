@@ -2,6 +2,9 @@ import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { curlExample, endpointUrl } from '../query-endpoint';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatIconButton } from '@angular/material/button';
 
 /** A route's endpoint URL and a curl command to call it, each with a copy button. */
 @Component({
@@ -33,7 +36,7 @@ import { curlExample, endpointUrl } from '../query-endpoint';
     .endpoint-hint { font-size: 12px; color: rgba(0,0,0,0.6); margin: 4px 0 0 32px; }
   `],
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [MatIcon, MatTooltip, MatIconButton]
 })
 export class EndpointPanelComponent {
   @Input() baseUrl: string | null | undefined;

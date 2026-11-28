@@ -22,8 +22,7 @@ describe('SettingsComponent', () => {
   beforeEach(async () => {
     queryParams = new BehaviorSubject(convertToParamMap({}));
     await TestBed.configureTestingModule({
-      declarations: [SettingsComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, SettingsComponent],
       providers: [{ provide: ActivatedRoute, useValue: { queryParamMap: queryParams } }],
       schemas: [NO_ERRORS_SCHEMA]
     })

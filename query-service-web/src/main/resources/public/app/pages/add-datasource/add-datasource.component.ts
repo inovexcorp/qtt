@@ -1,9 +1,17 @@
 import {Component, OnInit, ViewEncapsulation, ChangeDetectionStrategy} from '@angular/core';
-import {FormControl, FormGroup, Validators} from '@angular/forms';
+import { FormControl, FormGroup, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import {AddDatasourceService} from './add-datasource.service';
 import {Router} from '@angular/router';
 import {Datasources} from '../../core/models/datasources';
 import {DatasourceService} from "../../core/services/datasource.service";
+import { MatCard } from '@angular/material/card';
+import { MatTabGroup, MatTab } from '@angular/material/tabs';
+import { MatIcon } from '@angular/material/icon';
+import { MatFormField, MatLabel, MatSuffix, MatError } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { MatButton } from '@angular/material/button';
+import { NgClass, JsonPipe } from '@angular/common';
 
 @Component({
     selector: 'app-add-datasource',
@@ -11,7 +19,7 @@ import {DatasourceService} from "../../core/services/datasource.service";
     styleUrls: ['./add-datasource.component.scss'],
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [MatCard, MatTabGroup, MatTab, MatIcon, FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatSuffix, MatError, MatSelect, MatOption, MatButton, NgClass, JsonPipe]
 })
 export class AddDatasourceComponent implements OnInit {
 

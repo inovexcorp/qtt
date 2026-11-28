@@ -4,15 +4,21 @@ import { RouteMetric, RouteMetricsResponse } from '../../core/models/metric-data
 import { DatasourceService } from '../../core/services/datasource.service';
 import { Datasources } from '../../core/models/datasources';
 import { Observable } from 'rxjs/internal/Observable';
-import { FormGroup, FormControl } from '@angular/forms';
+import { FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { map, startWith } from 'rxjs/operators';
-import { MatSelectChange } from '@angular/material/select';
-import { MatTableDataSource } from '@angular/material/table';
+import { MatSelectChange, MatOption, MatSelect } from '@angular/material/select';
+import { MatTableDataSource, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow } from '@angular/material/table';
 import { MetricTableData } from '../../core/models/metric-table-data';
 import { MatPaginator } from '@angular/material/paginator';
 import { LineGraph } from '../../core/models/persisted-interfaces/line-graph';
 import { LineGraphObject } from '../../core/models/persisted-interfaces/line-graph-object';
-import { ScaleType } from '@swimlane/ngx-charts';
+import { ScaleType, NumberCardModule, GaugeModule, BarChartModule, LineChartModule } from '@swimlane/ngx-charts';
+import { MatTabGroup, MatTab } from '@angular/material/tabs';
+import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatAutocompleteTrigger, MatAutocomplete } from '@angular/material/autocomplete';
+import { MatIcon } from '@angular/material/icon';
+import { AsyncPipe } from '@angular/common';
 
 
 
@@ -25,7 +31,7 @@ import { ScaleType } from '@swimlane/ngx-charts';
     styleUrls: ['./metrics.component.scss'],
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [NumberCardModule, GaugeModule, MatTabGroup, MatTab, FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatAutocompleteTrigger, MatAutocomplete, MatOption, MatSelect, BarChartModule, LineChartModule, MatIcon, MatSuffix, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatPaginator, AsyncPipe]
 })
 export class MetricsComponent {
 

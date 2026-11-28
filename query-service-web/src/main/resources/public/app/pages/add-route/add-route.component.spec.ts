@@ -12,11 +12,11 @@ describe('AddRouteComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [AddRouteComponent],
       imports: [
-        HttpClientTestingModule,
-        MatAutocompleteModule,
-        BrowserAnimationsModule
+          HttpClientTestingModule,
+          MatAutocompleteModule,
+          BrowserAnimationsModule,
+          AddRouteComponent
       ],
       schemas: [NO_ERRORS_SCHEMA]
     })

@@ -1,13 +1,12 @@
 import { Component, ElementRef, OnInit, ViewChild, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { ViewEncapsulation } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { trigger, state, style, transition, animate } from '@angular/animations';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { Datasources } from '../../core/models/datasources';
 import { AddRouteService } from './add-route.service';
 import { Router } from '@angular/router';
-import { FormGroup, FormControl, Validators } from '@angular/forms';
-import { MatIconRegistry } from '@angular/material/icon';
+import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatIconRegistry, MatIcon } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { GraphmartsService } from '../../core/services/graphmarts.service';
 import { Graphmarts } from '../../core/models/graphmarts';
@@ -15,8 +14,8 @@ import { map, Observable, startWith } from 'rxjs';
 import { GraphmartLayers } from '../../core/models/graphmart-layers';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { LayersService } from '../../core/services/layers.service';
-import { MatChipInputEvent } from '@angular/material/chips';
-import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import { MatChipInputEvent, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput } from '@angular/material/chips';
+import { MatAutocompleteSelectedEvent, MatAutocompleteTrigger, MatAutocomplete } from '@angular/material/autocomplete';
 import { NewRoute } from '../../core/models/routes-interfaces/new-route';
 import { OntologyService } from '../../core/services/ontology/ontology.service';
 import { registerOntologyAutocomplete, OntologyAutocompleteProvider } from '../../core/services/ontology/ontology-autocomplete.provider';
@@ -25,6 +24,15 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
 import { CacheService } from '../../core/services/cache.service';
 import { CacheInfo } from '../../core/models/cache-info';
+import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { RouteAccessComponent } from '../../shared/route-access/route-access.component';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatButton, MatMiniFabButton } from '@angular/material/button';
+import { CodeEditorComponent } from '../../shared/code-editor/code-editor.component';
+import { AsyncPipe } from '@angular/common';
 
 
 
@@ -33,19 +41,8 @@ import { CacheInfo } from '../../core/models/cache-info';
     templateUrl: './add-route.component.html',
     styleUrls: ['./add-route.component.scss'],
     encapsulation: ViewEncapsulation.None,
-    animations: [
-        trigger('slideDown', [
-            transition(':enter', [
-                style({ height: 0, opacity: 0, overflow: 'hidden' }),
-                animate('300ms ease-out', style({ height: '*', opacity: 1 }))
-            ]),
-            transition(':leave', [
-                animate('300ms ease-in', style({ height: 0, opacity: 0, overflow: 'hidden' }))
-            ])
-        ])
-    ],
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatIcon, MatSuffix, MatSelect, MatOption, MatAutocompleteTrigger, MatAutocomplete, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput, RouteAccessComponent, MatSlideToggle, MatTooltip, MatButton, MatMiniFabButton, CodeEditorComponent, AsyncPipe]
 })
 export class AddRouteComponent implements OnInit, OnDestroy {
 

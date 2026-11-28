@@ -28,11 +28,10 @@ describe('SparqiChatComponent', () => {
     } as unknown as MockedObject<MatDialog>;
 
     await TestBed.configureTestingModule({
-      declarations: [SparqiChatComponent],
-      imports: [HttpClientTestingModule, TextFieldModule],
+      imports: [HttpClientTestingModule, TextFieldModule, SparqiChatComponent],
       providers: [
-        { provide: SparqiService, useValue: mockSparqiService },
-        { provide: MatDialog, useValue: mockDialog }
+          { provide: SparqiService, useValue: mockSparqiService },
+          { provide: MatDialog, useValue: mockDialog }
       ],
       schemas: [NO_ERRORS_SCHEMA]
     }).compileComponents();

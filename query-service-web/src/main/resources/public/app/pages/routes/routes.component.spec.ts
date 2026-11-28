@@ -10,8 +10,7 @@ describe('RoutesComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [RoutesComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, RoutesComponent],
       schemas: [NO_ERRORS_SCHEMA]
     })
     .compileComponents();

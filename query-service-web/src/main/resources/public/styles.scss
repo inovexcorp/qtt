@@ -28,4 +28,30 @@ body {
   margin: 0px;
 }
 
+// Sections that slide open and closed (animate.enter / animate.leave in templates).
+@keyframes qtt-slide-down-in {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 40rem; }
+}
 
+@keyframes qtt-slide-down-out {
+  from { opacity: 1; max-height: 40rem; }
+  to { opacity: 0; max-height: 0; }
+}
+
+.slide-down-enter {
+  overflow: hidden;
+  animation: qtt-slide-down-in 300ms ease-out;
+}
+
+.slide-down-leave {
+  overflow: hidden;
+  animation: qtt-slide-down-out 300ms ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-down-enter,
+  .slide-down-leave {
+    animation: none;
+  }
+}

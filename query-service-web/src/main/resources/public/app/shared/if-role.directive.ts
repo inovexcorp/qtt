@@ -6,10 +6,7 @@ import { AuthService, QttRole } from '../core/services/auth.service';
  * Renders its element only for users holding a role: {@code <button *qttIfRole="'editor'">}. Cosmetic: the server
  * enforces every role. With sign-in off, everyone holds every role.
  */
-@Directive({
-    selector: '[qttIfRole]',
-    standalone: false
-})
+@Directive({ selector: '[qttIfRole]' })
 export class IfRoleDirective implements OnInit, OnDestroy {
 
   @Input('qttIfRole') role!: QttRole;

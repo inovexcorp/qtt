@@ -48,13 +48,12 @@ describe('ConfigDatasourceComponent', () => {
     metricsService.getDatasourceRouteMetrics.mockReturnValue(of({ metrics: [] }));
 
     await TestBed.configureTestingModule({
-      declarations: [ConfigDatasourceComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, ConfigDatasourceComponent],
       providers: [
-        { provide: ActivatedRoute, useValue: { params: of({ dataSourceId: 'ds1' }), snapshot: { params: { dataSourceId: 'ds1' } } } },
-        { provide: DatasourceService, useValue: datasourceService },
-        { provide: MetricsService, useValue: metricsService },
-        { provide: MatDialog, useValue: dialog }
+          { provide: ActivatedRoute, useValue: { params: of({ dataSourceId: 'ds1' }), snapshot: { params: { dataSourceId: 'ds1' } } } },
+          { provide: DatasourceService, useValue: datasourceService },
+          { provide: MetricsService, useValue: metricsService },
+          { provide: MatDialog, useValue: dialog }
       ],
       schemas: [NO_ERRORS_SCHEMA]
     })

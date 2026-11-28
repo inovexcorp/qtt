@@ -34,13 +34,12 @@ describe('OntologyVisualizationDialogComponent', () => {
     } as unknown as MockedObject<MatSnackBar>;
 
     await TestBed.configureTestingModule({
-      declarations: [OntologyVisualizationDialogComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, OntologyVisualizationDialogComponent],
       providers: [
-        { provide: MatDialogRef, useValue: mockDialogRef },
-        { provide: MAT_DIALOG_DATA, useValue: mockData },
-        { provide: OntologyService, useValue: mockOntologyService },
-        { provide: MatSnackBar, useValue: mockSnackBar }
+          { provide: MatDialogRef, useValue: mockDialogRef },
+          { provide: MAT_DIALOG_DATA, useValue: mockData },
+          { provide: OntologyService, useValue: mockOntologyService },
+          { provide: MatSnackBar, useValue: mockSnackBar }
       ],
       schemas: [NO_ERRORS_SCHEMA]
     }).compileComponents();

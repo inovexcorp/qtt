@@ -1,9 +1,16 @@
 import { Component, ElementRef, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
-import { FormControl, FormGroup, FormGroupDirective, Validators } from '@angular/forms';
+import { FormControl, FormGroup, FormGroupDirective, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiKey, ApiKeysService, CreatedApiKey } from '../../../core/services/api-keys.service';
-import { saveErrorMessage } from '../../../core/services/template-validation.service';
+import { saveErrorMessage } from '../../../core/http-error-message';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatFormField, MatLabel, MatHint } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { DatePipe } from '@angular/common';
 
 /**
  * API keys for the query routes (admin only): list, create (the key is shown once, with a copy button) and revoke.
@@ -13,7 +20,7 @@ import { saveErrorMessage } from '../../../core/services/template-validation.ser
     templateUrl: './api-keys.component.html',
     styleUrls: ['./api-keys.component.scss'],
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [MatSlideToggle, FormsModule, MatButton, MatIcon, MatIconButton, MatTooltip, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatHint, DatePipe]
 })
 export class ApiKeysComponent implements OnInit {
 

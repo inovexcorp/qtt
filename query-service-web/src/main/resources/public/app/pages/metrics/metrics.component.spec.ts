@@ -12,11 +12,11 @@ describe('MetricsComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [MetricsComponent],
       imports: [
-        HttpClientTestingModule,
-        MatAutocompleteModule,
-        BrowserAnimationsModule
+          HttpClientTestingModule,
+          MatAutocompleteModule,
+          BrowserAnimationsModule,
+          MetricsComponent
       ],
       schemas: [NO_ERRORS_SCHEMA]
     })

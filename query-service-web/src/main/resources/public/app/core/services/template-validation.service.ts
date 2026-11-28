@@ -108,22 +108,5 @@ export class TemplateValidationService {
   }
 }
 
-/** A readable reason from a failed route save (JSON error with message, or plain text). */
-export function saveErrorMessage(error: any): string {
-  const body = error?.error;
-  if (body && typeof body === 'object' && body.message) {
-    return body.message;
-  }
-  if (typeof body === 'string' && body.trim()) {
-    try {
-      const parsed = JSON.parse(body);
-      if (parsed?.message) {
-        return parsed.message;
-      }
-    } catch {
-      // plain text
-    }
-    return body.trim();
-  }
-  return error?.message || 'unknown error';
-}
+// Kept here for existing imports; it lives in core/http-error-message.ts (no Monaco dependency).
+export { saveErrorMessage } from '../http-error-message';

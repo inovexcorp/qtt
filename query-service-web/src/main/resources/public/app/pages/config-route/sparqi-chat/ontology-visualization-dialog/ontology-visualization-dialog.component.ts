@@ -1,8 +1,20 @@
 import { Component, Inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef, MatDialogTitle, MatDialogContent } from '@angular/material/dialog';
 import { OntologyService } from '../../../../core/services/ontology/ontology.service';
 import { OntologyElement, OntologyElementType } from '../../../../core/models/ontology/ontology-element';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatIcon } from '@angular/material/icon';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { FormsModule } from '@angular/forms';
+import { MatInput } from '@angular/material/input';
+import { CdkScrollable } from '@angular/cdk/scrolling';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatAccordion, MatExpansionPanel, MatExpansionPanelHeader, MatExpansionPanelTitle } from '@angular/material/expansion';
+import { MatList, MatListItem, MatListItemTitle, MatListItemLine } from '@angular/material/list';
+import { SlicePipe } from '@angular/common';
 
 interface GroupedElements {
   label: string;
@@ -25,7 +37,7 @@ interface ElementStatistics {
     templateUrl: './ontology-visualization-dialog.component.html',
     styleUrls: ['./ontology-visualization-dialog.component.scss'],
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [MatDialogTitle, MatIcon, MatIconButton, MatTooltip, MatFormField, MatLabel, MatSelect, FormsModule, MatOption, MatInput, MatSuffix, MatButton, CdkScrollable, MatDialogContent, MatProgressSpinner, MatAccordion, MatExpansionPanel, MatExpansionPanelHeader, MatExpansionPanelTitle, MatList, MatListItem, MatListItemTitle, MatListItemLine, SlicePipe]
 })
 export class OntologyVisualizationDialogComponent implements OnInit {
   routeId: string;

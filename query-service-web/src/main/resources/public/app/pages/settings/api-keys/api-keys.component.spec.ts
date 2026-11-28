@@ -11,8 +11,7 @@ describe('ApiKeysComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ApiKeysComponent],
-      imports: [HttpClientTestingModule, MatSnackBarModule],
+      imports: [HttpClientTestingModule, MatSnackBarModule, ApiKeysComponent],
       schemas: [NO_ERRORS_SCHEMA]
     }).compileComponents();
     fixture = TestBed.createComponent(ApiKeysComponent);

@@ -1,7 +1,11 @@
 import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { FormGroup } from '@angular/forms';
+import { FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SettingsService } from '../../core/services/settings.service';
 import { effectiveAccess } from '../query-endpoint';
+import { MatFormField, MatLabel, MatSuffix, MatHint } from '@angular/material/form-field';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { MatIcon } from '@angular/material/icon';
+import { MatInput } from '@angular/material/input';
 
 /**
  * The "Access" fields of a route form: who may call the route at /query/<routeId>, and the roles an authenticated
@@ -41,7 +45,7 @@ import { effectiveAccess } from '../query-endpoint';
     .access-note mat-icon { font-size: 18px; width: 18px; height: 18px; }
   `],
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatSelect, MatOption, MatIcon, MatSuffix, MatInput, MatHint]
 })
 export class RouteAccessComponent implements OnInit {
   @Input() group!: FormGroup;

@@ -24,12 +24,11 @@ describe('SparqiMetricsModalComponent', () => {
     } as unknown as MockedObject<SparqiService>;
 
     await TestBed.configureTestingModule({
-      declarations: [SparqiMetricsModalComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, SparqiMetricsModalComponent],
       providers: [
-        { provide: MatDialogRef, useValue: mockDialogRef },
-        { provide: MAT_DIALOG_DATA, useValue: {} },
-        { provide: SparqiService, useValue: mockSparqiService }
+          { provide: MatDialogRef, useValue: mockDialogRef },
+          { provide: MAT_DIALOG_DATA, useValue: {} },
+          { provide: SparqiService, useValue: mockSparqiService }
       ],
       schemas: [NO_ERRORS_SCHEMA]
     }).compileComponents();

@@ -3,6 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { DatasourceService } from '../../core/services/datasource.service';
+import { MatButton } from '@angular/material/button';
 
 
 @Component({
@@ -11,7 +12,7 @@ import { DatasourceService } from '../../core/services/datasource.service';
     styleUrls: ['./delete-datasource-modal.component.scss'],
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [MatButton]
 })
 export class DeleteDatasourceModalComponent implements OnInit {
  

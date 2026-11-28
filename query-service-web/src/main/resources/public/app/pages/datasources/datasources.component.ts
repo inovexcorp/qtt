@@ -1,11 +1,18 @@
 import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { NavigationEnd, Router } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { Datasources } from '../../core/models/datasources';
 
-import { MatIconRegistry } from '@angular/material/icon';
+import { MatIconRegistry, MatIcon } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { filter } from 'rxjs';
+import { MatToolbar } from '@angular/material/toolbar';
+import { IfRoleDirective } from '../../shared/if-role.directive';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatCard, MatCardHeader, MatCardTitle, MatCardSubtitle, MatCardContent, MatCardFooter } from '@angular/material/card';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatDivider } from '@angular/material/list';
+import { DatePipe } from '@angular/common';
 
 
 @Component({
@@ -13,7 +20,7 @@ import { filter } from 'rxjs';
     templateUrl: './datasources.component.html',
     styleUrls: ['./datasources.component.scss'],
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [MatIcon, MatToolbar, IfRoleDirective, MatButton, RouterLink, MatCard, MatCardHeader, MatCardTitle, MatCardSubtitle, MatTooltip, MatIconButton, MatCardContent, MatDivider, MatCardFooter, RouterOutlet, DatePipe]
 })
 export class DatasourcesComponent implements OnInit {
 

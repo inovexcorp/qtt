@@ -10,17 +10,14 @@ import { AuthService } from '../core/services/auth.service';
     <span id="editor" *qttIfRole="'editor'">e</span>
     <span id="admin" *qttIfRole="'admin'">a</span>`,
     changeDetection: ChangeDetectionStrategy.Eager,
-    standalone: false
+    imports: [IfRoleDirective]
 })
 class HostComponent {
 }
 
 describe('IfRoleDirective', () => {
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      declarations: [HostComponent, IfRoleDirective]
-    });
+    TestBed.configureTestingModule({ imports: [HttpClientTestingModule, HostComponent] });
   });
 
   function shown(): string[] {
