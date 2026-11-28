@@ -13,8 +13,11 @@ html {
   ));
 }
 
-// .mat-elevation-z* classes (the data tables use them).
-@include mat.elevation-classes();
+// Data tables float above their card. (--mat-sys-level4 is the shadow the old mat-elevation-z8 class drew; that class
+// draws nothing under mat.theme(), whose shadow tokens it doesn't read.)
+.elevated-table {
+  box-shadow: var(--mat-sys-level4);
+}
 
 body {
   margin: 0;

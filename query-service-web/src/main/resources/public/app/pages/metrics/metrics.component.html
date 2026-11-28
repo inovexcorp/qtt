@@ -113,7 +113,7 @@
       <input #inp matInput (keyup)="applyFilter(inp.value)">
       <mat-icon matSuffix>search</mat-icon>
     </mat-form-field>
-    <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+    <table mat-table [dataSource]="dataSource" class="elevated-table">
       <!-- Name Column -->
       <ng-container matColumnDef="Name">
         <th mat-header-cell *matHeaderCellDef>Name</th>
