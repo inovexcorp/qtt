@@ -90,8 +90,13 @@ const pages = [
 const domChecks = {
   metrics: () => {
     const errs = [];
-    if (!document.querySelector('ngx-charts-number-card svg g.cell')) errs.push('number cards did not render');
-    if (!document.querySelector('ngx-charts-linear-gauge svg')) errs.push('gauge did not render');
+    const tiles = [...document.querySelectorAll('.summary-tile')];
+    if (tiles.length !== 4) errs.push(`expected 4 summary tiles, found ${tiles.length}`);
+    if (tiles.some(t => t.querySelector('mat-spinner'))) errs.push('summary tiles still loading');
+    if (/NaN/.test(document.body.innerText)) errs.push('page shows NaN');
+    if (document.querySelector('.metrics-status__icon--error')) {
+      errs.push('metrics failed to load');
+    }
     return errs;
   },
   'config-datasource': () => {

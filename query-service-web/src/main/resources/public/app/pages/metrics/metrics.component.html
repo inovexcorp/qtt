@@ -1,16 +1,64 @@
-<div class="header-graphs-container">
-  <ngx-charts-number-card class="card-container" [results]="cardMetrics" [scheme]="purpleColorScheme" [view]="[850,180]"
-    [cardColor]="cardColor">
-
-  </ngx-charts-number-card>
-
-  <div class="gauge-class">
-    <ngx-charts-linear-gauge [value]="gaugeMetric" [units]="units" [view]="[350,150]"
-      [valueFormatting]="percentageFormat" [scheme]="purpleColorScheme">
-    </ngx-charts-linear-gauge>
+<section class="summary-tiles" aria-label="Summary">
+  <div class="summary-tile">
+    @if (routeState === 'loading') {
+      <mat-spinner class="summary-tile__spinner" diameter="32" aria-label="Loading total endpoints"></mat-spinner>
+    } @else {
+      <span class="summary-tile__value" [class.summary-tile__value--missing]="!summary">{{ summary ? summary.endpoints : '—' }}</span>
+    }
+    <span class="summary-tile__label">Total Endpoints</span>
+    @if (routeState === 'error') {
+      <span class="summary-tile__hint"><mat-icon inline>info_outline</mat-icon>{{ missingReason() }}</span>
+    }
   </div>
 
-</div>
+  <div class="summary-tile">
+    @if (routeState === 'loading') {
+      <mat-spinner class="summary-tile__spinner" diameter="32" aria-label="Loading average processing time"></mat-spinner>
+    } @else if (summary?.avgProcessingMs != null) {
+      <span class="summary-tile__value">{{ summary!.avgProcessingMs! | number:'1.2-2' }}ms</span>
+    } @else {
+      <span class="summary-tile__value summary-tile__value--missing"
+        matTooltip="An average needs at least one exchange">—</span>
+    }
+    <span class="summary-tile__label">Avg Processing Time</span>
+    @if (routeState !== 'loading' && summary?.avgProcessingMs == null) {
+      <span class="summary-tile__hint"><mat-icon inline>info_outline</mat-icon>{{ missingReason() }}</span>
+    }
+  </div>
+
+  <div class="summary-tile">
+    @if (routeState === 'loading') {
+      <mat-spinner class="summary-tile__spinner" diameter="32" aria-label="Loading busiest route"></mat-spinner>
+    } @else if (summary?.busiestRoute) {
+      <span class="summary-tile__value" [matTooltip]="summary!.busiestRoute!">{{ summary!.busiestRoute }}</span>
+    } @else {
+      <span class="summary-tile__value summary-tile__value--missing"
+        matTooltip="No route has handled an exchange yet">—</span>
+    }
+    <span class="summary-tile__label">Busiest Route</span>
+    @if (routeState !== 'loading' && !summary?.busiestRoute) {
+      <span class="summary-tile__hint"><mat-icon inline>info_outline</mat-icon>{{ missingReason() }}</span>
+    }
+  </div>
+
+  <div class="summary-tile">
+    @if (routeState === 'loading') {
+      <mat-spinner class="summary-tile__spinner" diameter="32" aria-label="Loading success rate"></mat-spinner>
+    } @else if (summary?.successRate != null) {
+      <span class="summary-tile__value">{{ summary!.successRate }}%</span>
+    } @else {
+      <span class="summary-tile__value summary-tile__value--missing"
+        matTooltip="A success rate needs at least one exchange">—</span>
+    }
+    <span class="summary-tile__label">Average Success Rate</span>
+    @if (routeState === 'ready' && summary?.successRate != null) {
+      <mat-progress-bar class="summary-tile__bar" mode="determinate" [value]="summary!.successRate"
+        aria-label="Average success rate"></mat-progress-bar>
+    } @else if (routeState !== 'loading') {
+      <span class="summary-tile__hint"><mat-icon inline>info_outline</mat-icon>{{ missingReason() }}</span>
+    }
+  </div>
+</section>
 
 <mat-tab-group mat-stretch-tabs animationDuration="500ms" class="charts-container">
   <mat-tab label="Exchanges">
@@ -39,11 +87,16 @@
           </mat-select>
 
         </mat-form-field>
-      </form><ngx-charts-bar-vertical-stacked [results]="exchangeDisplay" [scheme]="purpleColorScheme" [xAxis]="true"
-      [yAxis]="true" [yAxisTickFormatting]="yAxisTickFormatting" [showXAxisLabel]="true" [showYAxisLabel]="true"
-      [wrapTicks]="true" [legend]="true">
-
-    </ngx-charts-bar-vertical-stacked>
+      </form>
+      @if (chartMode(exchangeDisplay); as mode) {
+        <app-metrics-status [mode]="mode" emptyIcon="bar_chart" [emptyTitle]="emptyChartTitle()"
+          [emptyDetail]="emptyChartDetail()" (retry)="retryCharts()"></app-metrics-status>
+      } @else {
+        <ngx-charts-bar-vertical-stacked [results]="exchangeDisplay" [scheme]="purpleColorScheme" [xAxis]="true"
+          [yAxis]="true" [yAxisTickFormatting]="yAxisTickFormatting" [showXAxisLabel]="true" [showYAxisLabel]="true"
+          [wrapTicks]="true" [legend]="true">
+        </ngx-charts-bar-vertical-stacked>
+      }
   </div>
 </mat-tab>
 <mat-tab label="Latency">
@@ -76,19 +129,24 @@
     </form>
 
     <div class="chart-container">
-      <ngx-charts-bar-vertical-2d [view]="[1400,400]" [results]="latencyDisplay" [showXAxisLabel]="true"
-        [showYAxisLabel]="true" [wrapTicks]="true" [scheme]="purpleColorScheme" [xAxis]="true" [yAxis]="true" [legend]="true"
-        [yAxisTickFormatting]="verticalGroupedTickFormat"
-        [barPadding]="-20"
-        [groupPadding]="1">
-      </ngx-charts-bar-vertical-2d>
+      @if (chartMode(latencyDisplay); as mode) {
+        <app-metrics-status [mode]="mode" emptyIcon="timer" [emptyTitle]="emptyChartTitle()"
+          [emptyDetail]="emptyChartDetail()" (retry)="retryCharts()"></app-metrics-status>
+      } @else {
+        <ngx-charts-bar-vertical-2d [view]="[1400,400]" [results]="latencyDisplay" [showXAxisLabel]="true"
+          [showYAxisLabel]="true" [wrapTicks]="true" [scheme]="purpleColorScheme" [xAxis]="true" [yAxis]="true" [legend]="true"
+          [yAxisTickFormatting]="verticalGroupedTickFormat"
+          [barPadding]="-20"
+          [groupPadding]="1">
+        </ngx-charts-bar-vertical-2d>
+      }
     </div>
   </div>
 </mat-tab>
 <mat-tab label="Trends">
   <mat-form-field class="persisted-metrics">
     <mat-label>Metric</mat-label>
-    <mat-select [ngModel]="'totalProcessingTime'" (selectionChange)="getPersistedMetrics($event.value)">
+    <mat-select [ngModel]="persistedMetric" (selectionChange)="getPersistedMetrics($event.value)">
       <mat-option value="totalProcessingTime">Total Processing Time</mat-option>
       <mat-option value="minProcessingTime">Min Processing Time</mat-option>
       <mat-option value="maxProcessingTime">Max Processing Time</mat-option>
@@ -99,12 +157,19 @@
       <mat-option value="exchangesFailed">Failed Exchanges</mat-option>
     </mat-select>
   </mat-form-field>
-  <ngx-charts-line-chart
-    [view]="[1450,400]"
-    [results]="persistedData"
-    [xAxis]="true"
-    [yAxis]="true"
-  [scheme]="purpleColorScheme"></ngx-charts-line-chart>
+  @if (trendMode(); as mode) {
+    <app-metrics-status [mode]="mode" loadingText="Loading history…" emptyIcon="show_chart"
+      emptyTitle="No history yet"
+      emptyDetail="Trends appear once metrics have been recorded for routes that have handled queries."
+      (retry)="getPersistedMetrics(persistedMetric)"></app-metrics-status>
+  } @else {
+    <ngx-charts-line-chart
+      [view]="[1450,400]"
+      [results]="persistedData"
+      [xAxis]="true"
+      [yAxis]="true"
+      [scheme]="purpleColorScheme"></ngx-charts-line-chart>
+  }
 </mat-tab>
 <mat-tab label="Table">
   <div class="table-class">
@@ -113,7 +178,11 @@
       <input #inp matInput (keyup)="applyFilter(inp.value)">
       <mat-icon matSuffix>search</mat-icon>
     </mat-form-field>
-    <table mat-table [dataSource]="dataSource" class="elevated-table">
+    @if (tableMode(); as mode) {
+      <app-metrics-status [mode]="mode" emptyIcon="table_chart" emptyTitle="No routes yet"
+        emptyDetail="Routes appear here once they are created." (retry)="fetchRouteMetrics()"></app-metrics-status>
+    }
+    <table mat-table [dataSource]="dataSource" class="elevated-table" [hidden]="tableMode() !== null">
       <!-- Name Column -->
       <ng-container matColumnDef="Name">
         <th mat-header-cell *matHeaderCellDef>Name</th>
@@ -124,7 +193,12 @@
       <ng-container matColumnDef="Processing Time">
         <th mat-header-cell *matHeaderCellDef>Processing Time (Min/Max/Avg)</th>
         <td mat-cell *matCellDef="let element">
-        {{element.minProcessingTime}}ms/{{element.maxProcessingTime}}ms/{{element.averageProcessingTime}}ms</td>
+          @if (element.hasExchanges) {
+            {{element.minProcessingTime}}ms/{{element.maxProcessingTime}}ms/{{element.averageProcessingTime}}ms
+          } @else {
+            <span class="metrics-missing" matTooltip="No exchanges yet, so there are no processing times">—</span>
+          }
+        </td>
       </ng-container>
 
       <!-- Successful Exchanges -->
@@ -156,7 +230,7 @@
     </table>
 
   </div>
-  <mat-paginator #paginator color="primary" [length]="16" [pageSize]="5" aria-label="Select page">
+  <mat-paginator #paginator color="primary" [pageSize]="5" aria-label="Select page" [hidden]="tableMode() !== null">
   </mat-paginator>
 </mat-tab>
 
