@@ -98,6 +98,8 @@
 }
 
 
+// Material has no token for the outlined field's inner padding or the select's trailing space; these target its
+// internal classes, so check them after Material upgrades.
 .mat-mdc-select {
   padding-right: 10px;
 }

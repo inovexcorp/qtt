@@ -411,6 +411,8 @@ h1.card-header {
 }
 
 // Material overrides
+// Material has no token for the outlined field's inner padding or the select's trailing space; these target its
+// internal classes, so check them after Material upgrades.
 .mat-mdc-select {
   padding-right: 10px;
 }
@@ -615,23 +617,7 @@ h1.card-header {
 }
 
 // Snackbar styles for success and error messages
-::ng-deep .success-snackbar {
-  background-color: #4caf50 !important;
-  color: white !important;
-
-  .mat-mdc-button {
-    color: white !important;
-  }
-}
-
-::ng-deep .error-snackbar {
-  background-color: #f44336 !important;
-  color: white !important;
-
-  .mat-mdc-button {
-    color: white !important;
-  }
-}
+// Snack bar variants (.success-snackbar, .error-snackbar) are global: styles.scss.
 
 // Tab layout styles
 .route-tabs {

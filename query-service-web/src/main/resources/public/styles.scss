@@ -1,31 +1,50 @@
 @use '@angular/material' as mat;
 
-@include mat.elevation-classes();
-@include mat.app-background();
-
-// Define a Material 3 theme
-$my-theme: mat.define-theme((
-  color: (
-    theme-type: light,
-    primary: mat.$violet-palette,
-    tertiary: mat.$blue-palette,
-  ),
-  typography: (
-    plain-family: 'Roboto, sans-serif',
-    brand-family: 'Roboto, sans-serif',
-  ),
-  density: (
-    scale: 0
-  )
-));
-
-// Apply the theme to all components - must be wrapped in html selector for M3
+// Material 3 theme: system tokens (--mat-sys-*) that every Material component reads.
 html {
-  @include mat.all-component-themes($my-theme);
+  color-scheme: light;
+  @include mat.theme((
+    color: (
+      primary: mat.$violet-palette,
+      tertiary: mat.$blue-palette,
+    ),
+    typography: Roboto,
+    density: 0,
+  ));
 }
 
+// .mat-elevation-z* classes (the data tables use them).
+@include mat.elevation-classes();
+
 body {
-  margin: 0px;
+  margin: 0;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+}
+
+// Snack bar variants (panelClass). Global, because snack bars render outside the component that opens them.
+.success-snackbar {
+  @include mat.snack-bar-overrides((
+    container-color: #2e7d32,
+    supporting-text-color: #fff,
+    button-color: #fff,
+  ));
+}
+
+.warning-snackbar {
+  @include mat.snack-bar-overrides((
+    container-color: #b45309,
+    supporting-text-color: #fff,
+    button-color: #fff,
+  ));
+}
+
+.error-snackbar {
+  @include mat.snack-bar-overrides((
+    container-color: #c62828,
+    supporting-text-color: #fff,
+    button-color: #fff,
+  ));
 }
 
 // Sections that slide open and closed (animate.enter / animate.leave in templates).
