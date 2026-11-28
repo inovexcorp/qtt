@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { METRICS_POLL_MS } from '../../core/services/metrics-live.service';
+import { EVENT_STREAM_FETCH } from '../../core/services/live-connection';
 import { RouteMetric } from '../../core/models/metric-data';
 import { MetricsComponent } from './metrics.component';
 
@@ -30,7 +31,9 @@ describe('MetricsComponent', () => {
     await TestBed.configureTestingModule({
       imports: [MetricsComponent],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideNoopAnimations(),
-        { provide: METRICS_POLL_MS, useValue: 3_600_000 }],
+        { provide: METRICS_POLL_MS, useValue: 3_600_000 },
+        // No event stream (an older server): the page polls, which these tests answer.
+        { provide: EVENT_STREAM_FETCH, useValue: () => Promise.resolve(new Response('', { status: 404 })) }],
     }).compileComponents();
     fixture = TestBed.createComponent(MetricsComponent);
     backend = TestBed.inject(HttpTestingController);
@@ -118,6 +121,7 @@ describe('MetricsComponent', () => {
     await tick();
     backend.expectOne(ROUTES + 'anzo').flush({ metrics: [metric('a', 3, 0, 30)] });
     backend.match(HISTORY).forEach(h => h.flush({ metrics: [] }));
+    await tick();
     fixture.detectChanges();
     expect(el().querySelector('.metrics-page--rescoping')).toBeNull();
   });

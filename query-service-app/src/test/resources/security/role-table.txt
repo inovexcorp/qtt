@@ -24,6 +24,7 @@ GET     /api/metrics/routes/{datasourceId}               viewer
 
 GET     /api/events                                      viewer
 GET     /api/events/datasources                          viewer
+GET     /api/events/metrics                              viewer
 
 GET     /api/anzo/graphmarts/{datasourceId}              viewer
 GET     /api/anzo/layers/{datasourceId}                  viewer

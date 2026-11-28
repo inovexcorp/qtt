@@ -101,12 +101,23 @@ export async function readEventStream(fetchFn: typeof fetch, url: string, signal
   if (!response.ok || !response.body) {
     throw new StreamError(response.status);
   }
+  // Something answered, but not with a stream (e.g. a proxy or dev server serving a page): treat as unsupported.
+  if (!(response.headers.get('Content-Type') ?? '').includes('text/event-stream')) {
+    void response.body.cancel().catch(() => undefined);
+    throw new StreamError(415);
+  }
   handlers.onOpen();
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
   const parser = new EventStreamParser();
+  // Aborting ends the read even where the body doesn't follow the fetch's signal.
+  const cancel = () => void reader.cancel().catch(() => undefined);
+  signal.addEventListener('abort', cancel, { once: true });
   try {
     for (;;) {
       const { value, done } = await reader.read();
+      if (signal.aborted) {
+        throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+      }
       if (done) {
         return;
       }
@@ -120,6 +131,7 @@ export async function readEventStream(fetchFn: typeof fetch, url: string, signal
     }
     throw new StreamError(0);
   } finally {
+    signal.removeEventListener('abort', cancel);
     reader.releaseLock();
   }
 }

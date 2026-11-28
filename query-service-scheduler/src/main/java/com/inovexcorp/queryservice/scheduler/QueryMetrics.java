@@ -5,7 +5,9 @@ import com.inovexcorp.queryservice.config.OsgiConfig;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
+import com.inovexcorp.queryservice.metrics.MetricsHistoryChanged;
 import com.inovexcorp.queryservice.metrics.MetricsScraper;
+import jakarta.enterprise.event.Event;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +21,10 @@ public class QueryMetrics implements Job {
 
     @Inject
     RouteService routeService;
+
+    /** Tells live views (the {@code metrics} event topic) that the stored history changed. */
+    @Inject
+    Event<MetricsHistoryChanged> historyChanged;
 
     static final String CONFIG_PID = "com.inovexcorp.queryservice.scheduler.QueryMetrics";
 
@@ -34,11 +40,19 @@ public class QueryMetrics implements Job {
     @Override
     public void execute(JobContext context) {
         log.debug("Scanning all routes to capture metrics from existing state");
-        for (CamelRouteTemplate route : routeService.getAll()) {
-            try {
-                metricsScraper.persistRouteMetricData(route.getRouteId());
-            } catch (Exception e) {
-                throw new IllegalStateException(e);
+        int stored = 0;
+        try {
+            for (CamelRouteTemplate route : routeService.getAll()) {
+                try {
+                    metricsScraper.persistRouteMetricData(route.getRouteId());
+                    stored++;
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        } finally {
+            if (stored > 0 && historyChanged != null) {
+                historyChanged.fireAsync(new MetricsHistoryChanged(MetricsHistoryChanged.STORED));
             }
         }
     }

@@ -10,6 +10,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { ConfigDatasourceComponent } from './config-datasource.component';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { DatasourceLiveService } from '../../core/services/datasource-live.service';
+import { EVENT_STREAM_FETCH } from '../../core/services/live-connection';
 import { MetricsService } from '../../core/services/metrics.service';
 import { Datasources } from '../../core/models/datasources';
 import { DatasourceHealth } from '../../core/models/datasource-health';
@@ -88,6 +89,7 @@ describe('ConfigDatasourceComponent', () => {
         { provide: DatasourceLiveService, useValue: live },
         { provide: MetricsService, useValue: metricsService },
         { provide: MatDialog, useValue: dialog },
+        { provide: EVENT_STREAM_FETCH, useValue: () => Promise.resolve(new Response('', { status: 404 })) },
       ],
     }).compileComponents();
 

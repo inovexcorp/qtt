@@ -231,4 +231,16 @@ class CleanMetricsTest {
         // Then - should still call deleteOldRecords with 0 (may delete all records)
         verify(metricService).deleteOldRecords(0);
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("Should tell live views after deleting old snapshots")
+    void shouldFireHistoryChangedAfterCleaning() {
+        jakarta.enterprise.event.Event<com.inovexcorp.queryservice.metrics.MetricsHistoryChanged> event =
+                mock(jakarta.enterprise.event.Event.class);
+        cleanMetrics.historyChanged = event;
+        cleanMetrics.execute(jobContext);
+        verify(event).fireAsync(new com.inovexcorp.queryservice.metrics.MetricsHistoryChanged(
+                com.inovexcorp.queryservice.metrics.MetricsHistoryChanged.CLEANED));
+    }
 }

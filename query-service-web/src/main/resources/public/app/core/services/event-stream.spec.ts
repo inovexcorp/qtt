@@ -37,7 +37,8 @@ describe('readEventStream', () => {
   });
 
   it('sends X-Requested-With and delivers events until the stream ends', async () => {
-    const fetchFn = vi.fn().mockResolvedValue(new Response(body('event: a\ndata: 1\n\n', 'event: b\ndata: 2\n\n')));
+    const fetchFn = vi.fn().mockResolvedValue(new Response(body('event: a\ndata: 1\n\n', 'event: b\ndata: 2\n\n'),
+      { headers: { 'Content-Type': 'text/event-stream' } }));
     const events: StreamEvent[] = [];
     const onOpen = vi.fn();
     await readEventStream(fetchFn, '/s', new AbortController().signal, { onOpen, onEvent: e => events.push(e) });
@@ -51,6 +52,12 @@ describe('readEventStream', () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response('', { status: 499 }));
     await expect(readEventStream(fetchFn, '/s', new AbortController().signal, { onOpen: vi.fn(), onEvent: vi.fn() }))
       .rejects.toEqual(new StreamError(499));
+  });
+
+  it('rejects a response that is not an event stream (415)', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response('<html></html>', { headers: { 'Content-Type': 'text/html' } }));
+    await expect(readEventStream(fetchFn, '/s', new AbortController().signal, { onOpen: vi.fn(), onEvent: vi.fn() }))
+      .rejects.toEqual(new StreamError(415));
   });
 
   it('rejects with status 0 on a network error', async () => {

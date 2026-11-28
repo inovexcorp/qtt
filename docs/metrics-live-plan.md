@@ -2,13 +2,13 @@
 
 Goal: the metrics page updates when the numbers change, pushed by the server, instead of each open page asking every 15 seconds. The same channel should be reusable for other live parts of the UI later (datasource health, route state).
 
-Status: plan, 2026-11-28; nothing on the server is built yet. The UI side is ready for it: the metrics page (branch `feature/beautification`) reads all its data from `MetricsLiveService` (`query-service-web/.../core/services/metrics-live.service.ts`), whose signals (`routes`, `history`, `status`, `updatedAt`, …) are the only contract with the page. Today that service polls; this plan replaces its insides with a server push and keeps polling as the fallback.
+Status: the server side is built (see the Status sections below); the plan text after them is the original
+design, kept for its reasoning. The UI side is ready for it: the metrics page (branch `feature/beautification`) reads all its data from `MetricsLiveService` (`query-service-web/.../core/services/metrics-live.service.ts`), whose signals (`routes`, `history`, `status`, `updatedAt`, …) are the only contract with the page. Today that service polls; this plan replaces its insides with a server push and keeps polling as the fallback.
 
 ## Status: the shared `/api/events` channel (2026-11-28)
 
-The shared channel this plan's last risk mentions now exists, with one topic, `datasources`. Metrics are not on it
-yet; moving them is the remaining work (phase 1 below, as a `metrics` topic instead of a separate
-`/metrics/stream`).
+The shared channel this plan's last risk mentions now exists, with the topics `datasources` and `metrics` (see the
+next section). Topics combine on one stream: `?topics=datasources,metrics`.
 
 | Piece | Built |
 |---|---|
@@ -35,6 +35,31 @@ must accept both forms, as the spec says.
 
 To add a topic: a broadcaster with a `stream()` of snapshots, a name in `EventsController.KNOWN_TOPICS`, and a branch
 mapping it to named events.
+
+## Status: the `metrics` topic (2026-11-28)
+
+Phase 1 is built, as a topic on the shared channel rather than a separate `/metrics/stream`, and with full-history
+events rather than appended rows (simpler for the client; the history is at most 30 minutes × routes rows).
+
+| Piece | Built |
+|---|---|
+| Stream | `GET /queryrest/api/events?topics=metrics[&datasource=<id>][&history=false]` (also with `datasources`). Event `metrics`, data `{"routes":[…],"history":[…]}`: `routes` are `MetricObject`s exactly as `GET /api/metrics/routes` returns them (sorted by route id), scoped to one datasource with `datasource` (same rule as `/api/metrics/routes/{datasourceId}`; unknown id = empty list); `history` is every stored row exactly as `GET /api/metrics/route/persisted` returns them |
+| When | The first event has both keys (no `history` with `history=false`). Later events go out when the stream's routes changed (all fields but `timeStamp`, which live metrics leave null anyway; `uptime` counts, and Camel formats it to the second, so a started route changes on every tick) and/or the history changed. `routes` is always there; `history` (in full) only when it changed since the last event sent to that stream, otherwise the key is absent |
+| Polling fallback | `GET /queryrest/api/events/metrics[?datasource=<id>][&history=false]`: the same object, freshly read, always both keys unless `history=false`; `Cache-Control: no-store` |
+| Server | `MetricsBroadcaster` (`routebuilder.events`): one JMX scan per `qtt.events.interval` tick for all streams, only while a `metrics` stream is open, filtered per stream. The route → datasource map is one `routeService.getAll()` per scan, read only when a scoped stream is open. `RouteMetricsReader` (`routebuilder.metrics`) holds the JMX scan and datasource rule, shared with `MetricsController` |
+| History changes | `QueryMetrics` (after a run that stored at least one snapshot, also when a later route failed) and `CleanMetrics` (after each delete) fire `MetricsHistoryChanged` (`query-service-metrics`) with `fireAsync`. The broadcaster, only while some stream wants history, reloads the history once, and pushes it only if it differs from the last load. A history change needs no JMX scan |
+| Slow clients | A stream keeps only the latest event; the history is marked delivered only when an event carrying it is emitted with demand, so a replaced event can't lose it (the next event repeats it instead) |
+| Auth, limits | As for `datasources`: `qtt-viewer`, the same 400/503 rules, keep-alive, max-age and headers; 499 / 403 covered in `SignInOnTest` |
+| Tests | `MetricsBroadcasterTest`, `EventsControllerTest` (route-builder); `QueryMetricsTest`, `CleanMetricsTest` (scheduler); `EventsStreamTest`, `SignInOnTest`, `role-table.txt` (app) |
+
+Remaining:
+
+- Client (phase 2): `MetricsLiveService` and the datasource page's usage section switch to the stream, polling
+  `/api/events/metrics` as the fallback.
+- Phase 3 (end-to-end browser check) and the open-streams gauge from phase 4.
+- `uptime` is Camel's formatted string, so any started route produces an event most ticks; if that proves chatty, send
+  uptime less precisely or derive it client-side from a start time.
+- Several instances behind a load balancer: unchanged (each streams its own JMX numbers; see Risks).
 
 ## Where we are
 

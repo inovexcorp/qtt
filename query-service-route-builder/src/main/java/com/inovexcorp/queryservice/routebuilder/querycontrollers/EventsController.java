@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inovexcorp.queryservice.routebuilder.events.DatasourceHealthBroadcaster;
 import com.inovexcorp.queryservice.routebuilder.events.DatasourceHealthSnapshot;
+import com.inovexcorp.queryservice.routebuilder.events.MetricsBroadcaster;
+import com.inovexcorp.queryservice.routebuilder.events.MetricsSnapshot;
 import com.inovexcorp.queryservice.security.QttRoles;
 import io.smallrye.mutiny.Multi;
 import jakarta.annotation.security.RolesAllowed;
@@ -35,7 +37,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Server-sent events for the live parts of the UI. One stream carries several topics, chosen with
  * {@code ?topics=a,b}; each event is named after its topic and carries a full snapshot as JSON (no deltas), so a
- * reconnecting client needs nothing replayed. Today the only topic is {@code datasources}.
+ * reconnecting client needs nothing replayed. Topics: {@code datasources} (datasource health) and {@code metrics}
+ * (live route metrics, optionally scoped with {@code ?datasource=id}, plus the stored history unless
+ * {@code ?history=false}; the history is left out of an event when it did not change since the last one).
  * <p>
  * A stream sends each topic's current snapshot at once, then a new one only when it changed, plus a
  * {@code : keep-alive} comment every 20 s. It ends after {@code qtt.events.max-age} (default 10 minutes), so an
@@ -48,10 +52,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class EventsController {
 
     static final String TOPIC_DATASOURCES = "datasources";
-    static final Set<String> KNOWN_TOPICS = Set.of(TOPIC_DATASOURCES);
+    static final String TOPIC_METRICS = "metrics";
+    static final Set<String> KNOWN_TOPICS = Set.of(TOPIC_DATASOURCES, TOPIC_METRICS);
 
     @Inject
     DatasourceHealthBroadcaster datasourceHealthBroadcaster;
+
+    @Inject
+    MetricsBroadcaster metricsBroadcaster;
 
     @Inject
     ObjectMapper objectMapper;
@@ -73,7 +81,9 @@ public class EventsController {
     /**
      * Opens an event stream.
      *
-     * @param topics comma-separated topic names; currently only {@code datasources}
+     * @param topics     comma-separated topic names: {@code datasources}, {@code metrics}
+     * @param datasource {@code metrics} only: just this datasource's routes; absent or empty for all routes
+     * @param history    {@code metrics} only: {@code false} to never send the stored history
      * @return the events; 400 for a missing or unknown topic, 503 when too many streams are open
      */
     @RolesAllowed(QttRoles.VIEWER)
@@ -81,7 +91,9 @@ public class EventsController {
     @Produces(MediaType.SERVER_SENT_EVENTS)
     @ResponseHeader(name = "Cache-Control", value = "no-store")
     @ResponseHeader(name = "X-Accel-Buffering", value = "no")
-    public Multi<OutboundSseEvent> stream(@QueryParam("topics") String topics) {
+    public Multi<OutboundSseEvent> stream(@QueryParam("topics") String topics,
+                                          @QueryParam("datasource") String datasource,
+                                          @QueryParam("history") String history) {
         Set<String> requested = parseTopics(topics);
         if (openStreams.incrementAndGet() > maxSubscribers) {
             openStreams.decrementAndGet();
@@ -98,6 +110,10 @@ public class EventsController {
             if (requested.contains(TOPIC_DATASOURCES)) {
                 streams.add(datasourceHealthBroadcaster.stream()
                         .map(snapshot -> event(TOPIC_DATASOURCES, snapshot)));
+            }
+            if (requested.contains(TOPIC_METRICS)) {
+                streams.add(metricsBroadcaster.stream(datasource, includeHistory(history))
+                        .map(snapshot -> event(TOPIC_METRICS, snapshot)));
             }
             streams.add(Multi.createFrom().ticks().startingAfter(keepAlive).every(keepAlive)
                     .onOverflow().drop()
@@ -122,6 +138,27 @@ public class EventsController {
     @ResponseHeader(name = "Cache-Control", value = "no-store")
     public DatasourceHealthSnapshot datasources() {
         return datasourceHealthBroadcaster.currentSnapshot();
+    }
+
+    /**
+     * The current route metrics, the same as a first {@code metrics} event; for clients that poll.
+     *
+     * @param datasource just this datasource's routes; absent or empty for all routes
+     * @param history    {@code false} to leave out the stored history
+     */
+    @RolesAllowed(QttRoles.VIEWER)
+    @GET
+    @Path("metrics")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ResponseHeader(name = "Cache-Control", value = "no-store")
+    public MetricsSnapshot metrics(@QueryParam("datasource") String datasource,
+                                   @QueryParam("history") String history) {
+        return metricsBroadcaster.currentSnapshot(datasource, includeHistory(history));
+    }
+
+    /** {@code ?history=false} turns the history off; anything else (or nothing) leaves it on. */
+    static boolean includeHistory(String history) {
+        return history == null || !"false".equalsIgnoreCase(history.trim());
     }
 
     /** Number of open event streams. */

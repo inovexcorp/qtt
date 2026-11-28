@@ -10,7 +10,7 @@ import com.inovexcorp.queryservice.metrics.MetricsScraper;
 import com.inovexcorp.queryservice.metrics.RouteMetrics;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.MetricService;
-import com.inovexcorp.queryservice.persistence.RouteService;
+import com.inovexcorp.queryservice.routebuilder.metrics.RouteMetricsReader;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.api.management.mbean.ManagedRouteMBean;
@@ -25,11 +25,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * REST controller for exposing Camel route metrics.
@@ -53,13 +49,13 @@ public class MetricsController {
     ContextManager contextManager;
 
     @Inject
-    RouteService routeService;
-
-    @Inject
     MetricService metricService;
 
     @Inject
     MetricsScraper metricsScraper;
+
+    @Inject
+    RouteMetricsReader routeMetricsReader;
 
     /**
      * Retrieves all persisted metrics from the database.
@@ -73,13 +69,7 @@ public class MetricsController {
     public Response getPersistedRoutes() {
         log.debug("Retrieving all persisted metrics");
         RouteMetrics metricsObj = new RouteMetrics();
-        List<MetricObject> metrics = metricsObj.getMetrics();
-
-        metricService.getAllMetrics().forEach(metric ->
-                metrics.add(MetricObject.fromMetricRecord()
-                        .metricRecord(metric)
-                        .build())
-        );
+        metricsObj.setMetrics(RouteMetricsReader.toMetricObjects(metricService.getAllMetrics()));
 
         return Response.ok(metricsObj)
                 .type(MediaType.APPLICATION_JSON)
@@ -98,11 +88,8 @@ public class MetricsController {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getRouteMetrics() throws Exception {
         log.debug("Retrieving metrics for all routes");
-        CamelContext ctx = contextManager.getDefaultContext();
         RouteMetrics metricsObj = new RouteMetrics();
-
-        Set<ObjectName> routeMBeanNames = queryRouteMBeans(ctx);
-        populateMetricsFromBean(routeMBeanNames, metricsObj);
+        metricsObj.setMetrics(routeMetricsReader.liveMetrics());
 
         return Response.ok(metricsObj)
                 .type(MediaType.APPLICATION_JSON)
@@ -202,31 +189,12 @@ public class MetricsController {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getDatasourceSpecificRouteMetrics(@PathParam("datasourceId") String datasourceId) throws Exception {
         log.debug("Retrieving metrics for datasource: {}", datasourceId);
-        CamelContext ctx = contextManager.getDefaultContext();
         RouteMetrics metricsObj = new RouteMetrics();
-
-        Set<ObjectName> filteredRouteMBeanNames = queryRouteMBeans(ctx).stream()
-                .filter(routeMBeanName -> isRouteTiedToDatasource(routeMBeanName, datasourceId))
-                .collect(Collectors.toSet());
-
-        populateMetricsFromBean(filteredRouteMBeanNames, metricsObj);
+        metricsObj.setMetrics(routeMetricsReader.liveMetrics(datasourceId));
 
         return Response.ok(metricsObj)
                 .type(MediaType.APPLICATION_JSON)
                 .build();
-    }
-
-    /**
-     * Queries all route MBeans from the MBean server.
-     *
-     * @param ctx the Camel context
-     * @return Set of ObjectNames for all route MBeans
-     * @throws Exception if MBean query fails
-     */
-    private Set<ObjectName> queryRouteMBeans(CamelContext ctx) throws Exception {
-        String objectNamePattern = String.format("org.apache.camel:context=%s,type=routes,*",
-                ctx.getManagementName());
-        return mBeanServer().queryNames(new ObjectName(objectNamePattern), null);
     }
 
     /**
@@ -252,45 +220,11 @@ public class MetricsController {
     }
 
     /**
-     * Checks if a route is associated with a specific datasource.
-     *
-     * @param routeMBeanName the MBean ObjectName
-     * @param datasourceId   the datasource ID to check
-     * @return true if the route is tied to the datasource
-     */
-    private boolean isRouteTiedToDatasource(ObjectName routeMBeanName, String datasourceId) {
-        String routeId = routeMBeanName.getKeyProperty("name").replace("\"", "");
-        return routeBelongsToDatasource(routeService.getRoute(routeId), datasourceId);
-    }
-
-    /**
      * True if the persisted route uses the given datasource. Routes running in Camel without a database row
      * (temporary test routes, for example) belong to no datasource.
      */
     static boolean routeBelongsToDatasource(CamelRouteTemplate route, String datasourceId) {
-        return route != null && route.getDatasources() != null
-                && datasourceId != null && datasourceId.equals(route.getDatasources().getDataSourceId());
-    }
-
-    /**
-     * Populates a RouteMetrics object with data from MBeans.
-     *
-     * @param routeMBeanNames the set of route MBean ObjectNames
-     * @param metricsObj      the RouteMetrics object to populate
-     */
-    private void populateMetricsFromBean(Set<ObjectName> routeMBeanNames, RouteMetrics metricsObj) {
-        List<MetricObject> metrics = new ArrayList<>(routeMBeanNames.size());
-
-        for (ObjectName routeMBeanName : routeMBeanNames) {
-            log.debug("Retrieving metrics for route {}", routeMBeanName.getKeyProperty("name"));
-            ManagedRouteMBean routeMBean = MBeanServerInvocationHandler.newProxyInstance(
-                    mBeanServer(), routeMBeanName, ManagedRouteMBean.class, true);
-            metrics.add(MetricObject.fromRouteMBean()
-                    .managedRouteMBean(routeMBean)
-                    .build());
-        }
-
-        metricsObj.setMetrics(metrics);
+        return RouteMetricsReader.routeBelongsToDatasource(route, datasourceId);
     }
 
     /**

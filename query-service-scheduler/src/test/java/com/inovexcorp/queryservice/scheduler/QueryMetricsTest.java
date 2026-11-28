@@ -276,4 +276,39 @@ class QueryMetricsTest {
         verify(metricsScraper, never()).persistRouteMetricData("route2");
         verify(metricsScraper, never()).persistRouteMetricData("route3");
     }
+
+    // ========================================
+    // History change event for the live metrics stream
+    // ========================================
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("Should tell live views once after storing snapshots, even when a later route fails")
+    void shouldFireHistoryChangedAfterStoring() throws Exception {
+        jakarta.enterprise.event.Event<com.inovexcorp.queryservice.metrics.MetricsHistoryChanged> event =
+                mock(jakarta.enterprise.event.Event.class);
+        queryMetrics.historyChanged = event;
+        when(routeService.getAll()).thenReturn(testRoutes);
+
+        queryMetrics.execute(jobContext);
+        verify(event, times(1)).fireAsync(new com.inovexcorp.queryservice.metrics.MetricsHistoryChanged(
+                com.inovexcorp.queryservice.metrics.MetricsHistoryChanged.STORED));
+
+        org.mockito.Mockito.lenient().doThrow(new IllegalArgumentException("gone")).when(metricsScraper)
+                .persistRouteMetricData("route2");
+        assertThatThrownBy(() -> queryMetrics.execute(jobContext)).isInstanceOf(IllegalStateException.class);
+        verify(event, times(2)).fireAsync(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("Should not fire when nothing was stored")
+    void shouldNotFireWhenNothingStored() {
+        jakarta.enterprise.event.Event<com.inovexcorp.queryservice.metrics.MetricsHistoryChanged> event =
+                mock(jakarta.enterprise.event.Event.class);
+        queryMetrics.historyChanged = event;
+        when(routeService.getAll()).thenReturn(Collections.emptyList());
+        queryMetrics.execute(jobContext);
+        verify(event, never()).fireAsync(org.mockito.ArgumentMatchers.any());
+    }
 }

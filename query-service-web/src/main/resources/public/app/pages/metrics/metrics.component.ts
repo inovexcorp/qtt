@@ -122,7 +122,8 @@ export class MetricsComponent {
       case 'connecting':
         return this.live.routesFailed() ? 'Not connected · retrying' : 'Connecting…';
       case 'live':
-        return `Live · updated ${this.updatedAgo()}`;
+        // Pushed updates arrive when the numbers change: the page is current while it says Live.
+        return this.live.transport() === 'stream' ? 'Live' : `Live · updated ${this.updatedAgo()}`;
       case 'stale':
         return `Couldn't refresh · last update ${this.updatedAgo()}`;
       case 'paused':

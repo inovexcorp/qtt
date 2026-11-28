@@ -13,6 +13,7 @@ import java.util.Set;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.oneOf;
 import static org.hamcrest.Matchers.startsWith;
@@ -40,6 +41,10 @@ class SignInOnTest {
         // The event stream too: the UI reads it with fetch() and the same header, so it can sign in again.
         given().redirects().follow(false).header("X-Requested-With", "JavaScript").header("Accept", "text/event-stream")
                 .when().get("/queryrest/api/events?topics=datasources").then().statusCode(499);
+        given().redirects().follow(false).header("X-Requested-With", "JavaScript").header("Accept", "text/event-stream")
+                .when().get("/queryrest/api/events?topics=datasources,metrics").then().statusCode(499);
+        given().redirects().follow(false).header("X-Requested-With", "JavaScript")
+                .when().get("/queryrest/api/events/metrics").then().statusCode(499);
     }
 
     @Test
@@ -49,6 +54,11 @@ class SignInOnTest {
                 .when().get("/queryrest/api/events?topics=datasources").then().statusCode(403);
         as("viewer", "qtt-viewer").when().get("/queryrest/api/events/datasources").then().statusCode(200)
                 .body("healthCheckEnabled", equalTo(true));
+        as("nobody", "offline_access").when().get("/queryrest/api/events/metrics").then().statusCode(403);
+        as("nobody", "offline_access").header("Accept", "text/event-stream")
+                .when().get("/queryrest/api/events?topics=metrics").then().statusCode(403);
+        as("viewer", "qtt-viewer").when().get("/queryrest/api/events/metrics?history=false").then().statusCode(200)
+                .body("routes", notNullValue());
     }
 
     @Test

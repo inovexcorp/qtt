@@ -10,7 +10,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -19,7 +21,10 @@ import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.oneOf;
@@ -87,6 +92,68 @@ class EventsStreamTest {
             }
         } finally {
             given().when().delete("/queryrest/api/datasources/events-ds").then().statusCode(not(oneOf(401, 403)));
+        }
+    }
+
+    @Test
+    void metricsPollingEndpointReturnsRoutesAndHistory() {
+        given().when().get("/queryrest/api/events/metrics").then().statusCode(200)
+                .header("Cache-Control", "no-store")
+                .body("routes", instanceOf(List.class))
+                .body("history", instanceOf(List.class));
+        given().when().get("/queryrest/api/events/metrics?history=false&datasource=no-such-ds").then().statusCode(200)
+                .body("routes", empty())
+                .body("$", not(hasKey("history")));
+    }
+
+    @Test
+    void metricsTopicStreamsRoutesAndHistory() throws Exception {
+        List<String[]> events = readEvents("?topics=metrics", 1);
+        assertEquals("metrics", events.get(0)[0]);
+        assertTrue(events.get(0)[1].startsWith("{\"routes\":["), events.get(0)[1]);
+        assertTrue(events.get(0)[1].contains("\"history\":["), events.get(0)[1]);
+    }
+
+    @Test
+    void metricsWithDatasourcesOnOneStreamAndHistoryOff() throws Exception {
+        List<String[]> events = readEvents("?topics=datasources,metrics&history=false", 2);
+        String[] metrics = events.stream().filter(e -> "metrics".equals(e[0])).findFirst().orElseThrow();
+        assertTrue(events.stream().anyMatch(e -> "datasources".equals(e[0])));
+        assertTrue(metrics[1].startsWith("{\"routes\":["), metrics[1]);
+        assertFalse(metrics[1].contains("\"history\""), metrics[1]);
+    }
+
+    /** Opens the stream and reads its first {@code count} events as [name, data] pairs, with a deadline. */
+    private List<String[]> readEvents(String query, int count) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(events + query))
+                .header("Accept", "text/event-stream")
+                .header("X-Requested-With", "JavaScript")
+                .timeout(Duration.ofSeconds(30))
+                .build();
+        HttpResponse<Stream<String>> response = client.sendAsync(request, HttpResponse.BodyHandlers.ofLines())
+                .get(30, TimeUnit.SECONDS);
+        try (Stream<String> lines = response.body()) {
+            assertEquals(200, response.statusCode());
+            Iterator<String> it = lines.iterator();
+            return CompletableFuture.supplyAsync(() -> {
+                List<String[]> result = new ArrayList<>();
+                String name = null;
+                StringBuilder data = new StringBuilder();
+                while (result.size() < count && it.hasNext()) {
+                    String line = it.next();
+                    if (line.isEmpty() && name != null) {
+                        result.add(new String[]{name, data.toString()});
+                        name = null;
+                        data.setLength(0);
+                    } else if (line.startsWith("event:")) {
+                        name = line.substring("event:".length()).trim();
+                    } else if (line.startsWith("data:")) {
+                        data.append(line.substring("data:".length()).trim());
+                    }
+                }
+                return result;
+            }).get(20, TimeUnit.SECONDS);
         }
     }
 

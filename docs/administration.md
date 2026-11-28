@@ -486,7 +486,7 @@ token.
 
 ### Live updates through a reverse proxy
 
-The datasource pages get health changes over a long-lived server-sent events stream
+The datasource and metrics pages get health changes and route metrics over a long-lived server-sent events stream
 (`/queryrest/api/events`). QTT sends `X-Accel-Buffering: no`, a `: keep-alive` comment every 20 s
 (`QTT_EVENTS_KEEP_ALIVE`) and ends each stream after 10 minutes (`QTT_EVENTS_MAX_AGE`). The proxy must pass the
 stream through unbuffered and keep idle connections open longer than the keep-alive interval. With nginx:

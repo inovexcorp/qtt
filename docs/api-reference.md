@@ -387,6 +387,30 @@ GET /metrics/history?routeId={routeId}&metric={metricName}&from={timestamp}&to={
 - `inflightExchanges`
 - `failedExchanges`
 
+## Live Events API
+
+Server-sent events for the UI's live views (`qtt-viewer`). One stream carries several topics; each event is named
+after its topic and carries a full snapshot as compact JSON on one `data:` line (Quarkus writes `event:metrics`
+without a space after the colon). A stream sends each topic's current snapshot at once, then one only when it changed,
+plus a `: keep-alive` comment every 20 s, and ends after 10 minutes (reconnect). A missing or unknown topic answers
+`400`; past `QTT_EVENTS_MAX_SUBSCRIBERS` open streams, `503` (poll instead).
+
+```bash
+GET /events?topics=datasources,metrics&datasource={datasourceId}&history=false
+```
+
+| Topic | Payload |
+|---|---|
+| `datasources` | `{"healthCheckEnabled":true,"datasources":[{"dataSourceId","url","status","lastHealthCheck","lastHealthError","consecutiveFailures","routeCount","recentChecks":[…]}]}` |
+| `metrics` | `{"routes":[…],"history":[…]}`: `routes` as `GET /metrics/routes` returns them (only `datasource`'s routes when given; an unknown id gives `[]`), `history` as `GET /metrics/route/persisted` returns them. `history` is on the first event and then only when the stored history changed (in full); never with `history=false` |
+
+Polling equivalents (JSON, `Cache-Control: no-store`):
+
+```bash
+GET /events/datasources
+GET /events/metrics?datasource={datasourceId}&history=false
+```
+
 ## Settings API
 
 ### Get System Information

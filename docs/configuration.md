@@ -136,13 +136,13 @@ Configuration for Redis-backed query result caching to improve performance and r
 
 ### Live Updates (Server-Sent Events) Configuration
 
-The UI's datasource pages receive health changes over a server-sent events stream (`/queryrest/api/events`) and fall
-back to polling when it is unavailable. Behind a reverse proxy, see
+The UI's datasource and metrics pages receive datasource health and route metrics over a server-sent events stream
+(`/queryrest/api/events`) and fall back to polling when it is unavailable. Behind a reverse proxy, see
 [administration.md](administration.md#live-updates-through-a-reverse-proxy).
 
 | Variable                      | Default | Description                                                                | Required |
 |-------------------------------|---------|----------------------------------------------------------------------------|----------|
-| `QTT_EVENTS_INTERVAL`         | `5s`    | How often the server rescans for changes while any stream is open          | Optional |
+| `QTT_EVENTS_INTERVAL`         | `5s`    | How often the server rescans health and metrics while any stream is open   | Optional |
 | `QTT_EVENTS_MAX_AGE`          | `10m`   | Each stream ends after this long; the browser reconnects at once           | Optional |
 | `QTT_EVENTS_KEEP_ALIVE`       | `20s`   | Interval of the keep-alive comment that stops proxies closing idle streams | Optional |
 | `QTT_EVENTS_MAX_SUBSCRIBERS`  | `200`   | Open streams allowed; past it the endpoint answers 503 and browsers poll   | Optional |
