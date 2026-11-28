@@ -20,7 +20,7 @@ export class MetricsService {
     return this.http.get<RouteMetricsResponse>("/queryrest/api/metrics/route/persisted");
   }
 
-  getDatasourceRouteMetrics(dataSource: any): Observable<RouteMetricsResponse> {
-    return this.http.get<RouteMetricsResponse>(this.metricsUrl.concat(dataSource));
+  getDatasourceRouteMetrics(dataSource: string): Observable<RouteMetricsResponse> {
+    return this.http.get<RouteMetricsResponse>(this.metricsUrl + encodeURIComponent(dataSource));
   }
 }

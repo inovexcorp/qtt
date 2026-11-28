@@ -1,41 +1,55 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatIcon } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 
 /**
- * Stands in for a metrics chart or table that has nothing to draw yet: a spinner while its data loads, a message and
- * Retry when the request failed, or an explanation when there is no data (rather than an empty or zeroed chart).
+ * Stands in for a metrics chart or table that has nothing to draw yet: a skeleton while its data first loads, a
+ * message and Retry when the request failed, or an explanation when there is no data (rather than an empty or
+ * zeroed chart). Fills its container.
  */
 @Component({
   selector: 'app-metrics-status',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatProgressSpinner, MatIcon, MatButton],
+  imports: [MatIcon, MatButton],
+  host: { class: 'metrics-status-host' },
   template: `
-    <div class="metrics-status" [attr.role]="mode() === 'error' ? 'alert' : 'status'" aria-live="polite">
-      @switch (mode()) {
-        @case ('loading') {
-          <mat-spinner diameter="40" aria-label="Loading"></mat-spinner>
-          <p class="metrics-status__title">{{ loadingText() }}</p>
-        }
-        @case ('error') {
+    @switch (mode()) {
+      @case ('loading') {
+        <div class="metrics-skeleton" role="status" aria-live="polite">
+          <span class="metrics-visually-hidden">{{ loadingText() }}</span>
+          @for (width of skeletonRows; track $index) {
+            <div class="metrics-skeleton__row">
+              <span class="metrics-skeleton__label"></span>
+              <span class="metrics-skeleton__bar" [style.width.%]="width"></span>
+            </div>
+          }
+        </div>
+      }
+      @case ('error') {
+        <div class="metrics-status" [attr.role]="retryable() ? 'alert' : 'status'">
           <mat-icon class="metrics-status__icon metrics-status__icon--error">error_outline</mat-icon>
           <p class="metrics-status__title">Couldn't load metrics</p>
-          <p class="metrics-status__detail">Check that the service is reachable, then try again.</p>
-          <button mat-stroked-button (click)="retry.emit()">
-            <mat-icon>refresh</mat-icon>
-            Retry
-          </button>
-        }
-        @default {
+          @if (retryable()) {
+            <p class="metrics-status__detail">Check that the service is reachable, then try again.</p>
+            <button mat-stroked-button (click)="retry.emit()">
+              <mat-icon>refresh</mat-icon>
+              Retry
+            </button>
+          } @else {
+            <p class="metrics-status__detail">Retrying automatically.</p>
+          }
+        </div>
+      }
+      @default {
+        <div class="metrics-status" role="status">
           <mat-icon class="metrics-status__icon">{{ emptyIcon() }}</mat-icon>
           <p class="metrics-status__title">{{ emptyTitle() }}</p>
           @if (emptyDetail()) {
             <p class="metrics-status__detail">{{ emptyDetail() }}</p>
           }
-        }
+        </div>
       }
-    </div>
+    }
   `,
 })
 export class MetricsStatusComponent {
@@ -45,5 +59,9 @@ export class MetricsStatusComponent {
   readonly emptyIcon = input('insights');
   readonly emptyTitle = input('No data yet');
   readonly emptyDetail = input('');
+  /** Offer a Retry button on error (off where the page shows one Retry for everything). */
+  readonly retryable = input(true);
   readonly retry = output<void>();
+
+  protected readonly skeletonRows = [78, 52, 64, 36, 22];
 }

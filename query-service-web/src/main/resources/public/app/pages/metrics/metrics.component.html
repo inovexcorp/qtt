@@ -1,238 +1,221 @@
-<section class="summary-tiles" aria-label="Summary">
-  <div class="summary-tile">
-    @if (routeState === 'loading') {
-      <mat-spinner class="summary-tile__spinner" diameter="32" aria-label="Loading total endpoints"></mat-spinner>
-    } @else {
-      <span class="summary-tile__value" [class.summary-tile__value--missing]="!summary">{{ summary ? summary.endpoints : '—' }}</span>
-    }
-    <span class="summary-tile__label">Total Endpoints</span>
-    @if (routeState === 'error') {
-      <span class="summary-tile__hint"><mat-icon inline>info_outline</mat-icon>{{ missingReason() }}</span>
-    }
-  </div>
+<div class="metrics-page" [class.metrics-page--rescoping]="live.rescoping()">
 
-  <div class="summary-tile">
-    @if (routeState === 'loading') {
-      <mat-spinner class="summary-tile__spinner" diameter="32" aria-label="Loading average processing time"></mat-spinner>
-    } @else if (summary?.avgProcessingMs != null) {
-      <span class="summary-tile__value">{{ summary!.avgProcessingMs! | number:'1.2-2' }}ms</span>
-    } @else {
-      <span class="summary-tile__value summary-tile__value--missing"
-        matTooltip="An average needs at least one exchange">—</span>
-    }
-    <span class="summary-tile__label">Avg Processing Time</span>
-    @if (routeState !== 'loading' && summary?.avgProcessingMs == null) {
-      <span class="summary-tile__hint"><mat-icon inline>info_outline</mat-icon>{{ missingReason() }}</span>
-    }
-  </div>
-
-  <div class="summary-tile">
-    @if (routeState === 'loading') {
-      <mat-spinner class="summary-tile__spinner" diameter="32" aria-label="Loading busiest route"></mat-spinner>
-    } @else if (summary?.busiestRoute) {
-      <span class="summary-tile__value" [matTooltip]="summary!.busiestRoute!">{{ summary!.busiestRoute }}</span>
-    } @else {
-      <span class="summary-tile__value summary-tile__value--missing"
-        matTooltip="No route has handled an exchange yet">—</span>
-    }
-    <span class="summary-tile__label">Busiest Route</span>
-    @if (routeState !== 'loading' && !summary?.busiestRoute) {
-      <span class="summary-tile__hint"><mat-icon inline>info_outline</mat-icon>{{ missingReason() }}</span>
-    }
-  </div>
-
-  <div class="summary-tile">
-    @if (routeState === 'loading') {
-      <mat-spinner class="summary-tile__spinner" diameter="32" aria-label="Loading success rate"></mat-spinner>
-    } @else if (summary?.successRate != null) {
-      <span class="summary-tile__value">{{ summary!.successRate }}%</span>
-    } @else {
-      <span class="summary-tile__value summary-tile__value--missing"
-        matTooltip="A success rate needs at least one exchange">—</span>
-    }
-    <span class="summary-tile__label">Average Success Rate</span>
-    @if (routeState === 'ready' && summary?.successRate != null) {
-      <mat-progress-bar class="summary-tile__bar" mode="determinate" [value]="summary!.successRate"
-        aria-label="Average success rate"></mat-progress-bar>
-    } @else if (routeState !== 'loading') {
-      <span class="summary-tile__hint"><mat-icon inline>info_outline</mat-icon>{{ missingReason() }}</span>
-    }
-  </div>
-</section>
-
-<mat-tab-group mat-stretch-tabs animationDuration="500ms" class="charts-container">
-  <mat-tab label="Exchanges">
-    <div class="chart-container">
-      <form [formGroup]="metrics">
-        <mat-form-field class="datasource-input-field">
-          <mat-label>Datasource</mat-label>
-          <input type="text" placeholder="All Datasources" #exchangeDatasourceId formControlName="exchangeDatasourceId"
-            matInput [matAutocomplete]="datasourceExchangesAutoComplete">
-          <mat-autocomplete #datasourceExchangesAutoComplete="matAutocomplete"
-            (optionSelected)="fetchDatasourceSpecificMetrics($event.option.value)">
-            <mat-option value="">All Datasources</mat-option>
-            @for (option of filteredDatasources | async; track option) {
-              <mat-option [value]="option.dataSourceId">
-                {{option.dataSourceId}}
-              </mat-option>
-            }
-          </mat-autocomplete>
-        </mat-form-field>
-        <mat-form-field class="route-input-checkbox">
-          <mat-label>Routes</mat-label>
-          <mat-select formControlName="routeId" #routeIdSelect multiple (selectionChange)="filterByRoutes($event)">
-            @for (route of exchangeData; track route) {
-              <mat-option [value]="route.name">{{route.name}}</mat-option>
-            }
-          </mat-select>
-
-        </mat-form-field>
-      </form>
-      @if (chartMode(exchangeDisplay); as mode) {
-        <app-metrics-status [mode]="mode" emptyIcon="bar_chart" [emptyTitle]="emptyChartTitle()"
-          [emptyDetail]="emptyChartDetail()" (retry)="retryCharts()"></app-metrics-status>
-      } @else {
-        <ngx-charts-bar-vertical-stacked [results]="exchangeDisplay" [scheme]="purpleColorScheme" [xAxis]="true"
-          [yAxis]="true" [yAxisTickFormatting]="yAxisTickFormatting" [showXAxisLabel]="true" [showYAxisLabel]="true"
-          [wrapTicks]="true" [legend]="true">
-        </ngx-charts-bar-vertical-stacked>
-      }
-  </div>
-</mat-tab>
-<mat-tab label="Latency">
-  <div class="chart-container">
-
-    <form [formGroup]="metrics">
-      <mat-form-field class="datasource-input-field-latency">
+  <!-- One filter row scopes everything below it. -->
+  <div class="metrics-toolbar">
+    <div class="metrics-filters">
+      <mat-form-field class="metrics-filter" appearance="outline" subscriptSizing="dynamic">
         <mat-label>Datasource</mat-label>
-        <input type="text" placeholder="All Datasources" #latencyDatasourceId formControlName="latencyDatasourceId"
-          matInput [matAutocomplete]="datasourceLatencyAutoComplete">
-        <mat-autocomplete #datasourceLatencyAutoComplete="matAutocomplete"
-          (optionSelected)="fetchDatasourceSpecificMetrics($event.option.value)">
-          <mat-option value="">All Datasources</mat-option>
-          @for (option of filteredDatasources | async; track option) {
-            <mat-option [value]="option.dataSourceId">
-              {{option.dataSourceId}}
-            </mat-option>
-          }
-        </mat-autocomplete>
-      </mat-form-field>
-      <mat-form-field class="route-input-checkbox">
-        <mat-label>Routes</mat-label>
-        <mat-select formControlName="routeId" #routeIdSelect multiple (selectionChange)="filterByRoutes($event)">
-          @for (route of exchangeData; track route) {
-            <mat-option [value]="route.name">{{route.name}}</mat-option>
+        <mat-select [value]="datasource()" (selectionChange)="selectDatasource($event.value)">
+          <mat-option value="">All datasources</mat-option>
+          @for (ds of datasources(); track ds.dataSourceId) {
+            <mat-option [value]="ds.dataSourceId">{{ ds.dataSourceId }}</mat-option>
           }
         </mat-select>
-
       </mat-form-field>
-    </form>
-
-    <div class="chart-container">
-      @if (chartMode(latencyDisplay); as mode) {
-        <app-metrics-status [mode]="mode" emptyIcon="timer" [emptyTitle]="emptyChartTitle()"
-          [emptyDetail]="emptyChartDetail()" (retry)="retryCharts()"></app-metrics-status>
-      } @else {
-        <ngx-charts-bar-vertical-2d [view]="[1400,400]" [results]="latencyDisplay" [showXAxisLabel]="true"
-          [showYAxisLabel]="true" [wrapTicks]="true" [scheme]="purpleColorScheme" [xAxis]="true" [yAxis]="true" [legend]="true"
-          [yAxisTickFormatting]="verticalGroupedTickFormat"
-          [barPadding]="-20"
-          [groupPadding]="1">
-        </ngx-charts-bar-vertical-2d>
+      <mat-form-field class="metrics-filter" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Routes</mat-label>
+        <mat-select multiple placeholder="All routes" [value]="selectedRoutes()"
+          (selectionChange)="selectedRoutes.set($event.value)" [disabled]="routeNames().length === 0">
+          @for (name of routeNames(); track name) {
+            <mat-option [value]="name">{{ name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (selectedRoutes().length > 0) {
+        <button mat-button class="metrics-filters__clear" (click)="selectedRoutes.set([])">Show all routes</button>
       }
     </div>
+
+    <div class="metrics-live" [attr.data-status]="live.status()">
+      <span class="metrics-live__dot" aria-hidden="true"><span class="metrics-live__ping" #ping></span></span>
+      <span class="metrics-live__text">{{ statusText() }}</span>
+      <span class="metrics-visually-hidden" role="status">{{ statusAnnouncement() }}</span>
+      <button mat-icon-button (click)="togglePause()"
+        [matTooltip]="live.status() === 'paused' ? 'Resume live updates' : 'Pause live updates'"
+        [attr.aria-label]="live.status() === 'paused' ? 'Resume live updates' : 'Pause live updates'">
+        <mat-icon>{{ live.status() === 'paused' ? 'play_arrow' : 'pause' }}</mat-icon>
+      </button>
+      <button mat-icon-button (click)="live.refresh()" matTooltip="Refresh now" aria-label="Refresh now">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
   </div>
-</mat-tab>
-<mat-tab label="Trends">
-  <mat-form-field class="persisted-metrics">
-    <mat-label>Metric</mat-label>
-    <mat-select [ngModel]="persistedMetric" (selectionChange)="getPersistedMetrics($event.value)">
-      <mat-option value="totalProcessingTime">Total Processing Time</mat-option>
-      <mat-option value="minProcessingTime">Min Processing Time</mat-option>
-      <mat-option value="maxProcessingTime">Max Processing Time</mat-option>
-      <mat-option value="meanProcessingTime">Mean Processing Time</mat-option>
-      <mat-option value="exchangesCompleted">Completed Exchanges</mat-option>
-      <mat-option value="exchangesTotal">Total Exchanges</mat-option>
-      <mat-option value="exchangesInflight">Inflight Exchanges</mat-option>
-      <mat-option value="exchangesFailed">Failed Exchanges</mat-option>
-    </mat-select>
-  </mat-form-field>
-  @if (trendMode(); as mode) {
-    <app-metrics-status [mode]="mode" loadingText="Loading history…" emptyIcon="show_chart"
-      emptyTitle="No history yet"
-      emptyDetail="Trends appear once metrics have been recorded for routes that have handled queries."
-      (retry)="getPersistedMetrics(persistedMetric)"></app-metrics-status>
-  } @else {
-    <ngx-charts-line-chart
-      [view]="[1450,400]"
-      [results]="persistedData"
-      [xAxis]="true"
-      [yAxis]="true"
-      [scheme]="purpleColorScheme"></ngx-charts-line-chart>
+
+  @if (live.routesFailed() || live.historyFailed()) {
+    <div class="metrics-banner" role="alert">
+      <mat-icon class="metrics-banner__icon">error_outline</mat-icon>
+      <p class="metrics-banner__text">
+        <strong>Couldn't load {{ live.routesFailed() ? 'metrics' : 'the metrics history' }}.</strong>
+        Check that the service is reachable; the page keeps trying every 15 seconds.
+      </p>
+      <button mat-stroked-button (click)="live.refresh()">Retry now</button>
+    </div>
   }
-</mat-tab>
-<mat-tab label="Table">
-  <div class="table-class">
-    <mat-form-field appearance="outline">
-      <mat-label>Search</mat-label>
-      <input #inp matInput (keyup)="applyFilter(inp.value)">
-      <mat-icon matSuffix>search</mat-icon>
-    </mat-form-field>
-    @if (tableMode(); as mode) {
-      <app-metrics-status [mode]="mode" emptyIcon="table_chart" emptyTitle="No routes yet"
-        emptyDetail="Routes appear here once they are created." (retry)="fetchRouteMetrics()"></app-metrics-status>
-    }
-    <table mat-table [dataSource]="dataSource" class="elevated-table" [hidden]="tableMode() !== null">
-      <!-- Name Column -->
-      <ng-container matColumnDef="Name">
-        <th mat-header-cell *matHeaderCellDef>Name</th>
-        <td mat-cell *matCellDef="let element">{{element.name}}</td>
-      </ng-container>
 
-      <!-- Processing Time -->
-      <ng-container matColumnDef="Processing Time">
-        <th mat-header-cell *matHeaderCellDef>Processing Time (Min/Max/Avg)</th>
-        <td mat-cell *matCellDef="let element">
-          @if (element.hasExchanges) {
-            {{element.minProcessingTime}}ms/{{element.maxProcessingTime}}ms/{{element.averageProcessingTime}}ms
+  <!-- Summary -->
+  <section class="metrics-tiles" aria-label="Summary">
+    <article class="metrics-tile">
+      <h2 class="metrics-tile__label">Endpoints</h2>
+      @if (summary(); as s) {
+        <p class="metrics-tile__value"><span [qttTweenNumber]="s.endpoints" [format]="formatInteger"></span></p>
+        <p class="metrics-tile__hint">
+          @if (s.endpoints === 0) {
+            No routes yet
+          } @else if (stopped() > 0) {
+            <mat-icon inline class="metrics-tile__warn">warning</mat-icon>{{ stopped() }} not started
           } @else {
-            <span class="metrics-missing" matTooltip="No exchanges yet, so there are no processing times">—</span>
+            All started
           }
-        </td>
-      </ng-container>
+        </p>
+      } @else if (live.routesFailed()) {
+        <p class="metrics-tile__value metrics-tile__value--missing">—</p>
+        <p class="metrics-tile__hint">Unavailable</p>
+      } @else {
+        <span class="metrics-tile__skeleton" aria-label="Loading"></span>
+      }
+    </article>
 
-      <!-- Successful Exchanges -->
-      <ng-container matColumnDef="Successful Exchanges">
-        <th mat-header-cell *matHeaderCellDef>Successful Exchanges</th>
-        <td mat-cell *matCellDef="let element">{{element.successfulExchanges}}</td>
-      </ng-container>
+    <article class="metrics-tile">
+      <h2 class="metrics-tile__label">Avg processing time</h2>
+      @if (avgParts(); as avg) {
+        <p class="metrics-tile__value">
+          <span [qttTweenNumber]="avg.value" [format]="formatOneDecimal"></span><span class="metrics-tile__unit">{{ avg.unit }}</span>
+        </p>
+        <p class="metrics-tile__hint">Across {{ summary()!.totalExchanges | number }} exchanges</p>
+      } @else if (summary() || live.routesFailed()) {
+        <p class="metrics-tile__value metrics-tile__value--missing" matTooltip="An average needs at least one exchange">—</p>
+        <p class="metrics-tile__hint">{{ missingReason() }}</p>
+      } @else {
+        <span class="metrics-tile__skeleton" aria-label="Loading"></span>
+      }
+    </article>
 
-      <!-- Failed Exchanges -->
-      <ng-container matColumnDef="Failed Exchanges">
-        <th mat-header-cell *matHeaderCellDef>Failed Exchanges</th>
-        <td mat-cell *matCellDef="let element">{{element.failedExchanges}}</td>
-      </ng-container>
+    <article class="metrics-tile">
+      <h2 class="metrics-tile__label">Busiest route</h2>
+      @if (summary()?.busiestRoute; as busiest) {
+        @for (name of [busiest]; track name) {
+          <p class="metrics-tile__value metrics-tile__value--text" animate.enter="metrics-swap-in" [matTooltip]="name">{{ name }}</p>
+        }
+        <p class="metrics-tile__hint">
+          <span [qttTweenNumber]="busiestShare()!.exchanges" [format]="formatInteger"></span> exchanges ·
+          <span [qttTweenNumber]="busiestShare()!.share" [format]="formatPercent"></span>% of traffic
+        </p>
+      } @else if (summary() || live.routesFailed()) {
+        <p class="metrics-tile__value metrics-tile__value--missing" matTooltip="No route has handled an exchange yet">—</p>
+        <p class="metrics-tile__hint">{{ missingReason() }}</p>
+      } @else {
+        <span class="metrics-tile__skeleton" aria-label="Loading"></span>
+      }
+    </article>
 
-      <!-- State -->
-      <ng-container matColumnDef="State">
-        <th mat-header-cell *matHeaderCellDef>State</th>
-        <td mat-cell *matCellDef="let element">{{element.state}}</td>
-      </ng-container>
+    <article class="metrics-tile">
+      <h2 class="metrics-tile__label">Success rate</h2>
+      @if (summary()?.successRate != null) {
+        <p class="metrics-tile__value">
+          <span [qttTweenNumber]="summary()!.successRate!" [format]="formatPercent"></span><span class="metrics-tile__unit metrics-tile__unit--tight">%</span>
+        </p>
+        <div class="metrics-meter" role="meter" aria-label="Success rate" aria-valuemin="0" aria-valuemax="100"
+          [attr.aria-valuenow]="summary()!.successRate">
+          <span class="metrics-meter__fill" [style.transform]="'scaleX(' + summary()!.successRate! / 100 + ')'"></span>
+        </div>
+        <p class="metrics-tile__hint">{{ failedTotal() | number }} failed</p>
+      } @else if (summary() || live.routesFailed()) {
+        <p class="metrics-tile__value metrics-tile__value--missing" matTooltip="A success rate needs at least one exchange">—</p>
+        <p class="metrics-tile__hint">{{ missingReason() }}</p>
+      } @else {
+        <span class="metrics-tile__skeleton" aria-label="Loading"></span>
+      }
+    </article>
+  </section>
 
-      <!-- Uptime -->
-      <ng-container matColumnDef="Uptime">
-        <th mat-header-cell *matHeaderCellDef>Uptime</th>
-        <td mat-cell *matCellDef="let element">{{element.uptime}}</td>
-      </ng-container>
+  <!-- Charts -->
+  <qtt-trend-card [history]="live.history()" [scope]="historyScope()" [failed]="live.historyFailed()"></qtt-trend-card>
 
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
-
+  <div class="metrics-grid">
+    <qtt-exchanges-card [routes]="scoped()" [failed]="live.routesFailed()"></qtt-exchanges-card>
+    <qtt-latency-card [routes]="scoped()" [failed]="live.routesFailed()"></qtt-latency-card>
   </div>
-  <mat-paginator #paginator color="primary" [pageSize]="5" aria-label="Select page" [hidden]="tableMode() !== null">
-  </mat-paginator>
-</mat-tab>
 
+  <!-- Routes table: every value in the charts, as text -->
+  <section class="metrics-card" aria-labelledby="routes-title">
+    <header class="metrics-card__header">
+      <div class="metrics-card__heading">
+        <h2 id="routes-title" class="metrics-card__title">Routes</h2>
+        <p class="metrics-card__subtitle">Totals since each route started</p>
+      </div>
+      @if (tableMode() === null) {
+        <mat-form-field class="metrics-search" appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Find a route</mat-label>
+          <input #searchBox matInput (input)="search(searchBox.value)">
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+      }
+    </header>
 
-</mat-tab-group>
+    @if (tableMode(); as mode) {
+      <div class="metrics-card__body" style="height: 240px">
+        <app-metrics-status [mode]="mode" emptyIcon="table_chart" emptyTitle="No routes yet"
+          emptyDetail="Routes appear here once they are created." [retryable]="false"></app-metrics-status>
+      </div>
+    }
+    <div class="metrics-table-wrap" [hidden]="tableMode() !== null">
+      <table mat-table [dataSource]="table" matSort matSortActive="completed" matSortDirection="desc" class="metrics-table">
+        <ng-container matColumnDef="route">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Route</th>
+          <td mat-cell *matCellDef="let row" class="metrics-table__route">{{ row.route }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="state">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>State</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="metrics-state" [class.metrics-state--started]="row.state === 'Started'">{{ row.state }}</span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="completed">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="metrics-num">Successful</th>
+          <td mat-cell *matCellDef="let row" class="metrics-num">{{ row.completed | number }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="failed">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="metrics-num">Failed</th>
+          <td mat-cell *matCellDef="let row" class="metrics-num" [class.metrics-num--bad]="row.failed > 0">{{ row.failed | number }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="successRate">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="metrics-num">Success</th>
+          <td mat-cell *matCellDef="let row" class="metrics-num">
+            @if (row.successRate !== null) { {{ row.successRate | number:'1.0-1' }}% } @else { <span class="metrics-missing" matTooltip="No exchanges yet">—</span> }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="mean">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="metrics-num">Avg</th>
+          <td mat-cell *matCellDef="let row" class="metrics-num">
+            @if (row.mean !== null) { {{ row.mean | number }} ms } @else { <span class="metrics-missing" matTooltip="No exchanges yet, so no processing times">—</span> }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="range">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="metrics-num">Min – max</th>
+          <td mat-cell *matCellDef="let row" class="metrics-num">
+            @if (row.min !== null) { {{ row.min | number }} – {{ row.max | number }} ms } @else { <span class="metrics-missing" matTooltip="No exchanges yet, so no processing times">—</span> }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="uptime">
+          <th mat-header-cell *matHeaderCellDef class="metrics-num">Uptime</th>
+          <td mat-cell *matCellDef="let row" class="metrics-num">{{ row.uptime }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns"></tr>
+        <tr class="mat-mdc-row" *matNoDataRow>
+          <td class="mat-mdc-cell metrics-table__none" [attr.colspan]="columns.length">No routes match “{{ table.filter }}”</td>
+        </tr>
+      </table>
+      <mat-paginator [pageSize]="10" [pageSizeOptions]="[10, 25, 50]" [hidePageSize]="table.data.length <= 10"
+        aria-label="Routes table pages"></mat-paginator>
+    </div>
+  </section>
+</div>

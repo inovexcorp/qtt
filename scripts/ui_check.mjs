@@ -90,12 +90,16 @@ const pages = [
 const domChecks = {
   metrics: () => {
     const errs = [];
-    const tiles = [...document.querySelectorAll('.summary-tile')];
+    const tiles = [...document.querySelectorAll('.metrics-tile')];
     if (tiles.length !== 4) errs.push(`expected 4 summary tiles, found ${tiles.length}`);
-    if (tiles.some(t => t.querySelector('mat-spinner'))) errs.push('summary tiles still loading');
+    if (document.querySelector('.metrics-tile__skeleton, .metrics-skeleton')) errs.push('metrics still loading');
     if (/NaN/.test(document.body.innerText)) errs.push('page shows NaN');
-    if (document.querySelector('.metrics-status__icon--error')) {
-      errs.push('metrics failed to load');
+    if (document.querySelector('.metrics-banner, .metrics-status__icon--error')) errs.push('metrics failed to load');
+    const status = document.querySelector('.metrics-live')?.getAttribute('data-status');
+    if (status !== 'live') errs.push(`live status is ${status}, expected live`);
+    // Charts draw on canvas once a route has traffic; otherwise each card explains why it is empty.
+    for (const card of ['qtt-trend-card', 'qtt-exchanges-card', 'qtt-latency-card']) {
+      if (!document.querySelector(`${card} canvas, ${card} .metrics-status`)) errs.push(`${card} rendered nothing`);
     }
     return errs;
   },

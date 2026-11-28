@@ -322,60 +322,33 @@ The Clone feature creates a copy of an existing route:
 
 ### Metrics Page
 
-The Metrics page provides comprehensive performance monitoring and analytics.
+The Metrics page is a live dashboard of how your routes are performing. It updates itself every 15 seconds while it is open (and stops while the browser tab is hidden). The status at the top right says when it last updated; pause live updates there, or refresh now.
 
-#### Summary Cards (Top Row)
+#### Filters
 
-- **Total Endpoints**: Count of all configured routes
-- **Avg Processing Time**: Mean processing time across all routes
-- **Busiest Route**: Route with highest exchange count
-- **Success Rate Gauge**: Linear gauge showing overall API success percentage
+One row of filters at the top scopes everything on the page:
 
-#### Analytics Tabs
+- **Datasource**: only the routes that use one datasource
+- **Routes**: pick one or more routes; **Show all routes** clears the selection
 
-**Exchanges Tab:**
+#### Summary
 
-- Stacked bar chart visualization
-- Shows successful vs failed exchanges per route
-- Filters:
-    - Datasource autocomplete filter
-    - Route multi-select filter
-- Color-coded: Green (success), Red (failure)
+- **Endpoints**: how many routes are in scope, and whether any are not started
+- **Avg processing time**: across every exchange the routes have handled
+- **Busiest route**: the route with the most exchanges, and its share of the traffic
+- **Success rate**: successful exchanges as a share of all of them, with the number that failed
 
-**Latency Tab:**
+Until a route has handled a query there is nothing to average, so these show a dash and say why ("No exchanges yet") instead of a zero.
 
-- 2D vertical grouped bar chart
-- Displays Min/Max/Avg processing times per route
-- Same filtering as Exchanges tab
-- Helps identify performance bottlenecks
+#### Charts
 
-**Trends Tab:**
+- **Per-minute trend** (last 30 minutes): exchanges, failures or average processing time per minute, one line per route. The seven busiest routes get their own line; the rest are combined into one grey line. Hover to read every route's value at a minute
+- **Exchanges by route**: successful and failed exchanges per route since it started, busiest first (the ten busiest; the table lists all)
+- **Processing time by route**: each route's fastest-to-slowest range since it started, with its average marked, slowest first. Routes that have not handled a query yet are left out
 
-- Line chart with historical metric tracking
-- Metric selector dropdown (8 options):
-    - Total Processing Time
-    - Min Processing Time
-    - Max Processing Time
-    - Mean Processing Time
-    - Completed Exchanges
-    - Total Exchanges
-    - Inflight Exchanges
-    - Failed Exchanges
-- Time-series data visualization
-- Useful for spotting performance trends
+#### Routes table
 
-**Table Tab:**
-
-- Comprehensive sortable/searchable data table
-- Columns:
-    - Route Name (sortable)
-    - Processing Time (Min/Max/Avg)
-    - Successful Exchanges
-    - Failed Exchanges
-    - State (Started/Stopped)
-    - Uptime (formatted duration)
-- Search box for filtering
-- Pagination (5/10/25/50 rows per page)
+Every route in scope with its state, successful and failed exchanges, success rate, average and min–max processing time, and uptime. Sort by any column, or find a route by name.
 
 ### Settings Page
 
@@ -409,7 +382,7 @@ The Settings page displays system information and statistics.
 **Performance Optimization:**
 
 - Monitor the Metrics page regularly
-- Use the Latency tab to identify slow queries
+- Use **Processing time by route** on the Metrics page to find slow routes
 - Clone working routes rather than starting from scratch
 - Test connection before saving datasources
 

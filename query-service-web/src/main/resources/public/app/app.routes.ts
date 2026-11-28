@@ -3,7 +3,6 @@ import { DatasourcesComponent } from './pages/datasources/datasources.component'
 import { ConfigDatasourceComponent } from './pages/config-datasource/config-datasource.component';
 import { AddDatasourceComponent } from './pages/add-datasource/add-datasource.component';
 import { RoutesComponent } from './pages/routes/routes.component';
-import { MetricsComponent } from './pages/metrics/metrics.component';
 import { SettingsComponent } from './pages/settings/settings.component';
 
 /** The app's pages; `data.breadcrumb` labels each level of the toolbar breadcrumb. */
@@ -32,6 +31,10 @@ export const routes: Routes = [
       }
     ]
   },
-  { path: 'metrics', component: MetricsComponent, data: { breadcrumb: 'Metrics' } },
+  // Lazy: keeps Chart.js out of the initial bundle (it loads with the page).
+  {
+    path: 'metrics', data: { breadcrumb: 'Metrics' },
+    loadComponent: () => import('./pages/metrics/metrics.component').then(m => m.MetricsComponent),
+  },
   { path: 'settings', component: SettingsComponent, data: { breadcrumb: 'Settings' } },
 ];

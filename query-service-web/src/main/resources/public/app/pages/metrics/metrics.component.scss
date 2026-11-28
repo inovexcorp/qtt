@@ -1,168 +1,500 @@
-.chart-container {
-    height: 400px; /* Set a fixed height */
-    width: 85%; /* Set a width that fits the parent container */
-    overflow:visible; /* Enable scrolling if necessary */
-    padding-left: 1rem;
+// Metrics dashboard. Calm surfaces, one accent (the theme's violet), status colour only where it means good or bad.
+// Motion explains change: live values morph and count, the live dot pings when data lands, a scope change dims what
+// is about to be replaced. Everything respects prefers-reduced-motion.
+
+$ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+.metrics-page {
+  --metrics-card-bg: var(--mat-sys-surface-container-lowest);
+  --metrics-card-border: color-mix(in srgb, var(--mat-sys-outline-variant) 60%, transparent);
+  --metrics-muted: var(--mat-sys-on-surface-variant);
+  --metrics-good: #1b7f3b;
+
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1rem 2rem 3rem;
+  box-sizing: border-box;
+
+  @media (max-width: 700px) {
+    padding: 0.75rem 1rem 2rem;
   }
 
-  .datasource-input-field{
-    padding-left:2.75rem;
-  }
-
-  .datasource-input-field-latency{
-    padding-left:4rem;
-  }
-
-  .mat-mdc-tab-group{
-    margin-left:2rem;
-    margin-right:2rem;
-    border-width: 2px;
-    border-style: solid;
-    border-color: #7b1fa2;
-    border-radius: 8px;
-    overflow: hidden;
-
-    // Purple tab styling
-    --mat-tab-active-indicator-color: #7b1fa2;
-    --mat-tab-active-label-text-color: #7b1fa2;
-    --mat-tab-active-focus-label-text-color: #7b1fa2;
-    --mat-tab-active-hover-label-text-color: #7b1fa2;
-}
-
-// Layout for Material's internal tab body (no token for its padding).
-.mat-mdc-tab-body{
-  padding-top: 1.5rem;
-}
-
-.table-class{
-  padding:1rem;
-}
-
-.persisted-metrics {
-  width: 15% !important;
-  padding-left: 4.2rem;
-}
-
-// Purple accent for form fields
-.mat-mdc-form-field {
-  --mat-form-field-outlined-focus-outline-color: #7b1fa2;
-  --mat-form-field-focus-select-arrow-color: #7b1fa2;
-}
-
-// Purple accent for table header
-.table-class {
-  table {
-    thead {
-      th {
-        background-color: #f3e5f5 !important;
-        color: #4a148c !important;
-        font-weight: 600;
-      }
-    }
+  ::selection {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
   }
 }
 
-// Purple accent for paginator
-.mat-mdc-paginator {
-  --mat-paginator-container-text-color: #7b1fa2;
+.metrics-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+// --- Filter row and live status --------------------------------------------------------------------------------
+
+.metrics-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+
+.metrics-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.metrics-filter {
+  width: 15rem;
+  --mat-form-field-container-height: 44px;
+  --mat-form-field-container-vertical-padding: 10px;
+}
+
+.metrics-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--metrics-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+
+  .metrics-live__dot {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--metrics-dot, var(--mat-sys-outline));
+    transition: background-color 200ms ease;
+  }
+
+  .metrics-live__ping {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--metrics-dot, var(--mat-sys-outline));
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &[data-status='live'] { --metrics-dot: var(--metrics-good); }
+  &[data-status='stale'] { --metrics-dot: #b45309; }
+  &[data-status='paused'] { --metrics-dot: var(--mat-sys-outline); }
 
   .mat-mdc-icon-button {
-    --mat-icon-button-state-layer-color: #7b1fa2;
+    --mat-icon-button-icon-color: var(--metrics-muted);
+  }
+  .metrics-live__text {
+    margin-right: 0.25rem;
   }
 }
 
-// Summary tiles (replace ngx-charts number cards and linear gauge). Values a route can't have yet, like an average over
-// zero exchanges, show a dash and a reason instead of NaN or a misleading 0.
-.summary-tiles {
+// --- Error banner: one Retry for the page ------------------------------------------------------------------------
+
+.metrics-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem 0.625rem 1rem;
+  border-radius: 12px;
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  animation: metrics-banner-in 250ms $ease-out;
+
+  .metrics-banner__icon {
+    flex: none;
+    color: var(--mat-sys-error);
+  }
+  .metrics-banner__text {
+    flex: 1;
+    margin: 0;
+    font-size: 0.875rem;
+  }
+  .mat-mdc-outlined-button {
+    flex: none;
+    --mat-button-outlined-label-text-color: var(--mat-sys-on-error-container);
+    --mat-button-outlined-outline-color: color-mix(in srgb, var(--mat-sys-on-error-container) 40%, transparent);
+  }
+}
+
+@keyframes metrics-banner-in {
+  from { opacity: 0; transform: translateY(-0.25rem); }
+}
+
+// --- Summary tiles ---------------------------------------------------------------------------------------------
+
+.metrics-tiles {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
-  padding: 1rem 2rem 2.5rem;
 
   @media (max-width: 1100px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  @media (max-width: 600px) {
+  @media (max-width: 560px) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-.summary-tile {
-  position: relative;
+.metrics-tile {
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  gap: 0.375rem;
+  gap: 0.25rem;
+  min-height: 8.5rem;
   box-sizing: border-box;
-  min-height: 9rem; // fits value + label + hint, so the row height is the same loading, loaded or empty
-  padding: 1.25rem 1.5rem 1.75rem;
-  border-radius: 4px;
-  background: #4a148c;
-  color: #fff;
-  box-shadow: inset 0 -8px 0 #7b1fa2;
+  padding: 1.125rem 1.25rem 1rem;
+  border: 1px solid var(--metrics-card-border);
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--metrics-card-bg);
 
-  // Value, dash and spinner share one line height so labels line up across tiles in every state.
-  .summary-tile__value {
-    height: 2.875rem;
-    font-size: 2.5rem;
-    line-height: 2.875rem;
-    font-variant-numeric: tabular-nums;
+  .metrics-tile__label {
+    margin: 0;
+    font: 500 0.8125rem/1.25rem var(--mat-sys-body-medium-font), sans-serif;
+    color: var(--metrics-muted);
+  }
+
+  .metrics-tile__value {
+    display: flex;
+    align-items: baseline;
+    margin: 0.25rem 0 0;
+    height: 2.5rem;
+    font: 500 2rem/2.5rem var(--mat-sys-body-medium-font), sans-serif;
+    letter-spacing: -0.01em;
+    color: var(--mat-sys-on-surface);
+  }
+
+  .metrics-tile__value--text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1.625rem;
+  }
+
+  .metrics-tile__value--missing {
+    color: var(--mat-sys-outline);
+    cursor: help;
+  }
+
+  .metrics-tile__unit.metrics-tile__unit--tight {
+    margin-left: 0.0625rem;
+  }
+
+  .metrics-tile__unit {
+    margin-left: 0.1875rem;
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--metrics-muted);
+  }
+
+  .metrics-tile__hint {
+    margin: auto 0 0;
+    font-size: 0.8125rem;
+    color: var(--metrics-muted);
+  }
+
+  .metrics-tile__warn {
+    margin-right: 0.25rem;
+    vertical-align: -0.125em;
+    color: #b45309;
+  }
+
+  .metrics-tile__skeleton {
+    display: block;
+    width: 55%;
+    height: 1.75rem;
+    margin: 0.5rem 0 0;
+    border-radius: 6px;
+    @extend %shimmer;
+  }
+}
+
+.metrics-meter {
+  height: 6px;
+  margin: 0.375rem 0 0.25rem;
+  border-radius: 3px;
+  background: var(--mat-sys-primary-container);
+  overflow: hidden;
+
+  .metrics-meter__fill {
+    display: block;
+    height: 100%;
+    background: var(--mat-sys-primary);
+    border-radius: inherit;
+    transform-origin: left center;
+    transition: transform 650ms $ease-out;
+  }
+}
+
+.metrics-swap-in {
+  animation: metrics-swap-in 300ms $ease-out;
+}
+
+@keyframes metrics-swap-in {
+  from { opacity: 0; transform: translateY(0.35rem); }
+}
+
+// --- Cards -----------------------------------------------------------------------------------------------------
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.metrics-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 1.25rem 1.25rem 1rem;
+  border: 1px solid var(--metrics-card-border);
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--metrics-card-bg);
+
+  .metrics-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+  }
+
+  .metrics-card__title {
+    margin: 0;
+    font: 500 1rem/1.5rem var(--mat-sys-body-medium-font), sans-serif;
+    color: var(--mat-sys-on-surface);
+  }
+
+  .metrics-card__subtitle {
+    margin: 0.125rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--metrics-muted);
+  }
+
+  .metrics-card__body {
+    position: relative;
+    margin-top: 0.75rem;
+    transition: opacity 150ms ease, height 300ms $ease-out;
+  }
+}
+
+// A new datasource's data is on its way: what's shown is about to be replaced.
+.metrics-page--rescoping {
+  .metrics-card__body,
+  .metrics-tile__value,
+  .metrics-table-wrap {
+    opacity: 0.45;
+  }
+}
+
+.metrics-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  color: var(--metrics-muted);
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .metrics-legend__key {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--key-color);
+  }
+  .metrics-legend__key--line {
+    width: 14px;
+    height: 2px;
+    border-radius: 1px;
+  }
+  .metrics-legend__key--dot {
+    border-radius: 50%;
+  }
+  .metrics-legend__key--range {
+    width: 14px;
+    height: 6px;
+    border-radius: 3px;
+  }
+}
+
+.metrics-toggle {
+  --mat-button-toggle-height: 32px;
+  --mat-button-toggle-shape: 8px;
+  --mat-button-toggle-label-text-size: 0.8125rem;
+  --mat-button-toggle-selected-state-background-color: var(--mat-sys-primary-container);
+  --mat-button-toggle-selected-state-text-color: var(--mat-sys-on-primary-container);
+  --mat-button-toggle-divider-color: var(--mat-sys-outline-variant);
+
+  .mat-button-toggle-label-content {
+    padding: 0 0.875rem;
+  }
+}
+
+// --- Charts ----------------------------------------------------------------------------------------------------
+
+.qtt-chart {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: metrics-fade-in 250ms ease-out;
+
+  canvas {
+    display: block;
+  }
+}
+
+@keyframes metrics-fade-in {
+  from { opacity: 0; }
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  min-width: 9rem;
+  max-width: 18rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: var(--mat-sys-inverse-surface);
+  color: var(--mat-sys-inverse-on-surface);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.18);
+  font-size: 0.8125rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease, transform 120ms ease;
+
+  &.chart-tooltip--visible {
+    opacity: 1;
+  }
+
+  .chart-tooltip__title {
+    margin-bottom: 0.25rem;
+    color: color-mix(in srgb, var(--mat-sys-inverse-on-surface) 70%, transparent);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .summary-tile__value--missing {
-    color: rgb(255 255 255 / 0.6);
-    cursor: help;
-  }
-
-  .summary-tile__label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: rgb(255 255 255 / 0.85);
-  }
-
-  .summary-tile__hint {
-    display: inline-flex;
+  .chart-tooltip__row {
+    display: flex;
     align-items: center;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-    color: rgb(255 255 255 / 0.7);
+    gap: 0.5rem;
+    line-height: 1.5rem;
   }
 
-  // Same height as the value text, so the tile doesn't jump when data arrives.
-  .summary-tile__spinner {
-    margin: calc((2.875rem - 32px) / 2) 0;
-    --mat-progress-spinner-active-indicator-color: #fff;
-  }
-
-  .summary-tile__bar {
-    margin-top: 0.25rem;
+  .chart-tooltip__key {
+    flex: none;
+    width: 8px;
+    height: 8px;
     border-radius: 2px;
-    --mat-progress-bar-active-indicator-color: #fff;
-    --mat-progress-bar-track-color: rgb(255 255 255 / 0.25);
+    background: var(--key-color);
+  }
+  .chart-tooltip__key--line {
+    width: 12px;
+    height: 2px;
+  }
+  .chart-tooltip__key--dot {
+    border-radius: 50%;
+  }
+
+  .chart-tooltip__value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chart-tooltip__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: color-mix(in srgb, var(--mat-sys-inverse-on-surface) 75%, transparent);
   }
 }
 
-// Loading / empty / error panel in place of a chart or the table.
+// --- Loading, empty and error ----------------------------------------------------------------------------------
+
+%shimmer {
+  background: linear-gradient(90deg, var(--mat-sys-surface-container) 0%, var(--mat-sys-surface-container-high) 50%,
+    var(--mat-sys-surface-container) 100%) 0 0 / 200% 100%;
+  animation: metrics-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes metrics-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+.metrics-status-host {
+  display: block;
+  height: 100%;
+}
+
+.metrics-skeleton {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  height: 100%;
+  min-height: 160px;
+
+  .metrics-skeleton__row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .metrics-skeleton__label {
+    flex: none;
+    width: 5rem;
+    height: 0.625rem;
+    border-radius: 4px;
+    @extend %shimmer;
+  }
+  .metrics-skeleton__bar {
+    height: 0.875rem;
+    border-radius: 4px;
+    @extend %shimmer;
+  }
+}
+
 .metrics-status {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  min-height: 320px;
-  padding: 2rem;
+  gap: 0.375rem;
+  height: 100%;
+  min-height: 160px;
+  padding: 1rem;
+  box-sizing: border-box;
   text-align: center;
-  color: var(--mat-sys-on-surface-variant);
-  --mat-progress-spinner-active-indicator-color: #7b1fa2;
+  color: var(--metrics-muted);
 
   .metrics-status__icon {
-    width: 40px;
-    height: 40px;
-    font-size: 40px;
-    color: #ab47bc;
+    width: 32px;
+    height: 32px;
+    font-size: 32px;
+    color: var(--mat-sys-primary-fixed-dim);
   }
 
   .metrics-status__icon--error {
@@ -170,20 +502,112 @@
   }
 
   .metrics-status__title {
-    margin: 0.5rem 0 0;
-    font-size: 1rem;
+    margin: 0.25rem 0 0;
+    font-size: 0.9375rem;
     font-weight: 500;
     color: var(--mat-sys-on-surface);
   }
 
   .metrics-status__detail {
     margin: 0 0 0.5rem;
-    max-width: 36rem;
-    font-size: 0.875rem;
+    max-width: 32rem;
+    font-size: 0.8125rem;
+  }
+}
+
+// --- Routes table ----------------------------------------------------------------------------------------------
+
+.metrics-search {
+  width: 16rem;
+  --mat-form-field-container-height: 40px;
+  --mat-form-field-container-vertical-padding: 8px;
+}
+
+.metrics-table-wrap {
+  margin-top: 0.75rem;
+  overflow-x: auto;
+  transition: opacity 150ms ease;
+}
+
+.metrics-table {
+  --mat-table-background-color: transparent;
+  --mat-table-header-headline-color: var(--metrics-muted);
+  --mat-table-header-headline-size: 0.8125rem;
+  --mat-table-header-container-height: 40px;
+  --mat-table-row-item-container-height: 44px;
+  --mat-table-row-item-outline-color: var(--metrics-card-border);
+  min-width: 52rem;
+
+  .mat-mdc-row {
+    transition: background-color 120ms ease;
+  }
+  .mat-mdc-row:hover {
+    background: var(--mat-sys-surface-container-low);
+  }
+
+  .metrics-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  // arrowPosition="before" reverses the header's row, so its start is the right-hand edge.
+  th.metrics-num .mat-sort-header-container {
+    justify-content: flex-start;
+  }
+  .metrics-num--bad {
+    color: var(--mat-sys-error);
+    font-weight: 500;
+  }
+
+  .metrics-table__route {
+    font-weight: 500;
+  }
+
+  .metrics-table__none {
+    padding: 1.5rem 1rem;
+    color: var(--metrics-muted);
+    text-align: center;
+  }
+}
+
+.metrics-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #b45309;
+  }
+  &.metrics-state--started::before {
+    background: var(--metrics-good);
   }
 }
 
 .metrics-missing {
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--mat-sys-outline);
   cursor: help;
+}
+
+.metrics-card .mat-mdc-paginator {
+  --mat-paginator-container-background-color: transparent;
+}
+
+// --- Reduced motion: no movement; state still changes (colour, opacity). ----------------------------------------
+
+@media (prefers-reduced-motion: reduce) {
+  .metrics-page *,
+  .metrics-page *::before {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .metrics-meter .metrics-meter__fill {
+    transition: none;
+  }
+  .metrics-card .metrics-card__body {
+    transition: opacity 150ms ease;
+  }
 }
