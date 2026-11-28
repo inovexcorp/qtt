@@ -4,10 +4,12 @@ import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.RouteService;
+import com.inovexcorp.queryservice.persistence.RouteStopReason;
 import lombok.extern.slf4j.Slf4j;
 import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
 import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -91,10 +93,16 @@ public class RouteServiceImpl implements RouteService {
     }
 
     @Override
-    public void updateRouteStatus(String routeId, String status) {
+    public void updateRouteStatus(String routeId, String status, RouteStopReason reason) {
+        boolean stopping = "Stopped".equals(status);
+        if (stopping && reason == null) {
+            throw new IllegalArgumentException("Stopping route " + routeId + " needs a reason");
+        }
         jpa.tx(TransactionType.Required, em -> {
             CamelRouteTemplate camelRoute = em.find(CamelRouteTemplate.class, routeId);
             camelRoute.setStatus(status);
+            camelRoute.setStopReason(stopping ? reason : null);
+            camelRoute.setStoppedAt(stopping ? new Date() : null);
             em.merge(camelRoute);
             em.flush();
         });

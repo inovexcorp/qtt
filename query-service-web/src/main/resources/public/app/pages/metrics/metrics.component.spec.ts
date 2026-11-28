@@ -24,8 +24,8 @@ describe('MetricsComponent', () => {
   let backend: HttpTestingController;
   const el = () => fixture.nativeElement as HTMLElement;
   const text = () => el().innerText;
-  const tiles = () => [...el().querySelectorAll<HTMLElement>('.metrics-tile')];
-  const tileValues = () => tiles().map(t => t.querySelector('.metrics-tile__value')?.textContent?.replace(/\s+/g, '') ?? null);
+  const tiles = () => [...el().querySelectorAll<HTMLElement>('.qtt-tile')];
+  const tileValues = () => tiles().map(t => t.querySelector('.qtt-tile__value')?.textContent?.replace(/\s+/g, '') ?? null);
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -59,7 +59,7 @@ describe('MetricsComponent', () => {
 
   it('shows skeletons while loading, never NaN', () => {
     expect(tiles().length).toBe(4);
-    expect(tiles().every(t => t.querySelector('.metrics-tile__skeleton'))).toBe(true);
+    expect(tiles().every(t => t.querySelector('.qtt-tile__skeleton'))).toBe(true);
     expect(el().querySelectorAll('.metrics-skeleton').length).toBeGreaterThanOrEqual(3);
     expect(text()).toContain('Connecting');
     expect(text()).not.toContain('NaN');
@@ -70,7 +70,7 @@ describe('MetricsComponent', () => {
     expect(tileValues()).toEqual(['2', '10.0ms', 'a', '75.0%']);
     expect(text()).toContain('Live · updated just now');
     expect(el().querySelectorAll('qtt-exchanges-card canvas, qtt-latency-card canvas').length).toBe(2);
-    expect(el().querySelectorAll('.metrics-table tbody tr').length).toBe(2);
+    expect(el().querySelectorAll('.qtt-table tbody tr').length).toBe(2);
     expect(text()).not.toContain('NaN');
   });
 
@@ -82,20 +82,20 @@ describe('MetricsComponent', () => {
     expect(text()).toContain('No exchanges yet');
     expect(el().querySelector('qtt-exchanges-card canvas')).toBeNull();
     // The table lists the routes, with dashes for times they don't have.
-    expect(el().querySelector('.metrics-table tbody')!.textContent).toContain('—');
+    expect(el().querySelector('.qtt-table tbody')!.textContent).toContain('—');
     expect(text()).not.toContain('NaN');
   });
 
   it('shows one error banner with Retry when metrics fail to load', async () => {
     await respond('error');
-    expect(el().querySelectorAll('.metrics-banner').length).toBe(1);
+    expect(el().querySelectorAll('.qtt-banner').length).toBe(1);
     expect(tiles().every(t => t.innerText.includes('Unavailable'))).toBe(true);
     expect(el().querySelectorAll('.metrics-status button').length).toBe(0);
 
-    el().querySelector<HTMLButtonElement>('.metrics-banner button')!.click();
+    el().querySelector<HTMLButtonElement>('.qtt-banner button')!.click();
     await tick();
     await respond([metric('a', 1, 0, 5)]);
-    expect(el().querySelector('.metrics-banner')).toBeNull();
+    expect(el().querySelector('.qtt-banner')).toBeNull();
     expect(tileValues()[0]).toBe('1');
   });
 
@@ -110,7 +110,7 @@ describe('MetricsComponent', () => {
     await new Promise(resolve => setTimeout(resolve, 700));
     expect(tileValues()[0]).toBe('1');
     expect(tileValues()[3]).toBe('0.0%');
-    expect(el().querySelectorAll('.metrics-table tbody tr').length).toBe(1);
+    expect(el().querySelectorAll('.qtt-table tbody tr').length).toBe(1);
   });
 
   it('asks for one datasource when it is picked', async () => {

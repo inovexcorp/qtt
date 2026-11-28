@@ -3,6 +3,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { BreadcrumbService } from 'xng-breadcrumb';
+
+const breadcrumbs = { set: vi.fn() };
 import { of, Subject } from 'rxjs';
 import { signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
@@ -78,6 +81,7 @@ describe('ConfigDatasourceComponent', () => {
       getPersistedMetrics: vi.fn().mockReturnValue(of({ metrics: [] })),
     };
 
+    breadcrumbs.set.mockClear();
     await TestBed.configureTestingModule({
       imports: [ConfigDatasourceComponent],
       providers: [
@@ -90,12 +94,17 @@ describe('ConfigDatasourceComponent', () => {
         { provide: MetricsService, useValue: metricsService },
         { provide: MatDialog, useValue: dialog },
         { provide: EVENT_STREAM_FETCH, useValue: () => Promise.resolve(new Response('', { status: 404 })) },
+        { provide: BreadcrumbService, useValue: breadcrumbs },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ConfigDatasourceComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it("labels the toolbar breadcrumb with the datasource's name", () => {
+    expect(breadcrumbs.set).toHaveBeenCalledWith('@datasource', 'ds1');
   });
 
   it('shows the pushed health: status, how long it has been down, and the error', () => {

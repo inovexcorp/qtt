@@ -23,13 +23,13 @@ const METRICS: { id: TrendMetric; label: string; title: string; format: (v: numb
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ChartComponent, MetricsStatusComponent, MatButtonToggleGroup, MatButtonToggle],
   template: `
-    <section class="metrics-card metrics-card--wide" aria-labelledby="trend-title">
-      <header class="metrics-card__header">
+    <section class="qtt-card metrics-card--wide" aria-labelledby="trend-title">
+      <header class="qtt-card__header">
         <div class="metrics-card__heading">
-          <h2 id="trend-title" class="metrics-card__title">{{ current().title }}</h2>
-          <p class="metrics-card__subtitle">Last 30 minutes, sampled every minute</p>
+          <h2 id="trend-title" class="qtt-card__title">{{ current().title }}</h2>
+          <p class="qtt-card__subtitle">Last 30 minutes, sampled every minute</p>
         </div>
-        <mat-button-toggle-group class="metrics-toggle" hideSingleSelectionIndicator aria-label="Trend metric"
+        <mat-button-toggle-group class="qtt-toggle" hideSingleSelectionIndicator aria-label="Trend metric"
           [value]="metric()" (change)="metric.set($event.value)">
           @for (m of metrics; track m.id) {
             <mat-button-toggle [value]="m.id">{{ m.label }}</mat-button-toggle>
@@ -45,7 +45,7 @@ const METRICS: { id: TrendMetric; label: string; title: string; format: (v: numb
         </ul>
       }
 
-      <div class="metrics-card__body" style="height: 280px">
+      <div class="qtt-card__body" style="height: 280px">
         @if (mode(); as mode) {
           <app-metrics-status [mode]="mode" emptyIcon="show_chart" [emptyTitle]="emptyTitle()"
             [emptyDetail]="emptyDetail()" [retryable]="false"></app-metrics-status>

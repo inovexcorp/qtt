@@ -16,7 +16,7 @@ import { MatButton } from '@angular/material/button';
     @switch (mode()) {
       @case ('loading') {
         <div class="metrics-skeleton" role="status" aria-live="polite">
-          <span class="metrics-visually-hidden">{{ loadingText() }}</span>
+          <span class="qtt-visually-hidden">{{ loadingText() }}</span>
           @for (width of skeletonRows; track $index) {
             <div class="metrics-skeleton__row">
               <span class="metrics-skeleton__label"></span>

@@ -14,6 +14,7 @@ import com.inovexcorp.queryservice.persistence.DatasourceHealthService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.RouteService;
+import com.inovexcorp.queryservice.persistence.RouteStopReason;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 
@@ -345,7 +346,7 @@ public class SimpleHealthChecker implements HealthChecker {
                     camelContext.getRouteController().stopRoute(routeId);
 
                     // Update the route status in the database
-                    routeService.updateRouteStatus(routeId, "Stopped");
+                    routeService.updateRouteStatus(routeId, "Stopped", RouteStopReason.HEALTH_CHECK);
                 }
             } catch (Exception e) {
                 log.error("Failed to stop route '{}' for datasource '{}': {}",

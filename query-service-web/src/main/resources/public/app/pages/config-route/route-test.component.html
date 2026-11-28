@@ -1,0 +1,188 @@
+<div class="rt-test">
+  <!-- The request -->
+  <section class="qtt-card" aria-labelledby="rt-request-title">
+    <div class="qtt-card__header">
+      <div>
+        <h2 id="rt-request-title" class="qtt-card__title">Request</h2>
+        <p class="qtt-card__subtitle">Built from the variables the template reads.</p>
+      </div>
+      <button mat-button type="button" (click)="readVariables()" [disabled]="loadingVariables()"
+        matTooltip="Read the template's variables again">
+        <mat-icon>refresh</mat-icon>
+        Re-read template
+      </button>
+    </div>
+
+    @if (stale()) {
+      <p class="tst-note tst-note--warn" animate.enter="tst-in">
+        <mat-icon aria-hidden="true">sync_problem</mat-icon>
+        <span>The template changed since its variables were read.</span>
+        <button mat-button type="button" (click)="readVariables()">Re-read</button>
+      </p>
+    }
+    @if (draft.dirty()) {
+      <p class="tst-note">
+        <mat-icon aria-hidden="true">edit_note</mat-icon>
+        <span>Tests run with your unsaved changes, not the saved route.</span>
+      </p>
+    }
+    @if (variablesError()) {
+      <p class="tst-note tst-note--bad" role="alert">
+        <mat-icon aria-hidden="true">error_outline</mat-icon>
+        <span>Couldn't read the template's variables: {{ variablesError() }}</span>
+      </p>
+    }
+
+    <div class="qtt-card__body tst-request" [class.is-busy]="loadingVariables() || generating()">
+      @if (sparqiEnabled()) {
+        <div class="tst-sparqi">
+          <div class="tst-sparqi__head">
+            <mat-icon class="tst-sparqi__icon" aria-hidden="true">auto_awesome</mat-icon>
+            <div>
+              <strong>Let SPARQi fill it in</strong>
+              <p>It reads the template, explores the ontology and data, and picks realistic values.</p>
+            </div>
+          </div>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tst-wide">
+            <mat-label>Guidance (optional)</mat-label>
+            <textarea matInput rows="2" [(ngModel)]="sparqiContext" [disabled]="generating()"
+              placeholder="e.g. use Ada Lovelace as the person; a date in 2024"></textarea>
+          </mat-form-field>
+          <div class="tst-sparqi__actions">
+            <mat-checkbox [(ngModel)]="edgeCases" [disabled]="generating()">Include edge cases</mat-checkbox>
+            @if (canRun()) {
+              <button mat-stroked-button type="button" (click)="generate()" [disabled]="generating()">
+                <mat-icon [class.tst-spin]="generating()">{{ generating() ? 'autorenew' : 'auto_awesome' }}</mat-icon>
+                {{ generating() ? 'Generating…' : generated() ? 'Generate different values' : 'Generate test values' }}
+              </button>
+            }
+          </div>
+          @if (generated(); as g) {
+            <p class="tst-note tst-note--good" animate.enter="tst-in">
+              <mat-icon aria-hidden="true">check_circle</mat-icon>
+              <span>{{ g.reasoning }} <span class="tst-meta">· {{ percent(g.confidence) }} confident
+                @if (g.queries) { · {{ g.queries }} data {{ g.queries === 1 ? 'query' : 'queries' }} }</span></span>
+            </p>
+          }
+          @if (generateError()) {
+            <p class="tst-note tst-note--bad" role="alert" animate.enter="tst-in">
+              <mat-icon aria-hidden="true">error_outline</mat-icon>
+              <span>SPARQi couldn't generate values: {{ generateError() }}</span>
+            </p>
+          }
+        </div>
+      }
+
+      <div class="tst-section">
+        <h3 class="tst-label">Body (JSON)
+          @if (detectedBody()) { <span class="tst-hint">· shape read from the template</span> }
+        </h3>
+        <app-code-editor class="tst-json" [(ngModel)]="body" [options]="jsonOptions"></app-code-editor>
+      </div>
+
+      <div class="tst-section">
+        <h3 class="tst-label">Query parameters</h3>
+        @for (p of params(); track $index; let i = $index) {
+          <div class="tst-param">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Name</mat-label>
+              <input matInput [ngModel]="p.key" (ngModelChange)="setParam(i, { key: $event })" class="tst-mono">
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Value</mat-label>
+              <input matInput [ngModel]="p.value" (ngModelChange)="setParam(i, { value: $event })">
+            </mat-form-field>
+            <button mat-icon-button type="button" (click)="removeParam(i)" [attr.aria-label]="'Remove ' + (p.key || 'parameter')">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        } @empty {
+          <p class="tst-hint">The template reads no query parameters.</p>
+        }
+        <button mat-button type="button" (click)="addParam()"><mat-icon>add</mat-icon>Add parameter</button>
+      </div>
+
+      @if (canRun()) {
+        <div class="tst-run">
+          <button mat-flat-button type="button" (click)="run()" [disabled]="running() || loadingVariables() || generating()">
+            <mat-icon [class.tst-spin]="running()">{{ running() ? 'autorenew' : 'play_arrow' }}</mat-icon>
+            {{ running() ? 'Running…' : 'Run test' }}
+          </button>
+          <span class="tst-hint">Runs against {{ draft.snapshot().datasourceId || 'the datasource' }}; nothing is saved.</span>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- What came back -->
+  <section class="qtt-card tst-result" aria-labelledby="rt-result-title" aria-live="polite">
+    <div class="qtt-card__header">
+      <div>
+        <h2 id="rt-result-title" class="qtt-card__title">Result</h2>
+        @if (outcome(); as o) {
+          <p class="qtt-card__subtitle" [class.tst-bad]="!o.ok">
+            {{ o.ok ? (table() ? table()!.total + ' rows' : 'Done') : 'Failed' }}@if (o.timeMs !== null) { · {{ o.timeMs }} ms }
+          </p>
+        } @else {
+          <p class="qtt-card__subtitle">Run a test to see the SPARQL it builds and what the datasource answers.</p>
+        }
+      </div>
+      @if (outcome()?.ok && table()) {
+        <mat-button-toggle-group class="qtt-toggle" [value]="view()" (change)="view.set($event.value)" aria-label="Show results as"
+          hideSingleSelectionIndicator>
+          <mat-button-toggle value="table">Table</mat-button-toggle>
+          <mat-button-toggle value="json">JSON</mat-button-toggle>
+        </mat-button-toggle-group>
+      }
+    </div>
+
+    @if (running() && !outcome()) {
+      <div class="tst-placeholder"><mat-progress-spinner mode="indeterminate" diameter="28"></mat-progress-spinner></div>
+    }
+    @if (outcome(); as o) {
+      <div class="qtt-card__body tst-out" [class.is-running]="running()" animate.enter="tst-in">
+        @if (!o.ok) {
+          <div class="tst-error" role="alert">
+            <mat-icon aria-hidden="true">error_outline</mat-icon>
+            <div>
+              <strong>{{ o.error }}</strong>
+              @if (o.stackTrace) {
+                <details>
+                  <summary>Stack trace</summary>
+                  <pre>{{ o.stackTrace }}</pre>
+                </details>
+              }
+            </div>
+          </div>
+        }
+        @if (o.sparql) {
+          <details class="tst-sparql" [open]="!o.ok">
+            <summary>SPARQL it built</summary>
+            <pre>{{ o.sparql }}</pre>
+          </details>
+        }
+        @if (o.ok) {
+          @if (table() && view() === 'table') {
+            <div class="tst-table-wrap">
+              <table class="tst-table">
+                <thead><tr>@for (v of table()!.vars; track v) { <th>{{ v }}</th> }</tr></thead>
+                <tbody>
+                  @for (row of table()!.rows; track $index) {
+                    <tr>@for (cell of row; track $index) { <td>{{ cell }}</td> }</tr>
+                  } @empty {
+                    <tr><td class="tst-none" [attr.colspan]="table()!.vars.length || 1">No rows</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if (table()!.total > table()!.rows.length) {
+              <p class="tst-hint">First {{ table()!.rows.length }} of {{ table()!.total }} rows; switch to JSON for all.</p>
+            }
+          } @else {
+            <pre class="tst-json-out">{{ o.results | json }}</pre>
+          }
+        }
+      </div>
+    }
+  </section>
+</div>

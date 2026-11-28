@@ -15,8 +15,7 @@ import { MatInput } from '@angular/material/input';
     selector: 'app-route-access',
     template: `
     <div class="route-access" [formGroup]="group">
-      <h3>Access</h3>
-      <mat-form-field appearance="outline" class="access-select">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="access-select">
         <mat-label>Who can call this route</mat-label>
         <mat-select formControlName="accessPolicy" disableOptionCentering>
           <mat-option value="default">Server default ({{ serverDefault }})</mat-option>
@@ -26,7 +25,7 @@ import { MatInput } from '@angular/material/input';
         <mat-icon matSuffix>{{ effective === 'open' ? 'public' : 'lock' }}</mat-icon>
       </mat-form-field>
       @if (effective === 'authenticated') {
-        <mat-form-field appearance="outline" class="roles-input">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="roles-input">
           <mat-label>Required roles (optional)</mat-label>
           <input matInput formControlName="requiredRoles" placeholder="e.g. finance-apps">
           <mat-hint>Comma-separated identity-provider roles or groups that callers must also hold. API keys must name this route.</mat-hint>
@@ -34,15 +33,18 @@ import { MatInput } from '@angular/material/input';
       }
       @if (effective === 'open') {
         <p class="access-note">
-          <mat-icon>warning_amber</mat-icon> Anyone who can reach this server can run this query.
+          <mat-icon aria-hidden="true">warning_amber</mat-icon>
+          <span>Anyone who can reach this server can run this query.</span>
         </p>
       }
     </div>`,
     styles: [`
-    .route-access { margin: 8px 0 16px; }
-    .access-select, .roles-input { width: 100%; max-width: 640px; display: block; }
-    .access-note { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8a6d00; margin: 0; }
-    .access-note mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    .route-access { display: flex; flex-direction: column; gap: 1rem; }
+    .access-select, .roles-input { width: 100%; display: block; }
+    .access-note { display: flex; align-items: flex-start; gap: 0.5rem; margin: 0; padding: 0.625rem 0.75rem;
+      border-radius: 8px; font-size: 0.875rem; color: var(--mat-sys-on-surface);
+      background: color-mix(in srgb, var(--qtt-warn) 10%, var(--mat-sys-surface-container-lowest)); }
+    .access-note mat-icon { flex: none; font-size: 20px; width: 20px; height: 20px; color: var(--qtt-warn); }
   `],
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatSelect, MatOption, MatIcon, MatSuffix, MatInput, MatHint]

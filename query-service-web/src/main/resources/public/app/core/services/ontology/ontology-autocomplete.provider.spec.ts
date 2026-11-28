@@ -1,7 +1,7 @@
 import type { MockedObject } from 'vitest';
 import { of, throwError } from 'rxjs';
 import * as monaco from 'monaco-editor';
-import { OntologyAutocompleteProvider } from './ontology-autocomplete.provider';
+import { OntologyAutocompleteProvider, registerOntologyAutocomplete } from './ontology-autocomplete.provider';
 import { OntologyService } from './ontology.service';
 import { OntologyElement } from '../../models/ontology/ontology-element';
 
@@ -118,5 +118,25 @@ describe('OntologyAutocompleteProvider', () => {
     provider.setRouteId('route-2');
     await complete('?s a Pers|');
     expect(ontology.searchOntologyElements).toHaveBeenCalledWith('route-2', 'Pers', 'all', 50);
+  });
+});
+
+describe('registerOntologyAutocomplete', () => {
+  it('keeps its Monaco registration so the page can remove it (it used to leak one per visit)', () => {
+    const registration = { dispose: vi.fn() };
+    const register = vi.fn().mockReturnValue(registration);
+    const provider = registerOntologyAutocomplete({} as OntologyService, 'r1', register);
+
+    expect(register).toHaveBeenCalledWith('freemarker2', expect.objectContaining({ triggerCharacters: ['<', ':', '/'] }));
+    provider.dispose();
+    provider.dispose();
+    expect(registration.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('registers with Monaco itself by default, and unregisters', () => {
+    const provider = registerOntologyAutocomplete({} as OntologyService, 'r1');
+    expect(provider.registration).toBeDefined();
+    provider.dispose();
+    expect(provider.registration).toBeUndefined();
   });
 });

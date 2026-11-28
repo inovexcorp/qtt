@@ -3,7 +3,8 @@ import { firstValueFrom, Observable } from 'rxjs';
 import { RouteMetric, RouteMetricsResponse } from '../models/metric-data';
 import { MetricsService } from './metrics.service';
 import { StreamEvent } from './event-stream';
-import { LIVE_TIMINGS, LiveConnection } from './live-connection';
+import { LIVE_TIMINGS } from './live-connection';
+import { liveLink } from './live-hub';
 
 /** How often the page asks for fresh metrics while it has to poll (the server stream unavailable). */
 export const METRICS_POLL_MS = new InjectionToken<number>('METRICS_POLL_MS', { factory: () => 15000 });
@@ -35,7 +36,8 @@ interface MetricsEvent {
  * Pushed by the server over server-sent events (/api/events, topic `metrics`, scoped with `datasource`): the first
  * event carries everything, later ones arrive when the numbers change (history only when a new minute was stored).
  * When the stream is unavailable (an older server, or a proxy that breaks streaming) it polls the metrics REST
- * endpoints instead. The connection (reconnects, hidden tabs, sign-in) is a {@link LiveConnection}. A failed
+ * endpoints instead. The connection (reconnects, hidden tabs, sign-in) is a {@link LiveConnection}, shared through
+ * the page's {@link LiveHub} when it provides one. A failed
  * refresh keeps the last data. The signals are the contract with the page.
  *
  * Provided by the page, so it lives as long as the page does.
@@ -61,7 +63,7 @@ export class MetricsLiveService {
   private datasource = '';
   private polls = 0;
 
-  private readonly connection = new LiveConnection({
+  private readonly connection = liveLink({
     streamUrl: () => this.streamUrl(),
     onOpen: () => {
       if (this.routes() !== null && !this.rescoping() && !this.connection.isPaused) {

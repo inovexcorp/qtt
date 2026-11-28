@@ -167,34 +167,49 @@ GET  /datasources/health/summary               # counts for all datasources
 GET /routes
 ```
 
-**Response:**
+**Response** (one entry per stored route):
 
 ```json
 [
   {
-    "id": "people-search",
+    "routeId": "people-search",
+    "routeParams": "httpMethodRestrict=GET,POST",
     "description": "Search for people",
-    "datasourceId": "my-anzo",
     "graphMartUri": "http://example.org/graphmart",
-    "layerUris": [
-      "http://example.org/layer1"
-    ],
-    "template": "PREFIX foaf: ...",
-    "httpMethods": [
-      "GET",
-      "POST"
-    ],
-    "state": "Started",
-    "uptime": 3600000
+    "templateContent": "PREFIX foaf: ...",
+    "status": "Stopped",
+    "stopReason": "HEALTH_CHECK",
+    "stoppedAt": 1764345600000,
+    "cacheEnabled": true,
+    "cacheTtlSeconds": null,
+    "cacheKeyStrategy": "QUERY_HASH",
+    "accessPolicy": "authenticated",
+    "requiredRoles": null,
+    "datasources": { "dataSourceId": "my-anzo", "status": "UP", "...": "..." },
+    "audit": { "createdBy": "alice", "createdAt": 1764000000000, "modifiedBy": "bob", "modifiedAt": 1764300000000 }
   }
 ]
 ```
 
+`status` is `Started` or `Stopped`. A stopped route says why in `stopReason`, with `stoppedAt` (milliseconds since
+the epoch); both are `null` while it runs, and on routes stopped before reasons were recorded:
+
+| `stopReason` | Meaning |
+|---|---|
+| `MANUAL` | Someone stopped it (the UI, or `PATCH /routes/{routeId}`). |
+| `HEALTH_CHECK` | The datasource health check stopped it after too many failed checks in a row (`consecutiveFailureThreshold`). It is not restarted automatically when the datasource recovers. |
+| `NO_TEMPLATE` | It was saved without a template; it starts once it is saved with one. |
+
+Saving a route (`PUT`) keeps a stopped route stopped (it used to start it again), except a `NO_TEMPLATE` one that
+now has a template.
+
 ### Get Single Route
 
 ```bash
-GET /routes/{id}
+GET /routes/{routeId}
 ```
+
+The same object as in the list; `404` when the route isn't loaded.
 
 ### Create Route
 
@@ -208,7 +223,8 @@ layers:     comma-separated layer URIs (may be empty)
 
 Optional query parameters: `cacheEnabled`, `cacheTtlSeconds`, `cacheKeyStrategy`, and who may call the route:
 `accessPolicy` (`default`, `open` or `authenticated`; absent means `default`) and `requiredRoles` (comma-separated
-roles an authenticated caller must also hold). Returns `201` with `{ "endpointUrl": "..." }`, built from
+roles an authenticated caller must also hold). A route with that ID must not exist yet (`409` otherwise; change one
+with `PUT`). Returns `201` with `{ "endpointUrl": "..." }`, built from
 `QUERY_BASE_URL` (`/query/<routeId>` when that is unset).
 
 The route ID becomes one URL path segment, so it may contain only letters, digits, `.`, `_` and `-` (1 to 128
@@ -275,13 +291,17 @@ Content-Type: text/plain
 Started        # or Stopped
 ```
 
+Starting answers `409` while the route's datasource is `DOWN` or `DISABLED`. Stopping records `stopReason: MANUAL`;
+starting clears the reason.
+
 ### Clone Route
 
 ```bash
 POST /routes/clone/{routeId}
 ```
 
-Creates a copy with ID `{routeId}Clone`.
+Creates a copy with ID `{routeId}Clone`, or `{routeId}Clone2`, `{routeId}Clone3`… when that is taken (cloning
+twice used to overwrite the first copy). Returns `201` with `{ "routeId": "...", "endpointUrl": "..." }`.
 
 ## GraphMarts and Layers API
 

@@ -8,6 +8,7 @@ import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.LayerAssociations;
 import com.inovexcorp.queryservice.persistence.LayerService;
 import com.inovexcorp.queryservice.persistence.RouteService;
+import com.inovexcorp.queryservice.persistence.RouteStopReason;
 import com.inovexcorp.queryservice.routebuilder.CamelKarafComponent;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Route;
@@ -25,11 +26,13 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,6 +40,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -408,7 +412,7 @@ public class RouteManagementServiceImplTest {
 
         // Assert
         verify(routeController).stopRoute(routeId);
-        verify(routeService).updateRouteStatus(routeId, status);
+        verify(routeService).updateRouteStatus(routeId, status, RouteStopReason.MANUAL);
     }
 
     @Test
@@ -422,7 +426,7 @@ public class RouteManagementServiceImplTest {
 
         // Assert
         verify(routeController).startRoute(routeId);
-        verify(routeService).updateRouteStatus(routeId, status);
+        verify(routeService).updateRouteStatus(routeId, status, null);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -462,6 +466,127 @@ public class RouteManagementServiceImplTest {
         } catch (IllegalArgumentException e) {
             assertTrue(e.getMessage().contains("Invalid Status"));
         }
+    }
+
+    // ========================================
+    // Stopped routes across a modify (a modify re-creates the route, which used to start it again)
+    // ========================================
+
+    /** Modifies testRoute (stored as {@code stored}) with the given template; returns the re-created route. */
+    private CamelRouteTemplate modifyStored(CamelRouteTemplate stored, String freemarker) throws Exception {
+        when(dataSourceService.getDataSource(anyString())).thenReturn(testDatasource);
+        when(routeService.routeExists("testRoute")).thenReturn(false);
+        when(routeService.getRoute("testRoute")).thenReturn(stored);
+        return routeManagementService.modifyRoute(
+                "testRoute", "?p={p}", "test-datasource", "d", "http://test", freemarker, "layer1", null, null, null);
+    }
+
+    private CamelRouteTemplate storedStopped(RouteStopReason reason, Date since, String template) {
+        testTemplate.setStatus("Stopped");
+        testTemplate.setStopReason(reason);
+        testTemplate.setStoppedAt(since);
+        testTemplate.setTemplateContent(template);
+        return testTemplate;
+    }
+
+    @Test
+    public void testModifyRoute_KeepsAManuallyStoppedRouteStopped() throws Exception {
+        Date since = new Date(1_000L);
+        CamelRouteTemplate result = modifyStored(storedStopped(RouteStopReason.MANUAL, since, "old"), "new template");
+
+        assertEquals("Stopped", result.getStatus());
+        assertEquals(RouteStopReason.MANUAL, result.getStopReason());
+        assertEquals(since, result.getStoppedAt());
+        verify(routeController).stopRoute("testRoute");
+    }
+
+    @Test
+    public void testModifyRoute_KeepsARouteTheHealthCheckStoppedStopped() throws Exception {
+        Date since = new Date(2_000L);
+        CamelRouteTemplate result = modifyStored(storedStopped(RouteStopReason.HEALTH_CHECK, since, "old"), "new");
+
+        assertEquals("Stopped", result.getStatus());
+        assertEquals(RouteStopReason.HEALTH_CHECK, result.getStopReason());
+        assertEquals(since, result.getStoppedAt());
+        verify(routeController).stopRoute("testRoute");
+    }
+
+    @Test
+    public void testModifyRoute_StartsARouteStoppedForLackOfATemplateOnceItHasOne() throws Exception {
+        CamelRouteTemplate result = modifyStored(storedStopped(RouteStopReason.NO_TEMPLATE, new Date(), ""), "a template");
+
+        assertEquals("Started", result.getStatus());
+        assertNull(result.getStopReason());
+        assertNull(result.getStoppedAt());
+        verify(routeController, never()).stopRoute(anyString());
+    }
+
+    @Test
+    public void testModifyRoute_OlderStoppedRouteWithoutATemplateStartsOnceItHasOne() throws Exception {
+        // Stopped before reasons were recorded, with an empty stored template: it was stopped for lack of one
+        CamelRouteTemplate result = modifyStored(storedStopped(null, null, ""), "a template");
+
+        assertEquals("Started", result.getStatus());
+        verify(routeController, never()).stopRoute(anyString());
+    }
+
+    @Test
+    public void testModifyRoute_OlderStoppedRouteWithATemplateStaysStoppedAsManual() throws Exception {
+        CamelRouteTemplate result = modifyStored(storedStopped(null, null, "a template"), "changed template");
+
+        assertEquals("Stopped", result.getStatus());
+        assertEquals(RouteStopReason.MANUAL, result.getStopReason());
+        assertNotNull(result.getStoppedAt());
+    }
+
+    @Test
+    public void testModifyRoute_KeepsARunningRouteRunning() throws Exception {
+        testTemplate.setStatus("Started");
+        CamelRouteTemplate result = modifyStored(testTemplate, "new template");
+
+        assertEquals("Started", result.getStatus());
+        assertNull(result.getStopReason());
+        verify(routeController, never()).stopRoute(anyString());
+    }
+
+    @Test
+    public void testModifyRoute_EmptyTemplateStopsWithNoTemplateReason() throws Exception {
+        testTemplate.setStatus("Started");
+        CamelRouteTemplate result = modifyStored(testTemplate, "  ");
+
+        assertEquals("Stopped", result.getStatus());
+        assertEquals(RouteStopReason.NO_TEMPLATE, result.getStopReason());
+        assertNotNull(result.getStoppedAt());
+        verify(routeController).stopRoute("testRoute");
+    }
+
+    @Test
+    public void testCreateRoute_WithoutATemplateIsStoppedForLackOfOne() throws Exception {
+        when(dataSourceService.getDataSource("test-datasource")).thenReturn(testDatasource);
+        when(routeService.routeExists("newRoute")).thenReturn(false);
+        when(routeService.getRoute("newRoute")).thenReturn(testTemplate);
+
+        CamelRouteTemplate result = routeManagementService.createRoute(
+                "newRoute", "?p={p}", "test-datasource", "d", "http://test", "", "layer1", null, null, null);
+
+        assertEquals("Stopped", result.getStatus());
+        assertEquals(RouteStopReason.NO_TEMPLATE, result.getStopReason());
+    }
+
+    @Test
+    public void testModifyRouteTemplate_KeepsAStoppedRouteStopped() throws Exception {
+        Date since = new Date(3_000L);
+        storedStopped(RouteStopReason.HEALTH_CHECK, since, "old template");
+        when(routeService.getRoute("testRoute")).thenReturn(testTemplate);
+        when(layerService.getLayerUris(testTemplate)).thenReturn(List.of("layer1"));
+        when(dataSourceService.getDataSource(testDatasource.getDataSourceId())).thenReturn(testDatasource);
+        when(routeService.routeExists("testRoute")).thenReturn(false);
+
+        CamelRouteTemplate result = routeManagementService.modifyRouteTemplate("testRoute", "new template");
+
+        assertEquals("Stopped", result.getStatus());
+        assertEquals(RouteStopReason.HEALTH_CHECK, result.getStopReason());
+        assertEquals(since, result.getStoppedAt());
     }
 
     // ========================================

@@ -4,9 +4,9 @@
  * quick actions bar. They pin what the app relies on so a library upgrade that changes rendering or inputs fails here
  * rather than in the browser.
  */
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, Router, RouterOutlet } from '@angular/router';
+import { ActivatedRoute, provideRouter, Router, RouterOutlet } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MarkdownComponent, provideMarkdown } from 'ngx-markdown';
@@ -17,6 +17,9 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import * as monaco from 'monaco-editor';
 import { CodeEditorComponent } from './code-editor/code-editor.component';
 import { QuickActionsBarComponent } from './quick-actions/quick-actions-bar.component';
+import { breadcrumbLabel, ROUTE_CRUMB } from './breadcrumb-label';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
 
 const SPARQI_REPLY = [
   '## Suggested query',
@@ -187,6 +190,16 @@ class Page {
 class BreadcrumbHost {
 }
 
+/** A page named after what it shows, as the route and datasource pages are. */
+@Component({ standalone: true, selector: 'test-named-page', changeDetection: ChangeDetectionStrategy.Eager, template: 'named' })
+class NamedPage {
+  // As the real pages do: the id is a signal, since the page is reused when only the id changes
+  private readonly id = toSignal(inject(ActivatedRoute).paramMap.pipe(map(p => p.get('routeId') ?? '')), { initialValue: '' });
+  constructor() {
+    breadcrumbLabel(ROUTE_CRUMB, () => this.id());
+  }
+}
+
 describe('xng-breadcrumb (app toolbar)', () => {
   // The same shape as app-routing.module.ts: labels come from route data.
   const routes = [
@@ -197,7 +210,10 @@ describe('xng-breadcrumb (app toolbar)', () => {
         { path: 'datasources', component: Section, data: { breadcrumb: 'DataSources' }, children: [
             { path: 'config-datasource/:dataSourceId', component: Page, data: { breadcrumb: 'Config-Datasource' } }
           ] },
-        { path: 'metrics', component: Page, data: { breadcrumb: 'Metrics' } }
+        { path: 'metrics', component: Page, data: { breadcrumb: 'Metrics' } },
+        { path: 'named', component: Section, data: { breadcrumb: 'Routes' }, children: [
+            { path: ':routeId', component: NamedPage, data: { breadcrumb: { alias: ROUTE_CRUMB, label: 'Route' } } }
+          ] }
       ] }
   ];
 
@@ -211,6 +227,16 @@ describe('xng-breadcrumb (app toolbar)', () => {
     expect(crumbs(harness.routeNativeElement!)).toEqual(['Routes', 'Config-Route']);
     await harness.navigateByUrl('/metrics');
     expect(crumbs(harness.routeNativeElement!)).toEqual(['Metrics']);
+  });
+
+  it("labels a page's crumb with the name it shows, not the generic label", async () => {
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/named/people-search');
+    harness.detectChanges();
+    expect(crumbs(harness.routeNativeElement!)).toEqual(['Routes', 'people-search']);
+    await harness.navigateByUrl('/named/org-lookup');
+    harness.detectChanges();
+    expect(crumbs(harness.routeNativeElement!)).toEqual(['Routes', 'org-lookup']);
   });
 
   it('links parent crumbs to their route and leaves the current one unlinked', async () => {

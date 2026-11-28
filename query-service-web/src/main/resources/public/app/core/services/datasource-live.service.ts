@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { DatasourceHealth, DatasourceHealthSnapshot } from '../models/datasource-health';
 import { StreamEvent } from './event-stream';
-import { LiveConnection } from './live-connection';
+import { liveLink } from './live-hub';
 import { LiveStatus } from './metrics-live.service';
 
 export { EVENT_STREAM_FETCH, LIVE_TIMINGS } from './live-connection';
@@ -15,7 +15,8 @@ export const DATASOURCE_SNAPSHOT_URL = '/queryrest/api/events/datasources';
 /**
  * Live health of every datasource, pushed by the server over server-sent events (/api/events, topic `datasources`):
  * the first event is the whole state, and a new one arrives whenever a status, check or setting changes. The
- * connection (reconnects, polling fallback, hidden tabs, sign-in) is a {@link LiveConnection}.
+ * connection (reconnects, polling fallback, hidden tabs, sign-in) is a {@link LiveConnection}, shared with the
+ * page's other live services through a {@link LiveHub} when the page provides one.
  *
  * Provided by the datasources page, so the list and the datasource page under it share one connection.
  */
@@ -33,7 +34,7 @@ export class DatasourceLiveService {
   /** When the last snapshot arrived (ms since epoch). */
   readonly updatedAt = signal<number | null>(null);
 
-  private readonly connection = new LiveConnection({
+  private readonly connection = liveLink({
     streamUrl: () => DATASOURCE_STREAM_URL,
     onOpen: () => {
       if (this.datasources() !== null && !this.connection.isPaused) {

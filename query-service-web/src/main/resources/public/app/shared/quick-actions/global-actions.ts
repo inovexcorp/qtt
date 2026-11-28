@@ -7,10 +7,10 @@ import { CacheService } from '../../core/services/cache.service';
 import { saveErrorMessage } from '../../core/http-error-message';
 import { confirm } from '../confirm-dialog/confirm-dialog.component';
 import { QuickAction } from './quick-action';
+import { ADD_ROUTE_LINK } from '../route-links';
 import { ShortcutsDialogComponent } from './shortcuts-dialog.component';
 
 /** Query parameters a page reads to start an action the bar asked for (and then removes from the URL). */
-export const ADD_ROUTE_PARAM = { add: 'route' };
 export const NEW_API_KEY_PARAM = { apiKey: 'new' };
 
 /** The places the bar can go: the four pages, and each Settings section (listed once something is typed). */
@@ -50,7 +50,7 @@ export function globalActions(d: GlobalActionDeps): QuickAction[] {
     {
       id: 'add-route', label: 'Add route', icon: 'add', group: 'actions', minRole: 'editor',
       keywords: ['new route', 'create route'],
-      run: () => d.router.navigate(['/routes'], { queryParams: ADD_ROUTE_PARAM })
+      run: () => d.router.navigate(ADD_ROUTE_LINK)
     },
     {
       id: 'add-datasource', label: 'Add datasource', icon: 'add', group: 'actions', minRole: 'admin',

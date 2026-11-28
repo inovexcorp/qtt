@@ -1,3 +1,4 @@
+import { routeLink } from '../route-links';
 import {
   ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, OnInit, ViewChild, computed, inject, signal
 } from '@angular/core';
@@ -262,7 +263,7 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
     this.close(false);
     let result: unknown;
     if (item.kind === 'route') {
-      result = this.router.navigate(['/routes/config-route', item.entityId]);
+      result = this.router.navigate(routeLink(item.entityId!));
     } else if (item.kind === 'datasource') {
       result = this.router.navigate(['/datasources/config-datasource', item.entityId]);
     } else {

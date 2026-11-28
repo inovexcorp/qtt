@@ -1,3 +1,5 @@
+import { routeLink } from '../../shared/route-links';
+import { breadcrumbLabel, DATASOURCE_CRUMB } from '../../shared/breadcrumb-label';
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal, untracked,
   viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -83,6 +85,8 @@ export class ConfigDatasourceComponent {
   protected readonly notFound = signal(false);
   protected readonly loadFailed = signal(false);
 
+  // The toolbar breadcrumb shows the datasource's name
+  private readonly crumb = breadcrumbLabel(DATASOURCE_CRUMB, () => this.dataSourceId());
   protected readonly health = computed(() => this.live.datasources()?.find(d => d.dataSourceId === this.dataSourceId()));
   protected readonly status = computed<DatasourceStatus>(() =>
     this.health()?.status ?? (this.datasource()?.status as DatasourceStatus) ?? 'UNKNOWN');
@@ -525,7 +529,7 @@ export class ConfigDatasourceComponent {
   protected readonly formatInteger = (v: number) => Math.round(v).toLocaleString();
 
   protected routeLink(route: string): string[] {
-    return ['/routes', 'config-route', route];
+    return routeLink(route);
   }
 
   protected backToList(): void {

@@ -16,7 +16,13 @@ public interface RouteService {
 
     CamelRouteTemplate getRoute(String routeId);
 
-    void updateRouteStatus(String routeId, String status);
+    /**
+     * Sets a route's stored status. Stopping records why and when ({@code reason} is required); starting clears both.
+     *
+     * @param status "Started" or "Stopped"
+     * @param reason why it was stopped; ignored when starting
+     */
+    void updateRouteStatus(String routeId, String status, RouteStopReason reason);
 
     long countRoutes();
 

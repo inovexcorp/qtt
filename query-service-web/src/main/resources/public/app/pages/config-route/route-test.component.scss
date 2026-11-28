@@ -1,0 +1,268 @@
+// The Test tab. Cards from styles/_surfaces.scss.
+
+:host {
+  display: block;
+}
+
+.rt-test {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tst-request {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  transition: opacity 150ms ease;
+
+  &.is-busy {
+    opacity: 0.65;
+  }
+}
+
+.tst-label {
+  margin: 0 0 0.5rem;
+  font: 500 0.8125rem/1.25rem var(--mat-sys-body-medium-font), sans-serif;
+  color: var(--mat-sys-on-surface);
+}
+
+.tst-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--qtt-muted);
+}
+
+.tst-wide {
+  width: 100%;
+}
+
+.tst-mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.tst-json {
+  height: 11rem;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tst-param {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tst-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--qtt-card-border);
+  padding-top: 1rem;
+}
+
+.tst-spin {
+  animation: tst-spin 900ms linear infinite;
+}
+
+// SPARQi
+.tst-sparqi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--mat-sys-primary) 6%, var(--mat-sys-surface-container-lowest));
+
+  .tst-sparqi__head {
+    display: flex;
+    gap: 0.75rem;
+    p { margin: 0.125rem 0 0; font-size: 0.8125rem; color: var(--qtt-muted); }
+  }
+  .tst-sparqi__icon {
+    flex: none;
+    color: var(--mat-sys-primary);
+  }
+  .tst-sparqi__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+}
+
+.tst-meta {
+  color: var(--qtt-muted);
+}
+
+// Notes above the request
+.tst-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+  border-radius: 8px;
+  background: var(--mat-sys-surface-container-low);
+  font-size: 0.8125rem;
+  color: var(--mat-sys-on-surface-variant);
+
+  > span { flex: 1; }
+  mat-icon { flex: none; width: 18px; height: 18px; font-size: 18px; color: var(--qtt-muted); }
+
+  &--warn {
+    background: color-mix(in srgb, var(--qtt-warn) 10%, var(--mat-sys-surface-container-lowest));
+    mat-icon { color: var(--qtt-warn); }
+  }
+  &--bad {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+    mat-icon { color: var(--mat-sys-error); }
+  }
+  &--good mat-icon {
+    color: var(--qtt-good);
+  }
+}
+
+// Result
+.tst-result {
+  min-height: 12rem;
+  position: sticky;
+  top: 1rem;
+
+  @media (max-width: 1100px) {
+    position: static;
+  }
+}
+
+.tst-bad {
+  color: var(--qtt-bad);
+}
+
+.tst-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 8rem;
+}
+
+.tst-out {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: opacity 150ms ease;
+
+  &.is-running {
+    opacity: 0.5;
+  }
+}
+
+.tst-error {
+  display: flex;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 10px;
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  font-size: 0.875rem;
+
+  mat-icon { flex: none; color: var(--mat-sys-error); }
+  strong { font-weight: 500; overflow-wrap: anywhere; }
+  details { margin-top: 0.5rem; }
+  summary { cursor: pointer; font-size: 0.8125rem; }
+  pre { max-height: 16rem; overflow: auto; font-size: 0.75rem; white-space: pre-wrap; }
+}
+
+.tst-sparql {
+  border-radius: 10px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+
+  summary {
+    padding: 0.5rem 0.875rem;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    color: #9da5b4;
+  }
+  pre {
+    margin: 0;
+    padding: 0 0.875rem 0.875rem;
+    max-height: 18rem;
+    overflow: auto;
+    font: 0.8125rem/1.25rem ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    white-space: pre-wrap;
+  }
+}
+
+.tst-table-wrap {
+  max-height: 28rem;
+  overflow: auto;
+  border: 1px solid var(--qtt-card-border);
+  border-radius: 10px;
+}
+
+.tst-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  th {
+    position: sticky;
+    top: 0;
+    padding: 0.5rem 0.75rem;
+    background: var(--mat-sys-surface-container);
+    font-weight: 500;
+    text-align: left;
+    color: var(--qtt-muted);
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  td {
+    padding: 0.4375rem 0.75rem;
+    border-top: 1px solid var(--qtt-card-border);
+    overflow-wrap: anywhere;
+    vertical-align: top;
+  }
+  tbody tr:hover {
+    background: var(--mat-sys-surface-container-low);
+  }
+  .tst-none {
+    text-align: center;
+    color: var(--qtt-muted);
+  }
+}
+
+.tst-json-out {
+  max-height: 28rem;
+  margin: 0;
+  padding: 0.75rem 0.875rem;
+  overflow: auto;
+  border-radius: 10px;
+  background: var(--mat-sys-surface-container-low);
+  font: 0.75rem/1.125rem ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.tst-in {
+  animation: tst-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tst-in {
+  from { opacity: 0; transform: translateY(0.25rem); }
+}
+@keyframes tst-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tst-in { animation: none; }
+  .tst-spin { animation-duration: 2.4s; }
+}

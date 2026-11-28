@@ -1,448 +1,120 @@
-import { Component, ElementRef, OnInit, ViewChild, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
-import { ViewEncapsulation } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
-import { DatasourceService } from '../../core/services/datasource.service';
-import { Datasources } from '../../core/models/datasources';
-import { AddRouteService } from './add-route.service';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
-import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatIconRegistry, MatIcon } from '@angular/material/icon';
-import { DomSanitizer } from '@angular/platform-browser';
-import { GraphmartsService } from '../../core/services/graphmarts.service';
-import { Graphmarts } from '../../core/models/graphmarts';
-import { map, Observable, startWith } from 'rxjs';
-import { GraphmartLayers } from '../../core/models/graphmart-layers';
-import { COMMA, ENTER } from '@angular/cdk/keycodes';
-import { LayersService } from '../../core/services/layers.service';
-import { MatChipInputEvent, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput } from '@angular/material/chips';
-import { MatAutocompleteSelectedEvent, MatAutocompleteTrigger, MatAutocomplete } from '@angular/material/autocomplete';
-import { NewRoute } from '../../core/models/routes-interfaces/new-route';
-import { OntologyService } from '../../core/services/ontology/ontology.service';
-import { registerOntologyAutocomplete, OntologyAutocompleteProvider } from '../../core/services/ontology/ontology-autocomplete.provider';
-import * as monaco from 'monaco-editor';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { firstValueFrom, map } from 'rxjs';
+import { MatButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
-import { CacheService } from '../../core/services/cache.service';
 import { CacheInfo } from '../../core/models/cache-info';
-import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
-import { MatInput } from '@angular/material/input';
-import { MatSelect, MatOption } from '@angular/material/select';
+import { CacheService } from '../../core/services/cache.service';
+import { saveErrorMessage } from '../../core/http-error-message';
+import { HasUnsavedChanges, warnBeforeUnload } from '../../core/guards/unsaved-changes.guard';
 import { RouteAccessComponent } from '../../shared/route-access/route-access.component';
-import { MatSlideToggle } from '@angular/material/slide-toggle';
-import { MatTooltip } from '@angular/material/tooltip';
-import { MatButton, MatMiniFabButton } from '@angular/material/button';
-import { CodeEditorComponent } from '../../shared/code-editor/code-editor.component';
-import { AsyncPipe } from '@angular/common';
+import { EndpointPanelComponent } from '../../shared/endpoint-panel/endpoint-panel.component';
+import { effectiveAccess } from '../../shared/query-endpoint';
+import { routeLink } from '../../shared/route-links';
+import { RouteDraft } from '../routes/route-draft';
+import { RoutesService } from '../routes/routes.service';
+import { RoutesLiveService } from '../routes/routes-live.service';
+import { RouteRequestFieldsComponent } from '../routes/form/route-request-fields.component';
+import { RouteDataFieldsComponent } from '../routes/form/route-data-fields.component';
+import { RouteCacheFieldsComponent } from '../routes/form/route-cache-fields.component';
+import { RouteTemplateEditorComponent } from '../routes/form/route-template-editor.component';
 
+/** GET /routes/cache/info: the cache, when the server has one. */
+export interface CacheInfoResponse {
+  available?: boolean;
+  info?: CacheInfo;
+}
 
+/** The server's cache from its info response: null when it has none. */
+export function cacheOf(response: CacheInfoResponse | null | undefined): CacheInfo | null {
+  return response?.info?.enabled ? response.info : null;
+}
 
+/**
+ * A new route, on its own page: what it answers (name, methods, description, with its URL as you type), where the
+ * data comes from, the template, who may call it, and caching. Creating it opens its page. Leaving with something
+ * entered asks first.
+ */
 @Component({
-    selector: 'app-add-route',
-    templateUrl: './add-route.component.html',
-    styleUrls: ['./add-route.component.scss'],
-    encapsulation: ViewEncapsulation.None,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    imports: [FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatIcon, MatSuffix, MatSelect, MatOption, MatAutocompleteTrigger, MatAutocomplete, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput, RouteAccessComponent, MatSlideToggle, MatTooltip, MatButton, MatMiniFabButton, CodeEditorComponent, AsyncPipe]
+  selector: 'app-add-route',
+  templateUrl: './add-route.component.html',
+  styleUrls: ['./add-route.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [RouteDraft],
+  imports: [MatButton, MatIcon, RouteAccessComponent, EndpointPanelComponent, RouteRequestFieldsComponent,
+    RouteDataFieldsComponent, RouteCacheFieldsComponent, RouteTemplateEditorComponent],
 })
-export class AddRouteComponent implements OnInit, OnDestroy {
+export class AddRouteComponent implements HasUnsavedChanges {
+  protected readonly draft = inject(RouteDraft);
+  private readonly api = inject(RoutesService);
+  private readonly live = inject(RoutesLiveService, { optional: true });
+  private readonly cache = inject(CacheService);
+  private readonly router = inject(Router);
+  private readonly snackBar = inject(MatSnackBar);
 
-  filteredGraphmarts!: Observable<Graphmarts[]> | undefined;
-  datasourceIcon: string = 'assets/icons/anzo.svg';
-  fileName: string = '';
-  fileReader = new FileReader()
-  templateContent: string | ArrayBuffer | null = '';
-  datasources: Datasources[] = [];
-  graphMarts: Graphmarts[] = [];
-  // Layers to display in dropdown
-  filteredLayers!: Observable<GraphmartLayers[]> | undefined;
-  // Collection of layer titles to utilize in sending to server for persistence
-  layers: string[] = [];
-  // All of the layers pulled from server
-  allLayers: GraphmartLayers[] = [];
-  separatorKeysCodes: number[] = [ENTER, COMMA];
-  showTemplateEditor: boolean = false;
-  editorOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
-    theme: 'vs-dark',
-    language: 'freemarker2',
-    automaticLayout: true,
-    minimap: { enabled: false },
-    suggest: {
-      showWords: true,
-      showSnippets: true,
-      snippetsPreventQuickSuggestions: false
-    },
-    quickSuggestions: {
-      other: true,
-      comments: false,
-      strings: true
-    },
-    acceptSuggestionOnCommitCharacter: true,
-    acceptSuggestionOnEnter: 'on',
-    tabCompletion: 'on'
-  };
+  readonly unsavedSubject = 'the new route';
 
-  layerPlaceholder: string = "Keep blank to target all layers";
-  private ontologyAutocompleteProvider?: OntologyAutocompleteProvider;
-  private monacoEditor: any;
-  private templateValidation?: { dispose(): void };
-  /** The template's current syntax error, shown below the editor (null when it parses). */
-  templateSyntaxError: TemplateValidation | null = null;
+  protected readonly cacheInfo = signal<CacheInfo | null | undefined>(undefined);
+  protected readonly saving = signal(false);
+  protected readonly error = signal<string | null>(null);
+  /** Create was pressed: say what is missing. */
+  protected readonly attempted = signal(false);
+  private created = false;
 
-  // Cache configuration
-  cacheInfo?: CacheInfo;
-  cacheEnabled: boolean = false;
-  cacheExpanded: boolean = false;
+  private readonly value = toSignal(this.draft.form.valueChanges.pipe(map(() => this.draft.form.getRawValue())),
+    { initialValue: this.draft.form.getRawValue() });
+  protected readonly routeId = computed(() => this.value().routeId.trim());
+  protected readonly baseUrl = computed(() => this.live?.baseUrl() ?? '');
+  protected readonly access = computed(() =>
+    effectiveAccess(this.value().accessPolicy, this.live?.serverDefaultAccess() ?? 'open'));
+  protected readonly methods = computed(() => this.value().methods);
 
-  @ViewChild('layerElement') layerElement!: ElementRef<HTMLInputElement>;
-
-  createRoute = new FormGroup({
-    routeId: new FormControl('', Validators.required),
-    routeParams: new FormControl<string[]>([], Validators.required),
-    routeDescription: new FormControl('', Validators.required),
-    graphMartUri: new FormControl('', Validators.required),
-    template: new FormControl(''), // Allow empty template
-    datasourceValidator: new FormControl('', Validators.required),
-    layersInput: new FormControl(''),
-    // Cache fields
-    cacheEnabled: new FormControl(false),
-    cacheTtlSeconds: new FormControl<number | null>(null),
-    cacheKeyStrategy: new FormControl('QUERY_HASH'),
-    // Who may call it (see app-route-access)
-    accessPolicy: new FormControl('default'),
-    requiredRoles: new FormControl('')
-  })
-  get routeId() { return this.createRoute.get('routeId') }
-  get routeParameters() { return this.createRoute.get('routeParameters'); }
-  get routeDescription() { return this.createRoute.get('routeDescription'); }
-  get graphMartUri() { return this.createRoute.get('graphMartUri') }
-  get template() { return this.createRoute.get('template') }
-  get datasourceValidator() { return this.createRoute.get('datasourceValidator') }
-  get layersInput() { return this.createRoute.get('layersInput') }
-  get cacheEnabledControl() { return this.createRoute.get('cacheEnabled') }
-  get cacheTtlSecondsControl() { return this.createRoute.get('cacheTtlSeconds') }
-  get cacheKeyStrategyControl() { return this.createRoute.get('cacheKeyStrategy') }
-
-
-
-
-  constructor(private domSanitzer: DomSanitizer, public router: Router, public dialog: MatDialog, private datasourceService: DatasourceService, private routeService: AddRouteService, private graphMartService: GraphmartsService, private matIconRegistry: MatIconRegistry, private layersService: LayersService, private ontologyService: OntologyService, private cacheService: CacheService,
-    private templateValidationService: TemplateValidationService, private snackBar: MatSnackBar
-  ) {
-    this.matIconRegistry.addSvgIcon(
-      'anzo-logo',
-      this.domSanitzer.bypassSecurityTrustResourceUrl('assets/icons/anzo.svg')
-    );
-  }
-
-  closeDialog(): void {
-    this.dialog.closeAll();
-  }
-
-  ngOnInit(): void {
-    this.getDatasources();
-    this.loadCacheInfo();
-  }
-
-  loadCacheInfo(): void {
-    this.cacheService.getCacheInfo().subscribe({
-      next: (response: any) => {
-        // Extract the nested info object from the response
-        this.cacheInfo = response.info;
-        // Set default TTL from global config
-        if (this.cacheInfo && this.cacheInfo.defaultTtlSeconds) {
-          this.createRoute.controls['cacheTtlSeconds'].setValue(this.cacheInfo.defaultTtlSeconds);
-        }
-      },
-      error: (error) => {
-        console.error('Failed to load cache info:', error);
-      }
+  constructor() {
+    this.draft.takenIds = () => (this.live?.routes() ?? []).map(r => r.routeId);
+    this.draft.startNew();
+    // The list of taken ids may arrive after a name was typed
+    effect(() => {
+      this.live?.routes();
+      untracked(() => this.draft.form.controls.routeId.updateValueAndValidity({ emitEvent: true }));
+    });
+    warnBeforeUnload(() => this.hasUnsavedChanges());
+    this.cache.getCacheInfo().subscribe({
+      next: response => this.cacheInfo.set(cacheOf(response as unknown as CacheInfoResponse)),
+      error: () => this.cacheInfo.set(null),
     });
   }
 
-  toggleCacheEnabled(): void {
-    // Note: ngModel already updated cacheEnabled, so don't toggle it again
-    this.createRoute.controls['cacheEnabled'].setValue(this.cacheEnabled);
-    if (this.cacheEnabled) {
-      this.cacheExpanded = true;
-    }
+  hasUnsavedChanges(): boolean {
+    return !this.created && this.draft.dirty();
   }
 
-  toggleCacheExpanded(): void {
-    this.cacheExpanded = !this.cacheExpanded;
-  }
-
-  // Method to get and filter graphmarts based on selected DS
-  getGraphMarts(dataSourceId: any) {
-    this.graphMartService.getGraphMarts(dataSourceId).subscribe({
-      next: (graphMarts) => {
-        this.graphMarts = graphMarts;
-        this.filteredGraphmarts = this.createRoute.get('graphMartUri')?.valueChanges.pipe(
-          startWith(''),
-          map(value => this.filterGraphmarts(value || '')),
-        )
-      },
-      error: (error) => {
-        this.graphMarts = [];
-        this.filteredGraphmarts = undefined;
-        this.layers = [];
-        this.filteredLayers = undefined;
-        this.createRoute.controls['layersInput'].setValue("");
-        this.createRoute.controls['graphMartUri'].setValue("");
-        console.log(error);
-
-      }
-    }
-    );
-  }
-
-  getGraphMartLayers(graphMart: any) {
-    this.layers = [];
-    graphMart = this.graphMarts.find(item => item.title === graphMart)?.iri as string;
-    this.layersService.getGraphmartLayers(this.createRoute.value['datasourceValidator'] as string, graphMart).subscribe({
-      next: (layer) => {
-        this.allLayers = layer;
-        this.filteredLayers = this.createRoute.get('layersInput')?.valueChanges.pipe(
-          startWith(''),
-          map(value => this.filterLayers(value || '')),
-        )
-      },
-      error: (error) => {
-        console.log(error);
-
-      }
-    }
-    )
-  }
-
-
-  add(event: MatChipInputEvent): void {
-    const value = (event.value || '').trim();
-
-    // Ensure custom layers cannot be specified, only those listed.
-    if (!this.allLayers.some(layer => layer.title == value)) {
-      console.log("Cannot specify layer which does not exist.")
+  protected async create(): Promise<void> {
+    this.attempted.set(true);
+    this.draft.form.markAllAsTouched();
+    if (this.draft.problems().length || this.saving()) {
       return;
     }
-
-    if (this.layers.includes(value)) {
-      console.log("Layer: " + value + " already included.")
-    }
-    // Add our layer
-    else if (value) {
-      this.layers.push(value);
-    }
-
-    // Clear the input value
-    event.chipInput!.clear();
-    this.createRoute.get('layersInput')?.setValue(null);
-
-    // Update placeholder
-    if (this.layers) {
-      this.layerPlaceholder = "Add another layer...";
-
-    }
-
-  }
-
-  remove(layer: string): void {
-    const index = this.layers.indexOf(layer);
-
-    if (index >= 0) {
-      this.layers.splice(index, 1);
-    }
-
-    if (this.layers.length < 1) {
-      this.layerPlaceholder = "Keep blank to target all layers"
+    const request = this.draft.toRequest();
+    this.saving.set(true);
+    this.error.set(null);
+    try {
+      await firstValueFrom(this.api.createRoute(request), { defaultValue: null });
+      this.created = true;
+      const stopped = !request.templateBody.trim();
+      this.snackBar.open(stopped ? `Created ${request.routeId}. It stays stopped until it has a template.`
+        : `Created ${request.routeId}.`, 'Close', { duration: 5000 });
+      void this.live?.load();
+      await this.router.navigate(routeLink(request.routeId));
+    } catch (error) {
+      this.error.set(saveErrorMessage(error));
+    } finally {
+      this.saving.set(false);
     }
   }
 
-  selected(event: MatAutocompleteSelectedEvent): void {
-    if (this.layers.includes(event.option.viewValue)) {
-      console.log("Layer: " + event.option.viewValue + " already included.");
-      this.layerElement.nativeElement.value = '';
-      this.createRoute.get('layersInput')?.setValue(null);
-    }
-    else if (event.option.viewValue) {
-      this.layers.push(event.option.viewValue);
-      this.layerElement.nativeElement.value = '';
-      this.createRoute.get('layersInput')?.setValue(null);
-    }
-
-    // Update placeholder
-    if (this.layers) {
-      this.layerPlaceholder = "Add another layer...";
-
-    }
-  }
-
-  onFileSelected(event: Event) {
-
-    if ((!<HTMLInputElement>event.target)) return;
-
-    let file = (<HTMLInputElement>event.target).files;
-
-    if (file) {
-      this.fileName = file[0].name;
-      this.fileReader.onload = (e) => {
-        this.templateContent = this.fileReader.result;
-        this.createRoute.controls['template'].setValue(this.templateContent as string);
-      }
-      this.fileReader.readAsText(file[0]);
-    }
-  }
-
-  getDatasources(): void {
-    this.datasourceService.getDatasources()
-      .subscribe(datasources => this.datasources = datasources);
-  }
-
-  checkGraphMartStatus(graphMartTitle: string): boolean {
-    let graphMartMatch = this.graphMarts.find(obj => obj.title === graphMartTitle);
-    if (graphMartMatch && graphMartMatch.active === 'true') {
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  onEditorInit(editor: any): void {
-    console.log('[Add Route] Monaco Editor initialized');
-    console.log('[Add Route] Editor instance:', editor);
-    console.log('[Add Route] Editor model language:', editor?.getModel()?.getLanguageId());
-
-    // Store the editor instance
-    this.monacoEditor = editor;
-
-    // Mark syntax errors as the user types (the server rejects saving a template that does not parse)
-    this.templateValidation?.dispose();
-    this.templateValidation = this.templateValidationService.attach(editor,
-      result => this.templateSyntaxError = result && !result.valid ? result : null);
-
-    // Configure word pattern FIRST, before registering providers
-    // This prevents Monaco from breaking URIs at dots, slashes, etc.
-    monaco.languages.setLanguageConfiguration('freemarker2', {
-      wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\=\+\[\{\]\}\\\|\;\:\'\"\,\?\s]+)/g,
-    });
-
-    // Add a small delay to ensure Monaco is fully ready
-    setTimeout(() => {
-      console.log('[Add Route] Registering ontology autocomplete provider...');
-      // For add-route, we need to wait until the user provides a route ID
-      // The autocomplete will be initialized when they start typing or we can use a placeholder
-      // For now, register with a placeholder ID
-      const routeId = this.createRoute.value['routeId'] || 'new-route-placeholder';
-      this.initializeOntologyAutocomplete(routeId);
-      console.log('[Add Route] Provider registered. Try typing "<" or pressing Ctrl+Space');
-    }, 100);
-  }
-
-  ngOnDestroy(): void {
-    this.templateValidation?.dispose();
-    this.templateValidation = undefined;
-  }
-
-  toggleEditor(): void {
-    this.showTemplateEditor = !this.showTemplateEditor;
-
-    // Trigger layout update after animation completes
-    if (this.showTemplateEditor && this.monacoEditor) {
-      setTimeout(() => {
-        this.monacoEditor.layout();
-      }, 350); // Slightly longer than the 300ms transition
-    }
-  }
-
-  // Method to add a new route
-  addRoute(): void {
-    let routeId: string = this.createRoute.value['routeId'] as string;
-    let httpMethods: string[] = this.createRoute.value['routeParams'] as string[];
-    let routeParams: string = 'httpMethodRestrict=' + httpMethods.join(',');
-    let routeDescription: string = this.createRoute.value['routeDescription'] as string;
-    let graphMartTitle: string = this.createRoute.value['graphMartUri'] as string;
-    let templateBody = this.createRoute.value['template'] || ''; // Default to empty string
-    let dataSourceId = this.createRoute.value['datasourceValidator'] as string;
-    let graphMartUri = this.graphMarts.find(item => item.title === graphMartTitle)?.iri;
-    let layers: string = this.concatenanteIris(this.layers, this.allLayers);
-
-    // Cache parameters
-    let cacheEnabled = this.createRoute.value['cacheEnabled'] as boolean;
-    let cacheTtlSeconds = this.createRoute.value['cacheTtlSeconds'] as number | null;
-    let cacheKeyStrategy = this.createRoute.value['cacheKeyStrategy'] as string;
-
-    // Access
-    let accessPolicy = (this.createRoute.value['accessPolicy'] as string) || 'default';
-    let requiredRoles = (this.createRoute.value['requiredRoles'] as string) || '';
-
-    // Validate required fields (template is now optional)
-    if (!routeId || !httpMethods || httpMethods.length === 0 || !routeDescription || !graphMartUri || !dataSourceId) { return; }
-
-    // Set status to "Stopped" if template is empty, otherwise "Started"
-    let status: string = templateBody.trim() === '' ? 'Stopped' : 'Started';
-
-    // Update the autocomplete provider with the final route ID before submitting
-    if (this.ontologyAutocompleteProvider) {
-      this.ontologyAutocompleteProvider.setRouteId(routeId);
-    }
-
-    this.routeService.postRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, status, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, accessPolicy, requiredRoles } as NewRoute)
-      .subscribe({
-        next: () => {
-          this.router.navigate(['../../routes']);
-          location.reload();
-        },
-        // Stay on the page (keeping the input) and say why, e.g. a template syntax error
-        error: (error) => this.snackBar.open(`Route not created: ${saveErrorMessage(error)}`, 'Close',
-          { duration: 10000, panelClass: ['error-snackbar'] })
-      });
-
-  }
-
-  private initializeOntologyAutocomplete(routeId: string): void {
-    if (this.ontologyAutocompleteProvider) {
-      // Update existing provider with new route ID
-      console.log("Updated existing completion provider for route: " + routeId + "")
-      this.ontologyAutocompleteProvider.setRouteId(routeId);
-    } else {
-      // Register new provider
-      console.log("Created new completion provider for route: " + routeId + "")
-      this.ontologyAutocompleteProvider = registerOntologyAutocomplete(
-        this.ontologyService,
-        routeId
-      );
-    }
-    // Warm cache for better performance (only if we have a real route ID)
-    if (routeId !== 'new-route-placeholder') {
-      this.ontologyService.warmCache(routeId).subscribe();
-    }
-  }
-
-  filterGraphmarts(searchTerm: string): Graphmarts[] {
-    const filteredOptions = this.graphMarts.filter(graphmart => {
-      return graphmart.title.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-    return filteredOptions;
-  }
-
-  filterLayers(searchTerm: string): GraphmartLayers[] {
-    const filteredOptions = this.allLayers.filter(layer => {
-      return layer.title.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-    return filteredOptions;
-  }
-
-  concatenanteIris(layers: string[], allLayers: GraphmartLayers[]): string {
-    const iris: string[] = [];
-    for (const title of layers) {
-      const matchingItem = allLayers.find(item => item.title === title);
-      if (matchingItem) {
-        iris.push(matchingItem.iri);
-      }
-    }
-    return iris.join(",");
-  }
-
-  chipStatus(title: string): boolean {
-    const foundLayer = this.allLayers.find(layer => layer.title === title);
-    return foundLayer?.active === "true";
+  protected cancel(): void {
+    void this.router.navigate(['/routes']);
   }
 }

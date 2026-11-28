@@ -171,6 +171,22 @@ public class RoutesControllerTest {
     }
 
     @Test
+    public void testCreateEndpoint_DoesNotReplaceAnExistingRoute() throws Exception {
+        // Creating under a taken id used to delete that route and re-create it from the request
+        when(dataSourceService.dataSourceExists(TEST_DATASOURCE_ID)).thenReturn(true);
+        when(routeService.routeExists(TEST_ROUTE_ID)).thenReturn(true);
+
+        Response response = routesController.createEndpoint(
+                TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS);
+
+        assertEquals(Response.Status.CONFLICT.getStatusCode(), response.getStatus());
+        assertTrue(((Map<?, ?>) response.getEntity()).get("message").toString().contains("already exists"));
+        verify(routeManagementService, never()).createRoute(any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any());
+    }
+
+    @Test
     public void testCreateEndpoint_NullRouteId() throws Exception {
         // Act
         Response response = routesController.createEndpoint(
@@ -498,8 +514,21 @@ public class RoutesControllerTest {
 
         // Assert
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
-        assertEquals(Map.of("endpointUrl", BASE_URL + "/" + clonedRouteId), response.getEntity());
+        assertEquals(Map.of("routeId", clonedRouteId, "endpointUrl", BASE_URL + "/" + clonedRouteId), response.getEntity());
         verify(routeManagementService).cloneRoute(TEST_ROUTE_ID, clonedRouteId);
+    }
+
+    @Test
+    public void testCloneEndpoint_DoesNotOverwriteAnEarlierCopy() throws Exception {
+        // Two copies already exist: creating a route under a taken id would replace it
+        when(routeService.getRoute(TEST_ROUTE_ID + "Clone")).thenReturn(new CamelRouteTemplate());
+        when(routeService.getRoute(TEST_ROUTE_ID + "Clone2")).thenReturn(new CamelRouteTemplate());
+
+        Response response = routesController.cloneEndpoint(TEST_ROUTE_ID);
+
+        String expected = TEST_ROUTE_ID + "Clone3";
+        assertEquals(expected, ((Map<?, ?>) response.getEntity()).get("routeId"));
+        verify(routeManagementService).cloneRoute(TEST_ROUTE_ID, expected);
     }
 
     // ========================================

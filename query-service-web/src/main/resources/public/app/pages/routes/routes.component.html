@@ -1,146 +1,348 @@
-@if (router.isActive('/routes', true)) {
-  <mat-card appearance="outlined" class="table-card">
-    <div class="route-table-header">
-      <mat-form-field appearance="outline">
-        <mat-label>Search</mat-label>
-        <input #inp matInput (keyup)="applyFilter(inp.value)">
-        <mat-icon matSuffix>search</mat-icon>
-      </mat-form-field>
-      <button *qttIfRole="'editor'" mat-raised-button color="primary" class="add-button" (click)="openAddRouteDialog()">Add Route</button>
-    </div>
-    <table mat-table [dataSource]="dataSource" matSort class="elevated-table">
-      <!-- Status Column -->
-      <ng-container matColumnDef="Status">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="status">Status</th>
-        <td mat-cell *matCellDef="let element">
-          <div class="status-cell">
-            @if (element.status=='Started') {
-              <mat-icon class="started-icon" >check_circle</mat-icon>
+@if (listActive()) {
+  <div class="qtt-page rt-list" [class.is-ready]="ready()" [class.has-selection]="selected().size > 0">
+    <header class="qtt-page-header">
+      <div class="qtt-page-header__heading">
+        <h1 class="qtt-page-header__title">Routes</h1>
+        <p class="qtt-page-header__subtitle">The query endpoints QTT serves, with their traffic as it happens.</p>
+      </div>
+      <div class="qtt-page-header__actions">
+        <qtt-live-indicator [status]="live.status()" [text]="liveText()" [announcement]="liveAnnouncement()"
+          [landed]="live.updatedAt()" (togglePause)="togglePause()" (refresh)="live.refresh()"></qtt-live-indicator>
+        <a *qttIfRole="'editor'" mat-flat-button [routerLink]="addRouteLink">
+          <mat-icon>add</mat-icon>
+          Add route
+        </a>
+      </div>
+    </header>
+
+    @if (live.failed()) {
+      <div class="qtt-banner qtt-banner--error" role="alert">
+        <mat-icon class="qtt-banner__icon">error_outline</mat-icon>
+        <p class="qtt-banner__text">
+          <strong>Couldn't load routes.</strong>
+          Check that the service is reachable, then try again.
+        </p>
+        <button mat-stroked-button (click)="live.refresh()">Retry now</button>
+      </div>
+    }
+
+    <!-- Routes the health check stopped, whose datasource is back: one prompt per datasource -->
+    @for (recovery of recoveries(); track recovery.datasourceId) {
+      <div class="qtt-banner qtt-banner--warn rt-recovery" role="status" animate.leave="rt-fade-out">
+        <mat-icon class="qtt-banner__icon">restart_alt</mat-icon>
+        <p class="qtt-banner__text">
+          <strong>{{ recovery.routeIds.length }} {{ recovery.routeIds.length === 1 ? 'route was' : 'routes were' }}
+            stopped while {{ recovery.datasourceId }} was down.</strong>
+          It's back up@if (since(recovery)) {; stopped {{ since(recovery) }}}.
+        </p>
+        <button mat-button (click)="reviewRecovery(recovery)">Review</button>
+        <button *qttIfRole="'editor'" mat-stroked-button (click)="startRecovery(recovery)">
+          Start {{ recovery.routeIds.length === 1 ? 'it' : 'them' }}
+        </button>
+      </div>
+    }
+
+    <!-- Every route at a glance: one sentence, the split by state, and the filters -->
+    @if (rows()?.length) {
+      <section class="qtt-card rt-summary" aria-labelledby="rt-headline">
+        <div class="rt-summary__head">
+          @for (text of [headline()]; track text) {
+            <h2 id="rt-headline" class="rt-summary__headline" animate.enter="rt-swap-in">{{ text }}</h2>
+          }
+          <mat-form-field class="qtt-search" appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Find a route</mat-label>
+            <input matInput [value]="filter().term" (input)="setFilter({ term: $any($event.target).value })">
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+        </div>
+
+        <div class="rt-bar" aria-hidden="true">
+          @for (seg of segments(); track seg.key) {
+            <span class="rt-bar__seg" [attr.data-state]="seg.key" [class.is-empty]="seg.count === 0"
+              [style.flex-grow]="seg.count"></span>
+          }
+        </div>
+
+        <div class="rt-controls">
+          <mat-button-toggle-group class="qtt-toggle rt-controls__states" [value]="filter().state === 'awaiting-restart' ? null : filter().state"
+            (change)="setState($event.value)" aria-label="Show routes by state" hideSingleSelectionIndicator>
+            <mat-button-toggle value="all">All <span class="rt-count">{{ toggleCounts().total }}</span></mat-button-toggle>
+            @for (seg of segments(); track seg.key) {
+              <mat-button-toggle [value]="seg.key" [disabled]="toggleCounts()[seg.key] === 0 && filter().state !== seg.key">
+                <span class="rt-key" [attr.data-state]="seg.key" aria-hidden="true"></span>{{ seg.label }}
+                <span class="rt-count">{{ toggleCounts()[seg.key] }}</span>
+              </mat-button-toggle>
             }
-            @if (element.status=='Stopped') {
-              <mat-icon class="stopped-icon" >stop_circle</mat-icon>
-            }
-            @if (isDatasourceDisabled(element)) {
-              <mat-icon class="datasource-disabled-warning"
-                matTooltip="Warning: Datasource '{{element.datasources.dataSourceId}}' is disabled. This route cannot execute queries."
-                matTooltipPosition="right">
-                block
-              </mat-icon>
-            }
-            @if (isDatasourceDown(element)) {
-              <mat-icon class="datasource-down-warning"
-                matTooltip="Warning: Datasource '{{element.datasources.dataSourceId}}' is down. This route may fail."
-                matTooltipPosition="right">
-                warning
-              </mat-icon>
-            }
+          </mat-button-toggle-group>
+
+          <div class="rt-controls__selects">
+            <mat-form-field class="rt-select" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Datasource</mat-label>
+              <mat-select [value]="filter().datasource" (valueChange)="setFilter({ datasource: $event })">
+                <mat-option value="">All datasources</mat-option>
+                @for (id of datasourceIds(); track id) {
+                  <mat-option [value]="id">{{ id }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field class="rt-select" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Access</mat-label>
+              <mat-select [value]="filter().access" (valueChange)="setAccess($event)">
+                <mat-option value="all">Any access</mat-option>
+                <mat-option value="open">Open to anyone</mat-option>
+                <mat-option value="authenticated">Signed-in callers</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field class="rt-select" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Sort</mat-label>
+              <mat-select [value]="sort()" (valueChange)="setSort($event)">
+                <mat-option value="name">Name</mat-option>
+                <mat-option value="status">Needs attention first</mat-option>
+                <mat-option value="busiest">Busiest</mat-option>
+                <mat-option value="slowest">Slowest</mat-option>
+                <mat-option value="errors">Most errors</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-slide-toggle class="rt-group-toggle" [checked]="grouped()" (change)="setGrouped($event.checked)">
+              Group by datasource
+            </mat-slide-toggle>
           </div>
-        </td>
-      </ng-container>
-      <!-- Route ID Column -->
-      <ng-container matColumnDef="Route ID">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="routeId">Route ID</th>
-        <td mat-cell *matCellDef="let element">
-          <span class="route-id-cell">
-            <mat-icon class="access-icon" [class.access-open]="accessOf(element) === 'open'"
-              [matTooltip]="accessOf(element) === 'open' ? 'Open: anyone who can reach the server can call it' : 'Authenticated: needs a token with qtt-query or an API key'"
-              [attr.aria-label]="accessOf(element) === 'open' ? 'Open route' : 'Authenticated route'">
-            {{ accessOf(element) === 'open' ? 'public' : 'lock' }}</mat-icon>
-            {{element.routeId}}
-          </span></td>
-        </ng-container>
-        <!-- URL Column -->
-        <ng-container matColumnDef="URL">
-          <th mat-header-cell *matHeaderCellDef>Endpoint URL </th>
-          <td mat-cell *matCellDef="let element">{{ endpointUrl(element.routeId) }}</td>
-        </ng-container>
-        <!-- Description Column -->
-        <ng-container matColumnDef="Description">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="description"> Description </th>
-          <td mat-cell class="description" *matCellDef="let element"> {{element.description}} </td>
-        </ng-container>
-        <!-- DataSource Column -->
-        <ng-container matColumnDef="DataSource ID">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="datasource"> DataSource ID </th>
-          <td mat-cell *matCellDef="let element">
-            <div class="datasource-cell">
-              <span>{{element.datasource}}</span>
-              @if (element.datasources?.status === 'UP') {
-                <mat-icon class="ds-status-icon ds-status-up" matTooltip="Datasource is healthy">check_circle</mat-icon>
-              }
-              @if (element.datasources?.status === 'DOWN') {
-                <mat-icon class="ds-status-icon ds-status-down" matTooltip="Datasource is down">error</mat-icon>
-              }
-              @if (element.datasources?.status === 'DISABLED') {
-                <mat-icon class="ds-status-icon ds-status-disabled" matTooltip="Datasource is disabled">block</mat-icon>
-              }
-              @if (element.datasources?.status === 'CHECKING') {
-                <mat-icon class="ds-status-icon ds-status-checking" matTooltip="Health check in progress">sync</mat-icon>
-              }
-              @if (!element.datasources?.status || element.datasources?.status === 'UNKNOWN') {
-                <mat-icon class="ds-status-icon ds-status-unknown" matTooltip="Status unknown">help</mat-icon>
-              }
-            </div>
-          </td>
-        </ng-container>
-        <!-- Menu Action Column -->
-        <ng-container matColumnDef="Menu Actions">
-          <th mat-header-cell *matHeaderCellDef aria-label="menuActions">&nbsp;</th>
-          <td mat-cell *matCellDef="let element">
-            <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Example icon-button with a menu">
-              <mat-icon color="primary">more_vert</mat-icon>
+        </div>
+
+        @if (filter().state === 'awaiting-restart') {
+          <div class="rt-scope" animate.enter="rt-swap-in">
+            <span>Showing routes the health check stopped whose datasource is back up</span>
+            <button mat-button (click)="setState('all')">
+              <mat-icon>close</mat-icon>
+              Show all
             </button>
-            <mat-menu #menu="matMenu">
-              <button mat-menu-item (click)="navigateToConfigRoute(element.routeId)">
-                <mat-icon color="primary">construction</mat-icon>
-                <span>Configure</span>
-              </button>
-              <ng-container *qttIfRole="'editor'">
-                @if (element.status=='Started') {
-                  <button mat-menu-item (click)="toggleRouteStatus(element.routeId, 'Stopped')">
-                    <span>
-                      <mat-icon color="primary">wifi_off</mat-icon>
-                      <span>Turn Off</span>
-                    </span>
-                  </button>
-                }
-                @if (element.status=='Stopped') {
-                  <button mat-menu-item
-                    [disabled]="!isDatasourceHealthy(element)"
-                    [matTooltip]="getDisabledTooltip(element)"
-                    [matTooltipDisabled]="isDatasourceHealthy(element)"
-                    (click)="toggleRouteStatus(element.routeId, 'Started')">
-                    <span>
-                      <mat-icon [color]="isDatasourceHealthy(element) ? 'primary' : 'disabled'">wifi_on</mat-icon>
-                      <span>Turn On</span>
-                      @if (!isDatasourceHealthy(element)) {
-                        <mat-icon class="warning-indicator">warning</mat-icon>
-                      }
-                    </span>
-                  </button>
-                }
-                <button mat-menu-item (click)="cloneRoute(element.routeId)">
-                  <mat-icon color="primary">group</mat-icon>
-                  <span>Clone</span>
-                </button>
-                <button mat-menu-item (click)="openDeleteDialog(element.routeId)">
-                  <mat-icon color="primary">delete</mat-icon>
-                  <span>Delete</span>
-                </button>
-              </ng-container>
-            </mat-menu>
-          </td>
-        </ng-container>
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-      </table>
-      <mat-paginator #paginator
-        color="primary"
-        [length]="16"
-        [pageSize]="25" [pageSizeOptions]="[5, 10, 25, 50]"
-        aria-label="Select page"
-        >
-      </mat-paginator>
-    </mat-card>
-  }
-  <router-outlet></router-outlet>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- The routes -->
+    @if (rows() === null) {
+      @if (!live.failed()) {
+        <ul class="rt-rows rt-rows--card" aria-label="Loading routes">
+          @for (i of skeletons; track i) {
+            <li class="rt-row rt-row--skeleton" aria-hidden="true">
+              <span class="rt-skel rt-skel--dot qtt-shimmer"></span>
+              <span class="rt-skel-lines">
+                <span class="rt-skel rt-skel--title qtt-shimmer"></span>
+                <span class="rt-skel rt-skel--line qtt-shimmer"></span>
+              </span>
+              <span class="rt-skel rt-skel--spark qtt-shimmer"></span>
+            </li>
+          }
+        </ul>
+      }
+    } @else if (rows()!.length === 0) {
+      <div class="qtt-card">
+        <div class="qtt-empty" role="status">
+          <mat-icon class="qtt-empty__icon">alt_route</mat-icon>
+          <p class="qtt-empty__title">No routes yet</p>
+          <p class="qtt-empty__detail">A route is a query endpoint: a template that turns a request into SPARQL against a datasource.</p>
+          <a *qttIfRole="'editor'" mat-stroked-button [routerLink]="addRouteLink">
+            <mat-icon>add</mat-icon>
+            Add route
+          </a>
+        </div>
+      </div>
+    } @else if (visible().length === 0) {
+      <div class="qtt-card rt-none">
+        <div class="qtt-empty" role="status">
+          <mat-icon class="qtt-empty__icon">filter_alt_off</mat-icon>
+          <p class="qtt-empty__title">No routes match</p>
+          <p class="qtt-empty__detail">
+            @if (filter().term) { Nothing matches “{{ filter().term }}” with these filters. }
+            @else { No route matches these filters right now. }
+          </p>
+          <button mat-stroked-button (click)="clearFilters()">Show all routes</button>
+        </div>
+      </div>
+    } @else if (grouped()) {
+      @for (group of groups(); track group.datasourceId) {
+        <section class="qtt-card rt-group" [attr.data-tone]="statusTone(group.status)" animate.enter="rt-row-in"
+          [attr.aria-label]="'Routes on ' + group.datasourceId">
+          <header class="rt-group__head">
+            @if (isEditor()) {
+              <mat-checkbox class="rt-check" [checked]="groupSelection(group) === 'all'"
+                [indeterminate]="groupSelection(group) === 'some'" (change)="toggleGroupSelected(group, $event.checked)"
+                [aria-label]="'Select the routes on ' + group.datasourceId"></mat-checkbox>
+            }
+            <button class="rt-group__toggle" (click)="toggleGroup(group)" [attr.aria-expanded]="!isCollapsed(group)">
+              <mat-icon class="rt-group__chevron" [class.is-collapsed]="isCollapsed(group)">expand_more</mat-icon>
+              <span class="rt-dot" [attr.data-tone]="statusTone(group.status)" aria-hidden="true"></span>
+              <span class="rt-group__name">{{ group.datasourceId }}</span>
+              <span class="rt-group__status">{{ statusLabel(group.status) }}</span>
+            </button>
+            <span class="rt-group__counts">
+              {{ group.counts.total }} {{ group.counts.total === 1 ? 'route' : 'routes' }}
+              · {{ group.counts.running }} running
+              @if (group.counts.blocked) { · {{ group.counts.blocked }} blocked }
+            </span>
+            <a mat-button class="rt-group__open" [routerLink]="['/datasources', 'config-datasource', group.datasourceId]">
+              Datasource
+              <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+            </a>
+          </header>
+          @if (!isCollapsed(group)) {
+            <ul class="rt-rows" animate.enter="rt-expand" animate.leave="rt-collapse">
+              @for (row of group.rows; track row.id) {
+                <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row, inGroup: true }"></ng-container>
+              }
+            </ul>
+          }
+        </section>
+      }
+    } @else {
+      <section class="qtt-card rt-table" aria-label="Routes">
+        <div class="rt-columns" aria-hidden="true">
+          @if (isEditor()) {
+            <mat-checkbox class="rt-check" [checked]="allVisibleSelected()" [indeterminate]="someVisibleSelected()"
+              (change)="toggleAllVisible($event.checked)" aria-label="Select every route shown" tabindex="-1"></mat-checkbox>
+          } @else {
+            <span></span>
+          }
+          <span>Route</span>
+          <span>Datasource</span>
+          <span class="rt-columns__traffic">Last 30 minutes</span>
+          <span></span>
+        </div>
+        <ul class="rt-rows">
+          @for (row of visible(); track row.id) {
+            <ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: row, inGroup: false }"></ng-container>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- Selected routes: start, stop or delete them together -->
+    @if (selected().size > 0) {
+      <div class="rt-bulk" role="toolbar" aria-label="Selected routes" animate.enter="rt-bulk-in" animate.leave="rt-bulk-out">
+        <span class="rt-bulk__count">{{ selected().size }} selected</span>
+        <button mat-button [disabled]="selectedStopped() === 0" (click)="bulkStart()">
+          <mat-icon>play_arrow</mat-icon>
+          Start@if (selectedStopped() && selectedStopped() !== selected().size) { {{ selectedStopped() }}}
+        </button>
+        <button mat-button [disabled]="selectedStarted() === 0" (click)="bulkStop()">
+          <mat-icon>stop</mat-icon>
+          Stop@if (selectedStarted() && selectedStarted() !== selected().size) { {{ selectedStarted() }}}
+        </button>
+        <button mat-button class="rt-bulk__danger" (click)="bulkDelete()">
+          <mat-icon>delete</mat-icon>
+          Delete
+        </button>
+        <span class="rt-bulk__spacer"></span>
+        <button mat-icon-button (click)="clearSelection()" matTooltip="Clear selection" aria-label="Clear selection">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    }
+  </div>
+}
+
+<ng-template #rowTpl let-row let-inGroup="inGroup">
+  <li class="rt-row" [attr.data-tone]="row.tone" [attr.data-route-id]="row.id"
+    [class.is-selected]="selected().has(row.id)" [class.is-pending]="pending().has(row.id)"
+    [class.is-new]="highlight() === row.id" animate.enter="rt-row-in" animate.leave="rt-row-out">
+    @if (isEditor()) {
+      <mat-checkbox class="rt-check" [checked]="selected().has(row.id)" (change)="toggleSelected(row.id, $event.checked)"
+        [aria-label]="'Select ' + row.id"></mat-checkbox>
+    }
+
+    <div class="rt-row__main">
+      <div class="rt-row__title">
+        <span class="rt-dot" [attr.data-tone]="row.tone" [matTooltip]="stateLabel(row)" role="img"
+          [attr.aria-label]="stateLabel(row)"></span>
+        <a class="rt-row__link" [routerLink]="routeLink(row.id)">{{ row.id }}</a>
+        @for (m of row.methods; track m) {
+          <span class="rt-method">{{ m }}</span>
+        }
+        <mat-icon class="rt-access" [class.is-open]="row.access === 'open'"
+          [matTooltip]="row.access === 'open' ? 'Open: anyone who can reach the server can call it' : 'Authenticated: callers need a token with qtt-query or an API key'"
+          [attr.aria-label]="row.access === 'open' ? 'Open to anyone' : 'Signed-in callers only'" role="img">
+          {{ row.access === 'open' ? 'public' : 'lock' }}</mat-icon>
+      </div>
+      @for (text of [detail(row)]; track text) {
+        <p class="rt-row__detail" [class.is-note]="!!row.note" [attr.data-tone]="row.tone" animate.enter="rt-swap-in"
+          [matTooltip]="row.note ? row.description : ''">{{ text || 'No description' }}</p>
+      }
+    </div>
+
+    @if (!inGroup) {
+      <a class="rt-ds" [routerLink]="['/datasources', 'config-datasource', row.datasourceId]"
+        [matTooltip]="'Datasource ' + row.datasourceId + ': ' + statusLabel(row.datasourceStatus)">
+        <span class="rt-dot rt-dot--small" [attr.data-tone]="statusTone(row.datasourceStatus)" aria-hidden="true"></span>
+        <span class="rt-ds__name">{{ row.datasourceId }}</span>
+        <span class="qtt-visually-hidden">, {{ statusLabel(row.datasourceStatus) }}</span>
+      </a>
+    }
+
+    <div class="rt-traffic">
+      <qtt-sparkline [values]="hasTraffic(row) ? row.traffic.spark : []" [failures]="row.traffic.sparkFailures"
+        [minScale]="4"></qtt-sparkline>
+      <dl class="rt-figures">
+        <div matTooltip="Calls per minute, last 5 minutes">
+          <dt class="qtt-visually-hidden">Calls</dt><dd>{{ hasTraffic(row) ? formatRate(row.traffic.perMinute) : '—' }}</dd>
+        </div>
+        <div matTooltip="Failed calls, last 30 minutes" [class.is-bad]="(row.traffic.errorRate ?? 0) > 0">
+          <dt class="qtt-visually-hidden">Errors</dt><dd>{{ formatErrorRate(row.traffic.errorRate) }}</dd>
+        </div>
+        <div matTooltip="Mean time per call, last 30 minutes">
+          <dt class="qtt-visually-hidden">Mean time</dt><dd>{{ formatMs(row.traffic.meanMs) }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="rt-row__actions">
+      @if (isEditor()) {
+        @if (row.started) {
+          <button mat-stroked-button class="rt-power" [disabled]="pending().has(row.id)" (click)="stop([row])"
+            [attr.aria-label]="'Stop ' + row.id">
+            <mat-icon>stop</mat-icon>
+            Stop
+          </button>
+        } @else {
+          <span [matTooltip]="row.startBlocked ?? ''">
+            <button mat-stroked-button class="rt-power rt-power--start" [disabled]="!!row.startBlocked || pending().has(row.id)"
+              (click)="start([row])" [attr.aria-label]="'Start ' + row.id">
+              <mat-icon>play_arrow</mat-icon>
+              Start
+            </button>
+          </span>
+        }
+      }
+      <button mat-icon-button (click)="copyUrl(row)" [matTooltip]="'Copy ' + endpoint(row)"
+        [attr.aria-label]="'Copy the endpoint URL of ' + row.id">
+        <mat-icon>content_copy</mat-icon>
+      </button>
+      <button mat-icon-button [matMenuTriggerFor]="menu" [attr.aria-label]="'More for ' + row.id">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #menu="matMenu" xPosition="before">
+        <a mat-menu-item [routerLink]="routeLink(row.id)">
+          <mat-icon>tune</mat-icon>
+          <span>Open</span>
+        </a>
+        <a mat-menu-item [routerLink]="routeLink(row.id)" [queryParams]="{ tab: 'test' }">
+          <mat-icon>science</mat-icon>
+          <span>Test</span>
+        </a>
+        @if (isEditor()) {
+          <button mat-menu-item (click)="clone(row)">
+            <mat-icon>content_copy</mat-icon>
+            <span>Clone</span>
+          </button>
+          <button mat-menu-item class="rt-menu-danger" (click)="remove([row])">
+            <mat-icon>delete</mat-icon>
+            <span>Delete</span>
+          </button>
+        }
+      </mat-menu>
+    </div>
+  </li>
+</ng-template>
+
+<router-outlet></router-outlet>

@@ -1,1692 +1,541 @@
-import { Component, ElementRef, OnInit, AfterViewInit, OnDestroy, ViewChild, Inject, inject, ChangeDetectionStrategy } from '@angular/core';
-import { SettingsService } from '../../core/services/settings.service';
-import { effectiveAccess } from '../../shared/query-endpoint';
-import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { ViewEncapsulation } from '@angular/core';
-import { Datasources } from '../../core/models/datasources';
-import { DatasourceService } from '../../core/services/datasource.service';
-import { ConfigRouteService } from './config-route.service';
-import { NewRoute } from '../../core/models/routes-interfaces/new-route';
-import { Router, ActivatedRoute, RouterLink } from '@angular/router';
-import { MatIconRegistry, MatIcon } from '@angular/material/icon';
-import { DomSanitizer } from '@angular/platform-browser';
-import { map, Observable, startWith, Subject, takeUntil } from 'rxjs';
-import { Graphmarts } from '../../core/models/graphmarts';
-import { GraphmartsService } from '../../core/services/graphmarts.service';
-import { GraphmartLayers } from '../../core/models/graphmart-layers';
-import { COMMA, ENTER } from '@angular/cdk/keycodes';
-import { LayersService } from '../../core/services/layers.service';
-import { MatAutocompleteSelectedEvent, MatAutocompleteTrigger, MatAutocomplete } from '@angular/material/autocomplete';
-import { MatChipInputEvent, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput } from '@angular/material/chips';
-import { OntologyService } from '../../core/services/ontology/ontology.service';
-import { registerOntologyAutocomplete, OntologyAutocompleteProvider } from '../../core/services/ontology/ontology-autocomplete.provider';
-import { RoutesService } from '../routes/routes.service';
-import { Routes } from '../../core/models/routes-interfaces/routes';
-import { DrawerService } from '../../core/services/drawer.service';
-import { SparqiService } from '../../core/services/sparqi.service';
-import { CacheService } from '../../core/services/cache.service';
-import { CacheInfo, RouteCacheStats } from '../../core/models/cache-info';
-import { MatDialog, MAT_DIALOG_DATA, MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose } from '@angular/material/dialog';
+import {
+  afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, Injector, signal, untracked,
+  viewChild,
+} from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTabChangeEvent, MatTabGroup, MatTab } from '@angular/material/tabs';
-import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
-import * as monaco from 'monaco-editor'; // the full editor: every contribution (suggest, find, ...) and language
-import { loadMonacoStyles } from '../../shared/code-editor/monaco-environment';
-import { MatCard, MatCardContent } from '@angular/material/card';
-import { MatIconButton, MatButton } from '@angular/material/button';
+import { firstValueFrom, map } from 'rxjs';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
+import { Routes } from '../../core/models/routes-interfaces/routes';
+import { CacheInfo, RouteCacheStats } from '../../core/models/cache-info';
+import { AuthService } from '../../core/services/auth.service';
+import { CacheService } from '../../core/services/cache.service';
+import { LayersService } from '../../core/services/layers.service';
+import { SparqiService } from '../../core/services/sparqi.service';
+import { saveErrorMessage } from '../../core/http-error-message';
+import { HasUnsavedChanges, warnBeforeUnload } from '../../core/guards/unsaved-changes.guard';
+import { confirm } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { AuditLineComponent } from '../../shared/audit-line/audit-line.component';
-import { IfRoleDirective } from '../../shared/if-role.directive';
 import { EndpointPanelComponent } from '../../shared/endpoint-panel/endpoint-panel.component';
 import { RouteAccessComponent } from '../../shared/route-access/route-access.component';
-import { MatFormField, MatLabel, MatSuffix, MatHint } from '@angular/material/form-field';
-import { MatSelect, MatOption } from '@angular/material/select';
-import { MatInput } from '@angular/material/input';
-import { MatSlideToggle } from '@angular/material/slide-toggle';
-import { MatProgressSpinner } from '@angular/material/progress-spinner';
-import { MatExpansionPanel, MatExpansionPanelHeader, MatExpansionPanelTitle, MatExpansionPanelDescription } from '@angular/material/expansion';
-import { MatCheckbox } from '@angular/material/checkbox';
-import { CodeEditorComponent } from '../../shared/code-editor/code-editor.component';
-import { SparqiChatComponent } from './sparqi-chat/sparqi-chat.component';
-import { AsyncPipe, JsonPipe } from '@angular/common';
-import { CdkScrollable } from '@angular/cdk/scrolling';
-import { Clipboard } from '@angular/cdk/clipboard';
-import { QuickActionsService } from '../../shared/quick-actions/quick-actions.service';
+import { SparklineComponent } from '../../shared/sparkline/sparkline.component';
+import { IfRoleDirective } from '../../shared/if-role.directive';
 import { QuickAction } from '../../shared/quick-actions/quick-action';
-import { endpointUrl } from '../../shared/query-endpoint';
+import { QuickActionsService } from '../../shared/quick-actions/quick-actions.service';
+import { effectiveAccess, endpointUrl } from '../../shared/query-endpoint';
+import { relativeTime, statusLabel, statusTone } from '../../shared/datasource-health/health-status';
+import { breadcrumbLabel, ROUTE_CRUMB } from '../../shared/breadcrumb-label';
+import { parseRouteTab, RouteTab, routeLink, routeTabParams } from '../../shared/route-links';
+import { RouteDraft } from '../routes/route-draft';
+import { RoutesService } from '../routes/routes.service';
+import { RoutesLiveService } from '../routes/routes-live.service';
+import { RouteActionsService, RouteTarget } from '../routes/route-actions.service';
+import { formatErrorRate, formatMs, formatRate, NO_TRAFFIC, routeState, startBlockedReason } from '../routes/routes-derive';
+import { cacheOf, CacheInfoResponse } from '../add-route/add-route.component';
+import { RouteRequestFieldsComponent } from '../routes/form/route-request-fields.component';
+import { RouteDataFieldsComponent } from '../routes/form/route-data-fields.component';
+import { RouteCacheFieldsComponent } from '../routes/form/route-cache-fields.component';
+import { RouteTemplateEditorComponent } from '../routes/form/route-template-editor.component';
+import { RouteTestComponent } from './route-test.component';
+import { ConfigRouteService } from './config-route.service';
+import { SparqiChatComponent } from './sparqi-chat/sparqi-chat.component';
 
+const CHAT_WIDTH_KEY = 'sparqi-panel-width';
+const CHAT_MIN = 300;
+const CHAT_MAX = 800;
 
+function storedChatWidth(): number {
+  try {
+    const width = Number(localStorage.getItem(CHAT_WIDTH_KEY));
+    return width >= CHAT_MIN && width <= CHAT_MAX ? width : 420;
+  } catch {
+    return 420;
+  }
+}
 
+/**
+ * A route's page. A header that stays: its state with start/stop, its endpoint, who may call it, its datasource's
+ * health, and its traffic, live. Under it three tabs (in the URL as ?tab=): Overview (request, data, access,
+ * caching), Template (the editor) and Test. The tabs edit one draft, saved together from the tab bar, which says
+ * when there are unsaved changes; leaving with some asks first. SPARQi opens beside any tab.
+ *
+ * Its live data comes from the routes page above it (one connection for both).
+ */
 @Component({
-    selector: 'app-config-route',
-    templateUrl: './config-route.component.html',
-    styleUrls: ['./config-route.component.scss'],
-    encapsulation: ViewEncapsulation.None,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    imports: [MatCard, MatIconButton, MatTooltip, MatIcon, AuditLineComponent, MatButton, IfRoleDirective, RouterLink, FormsModule, ReactiveFormsModule, MatTabGroup, MatTab, EndpointPanelComponent, RouteAccessComponent, MatFormField, MatLabel, MatSelect, MatOption, MatSuffix, MatInput, MatAutocompleteTrigger, MatAutocomplete, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput, MatSlideToggle, MatProgressSpinner, MatCardContent, MatExpansionPanel, MatExpansionPanelHeader, MatExpansionPanelTitle, MatExpansionPanelDescription, MatHint, MatCheckbox, CodeEditorComponent, SparqiChatComponent, AsyncPipe, JsonPipe]
+  selector: 'app-config-route',
+  templateUrl: './config-route.component.html',
+  styleUrls: ['./config-route.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [RouteDraft],
+  imports: [RouterLink, MatButton, MatIconButton, MatIcon, MatMenu, MatMenuItem, MatMenuTrigger, MatTooltip,
+    AuditLineComponent, EndpointPanelComponent, RouteAccessComponent, SparklineComponent, IfRoleDirective,
+    RouteRequestFieldsComponent, RouteDataFieldsComponent, RouteCacheFieldsComponent, RouteTemplateEditorComponent,
+    RouteTestComponent, SparqiChatComponent],
 })
-export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
+export class ConfigRouteComponent implements HasUnsavedChanges {
+  protected readonly draft = inject(RouteDraft);
+  protected readonly live = inject(RoutesLiveService, { optional: true });
+  private readonly actions = inject(RouteActionsService);
+  private readonly api = inject(RoutesService);
+  private readonly configApi = inject(ConfigRouteService);
+  private readonly layersApi = inject(LayersService);
+  private readonly cache = inject(CacheService);
+  private readonly sparqi = inject(SparqiService);
+  private readonly quickActions = inject(QuickActionsService);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly activated = inject(ActivatedRoute);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly injector = inject(Injector);
 
-  selectedDatasource: string = '';
-  datasourceIcon: string = 'assets/icons/anzo.svg';
-  fileName: string = '';
-  fileReader = new FileReader()
-  templateContent: string = '';
-  private pendingTemplateContent: string | null = null;
-  private readonly destroy$ = new Subject<void>();
-  datasources: Datasources[] = [];
-  routeId: string = '';
-  routeData: Routes | null = null;
+  protected readonly routeId = signal('');
+  /** The route as stored (null until loaded). */
+  protected readonly stored = signal<Routes | null>(null);
+  protected readonly loadState = signal<'loading' | 'loaded' | 'missing' | 'failed'>('loading');
+  protected readonly loadError = signal<string | null>(null);
+  protected readonly saving = signal(false);
+  protected readonly saveError = signal<string | null>(null);
+  /** Save was pressed with something missing. */
+  protected readonly saveAttempted = signal(false);
+  protected readonly pending = signal(false);
+  private deleted = false;
 
-  // Datasource health status tracking
-  datasourceStatus?: string;
-  datasourceHealthError?: string;
-  datasourceConsecutiveFailures?: number;
-  showTemplateEditor: boolean = false;
-  templateLoading: boolean = false;
-  templateLoadError: boolean = false;
-  isFullscreen: boolean = false;
-  isChatPanelOpen: boolean = false;
-  isSparqiEnabled: boolean = false;
-  chatPanelWidth: number = 400; // Default width in pixels
-  private minChatWidth: number = 300;
-  private maxChatWidth: number = 800;
-  private isResizing: boolean = false;
-  editorOptions = {
-    theme: 'vs-dark',
-    language: 'freemarker2',
-    automaticLayout: true,
-    minimap: { enabled: false },
-    // CRITICAL: Enable suggestions
-    suggestOnTriggerCharacters: true,
-    quickSuggestionsDelay: 0,
-    suggest: {
-      showWords: true,
-      showSnippets: true,
-      snippetsPreventQuickSuggestions: false,
-      showMethods: true,
-      showFunctions: true,
-      showConstructors: true,
-      showFields: true,
-      showVariables: true,
-      showClasses: true,
-      showStructs: true,
-      showInterfaces: true,
-      showModules: true,
-      showProperties: true,
-      showEvents: true,
-      showOperators: true,
-      showUnits: true,
-      showValues: true,
-      showConstants: true,
-      showEnums: true,
-      showEnumMembers: true,
-      showKeywords: true,
-      showReferences: true,
-      showFolders: true,
-      showTypeParameters: true,
-      showIssues: true,
-      showUsers: true,
-      showColors: true
-    },
-    quickSuggestions: {
-      other: 'on',
-      comments: false,
-      strings: 'on'
-    },
-    acceptSuggestionOnCommitCharacter: true,
-    acceptSuggestionOnEnter: 'on',
-    tabCompletion: 'on'
-  };
-  filteredOptions!: Observable<Graphmarts[]> | undefined;
-  graphMarts: Graphmarts[] = [];
-  // Layers to display in dropdown
-  filteredLayers!: Observable<GraphmartLayers[]> | undefined;
-  // Collection of layer titles to utilize in sending to server for persistence
-  layers: string[] = [];
-  // All of the layers pulled from server
-  allLayers: GraphmartLayers[] = [];
-  separatorKeysCodes: number[] = [ENTER, COMMA];
-  layerPlaceholder: string = this.layers.length < 1 ? "Keep blank to target all layers" : "Add a new layer(s)...";
-  private ontologyAutocompleteProvider?: OntologyAutocompleteProvider;
-  private monacoEditor?: monaco.editor.IStandaloneCodeEditor;
-  private templateValidation?: { dispose(): void };
-  /** The template's current syntax error, shown below the editor (null when it parses). */
-  templateSyntaxError: TemplateValidation | null = null;
+  protected readonly tab = signal<RouteTab>('overview');
+  /** Tabs shown so far: each is created on first visit, then kept (the editor and the test keep their state). */
+  protected readonly visited = signal<ReadonlySet<RouteTab>>(new Set(['overview']));
 
-  // Cache configuration
-  cacheInfo?: CacheInfo;
-  routeCacheStats?: RouteCacheStats;
-  cacheStatsLoading: boolean = false;
-  cacheEnabled: boolean = false;
-  clearingCache: boolean = false;
-  cacheJustCleared: boolean = false;
+  protected readonly sparqiEnabled = signal(false);
+  protected readonly chatOpen = signal(false);
+  protected readonly chatWidth = signal(storedChatWidth());
 
-  // Tab management
-  selectedTabIndex: number = 0;
+  protected readonly cacheInfo = signal<CacheInfo | null | undefined>(undefined);
+  protected readonly cacheStats = signal<RouteCacheStats | null>(null);
+  protected readonly clearingCache = signal(false);
 
-  // Testing properties
-  testVariables: any[] = [];
-  testForm: FormGroup = new FormGroup({});
-  testResults: any = null;
-  generatedSparql: string = '';
-  testExecutionTime: number | null = null;
-  testError: string = '';
-  testStackTrace: string = '';
-  testResultsExpanded: boolean = true;
-  testSparqlExpanded: boolean = true;
-  testErrorExpanded: boolean = true;
-  isTestExecuting: boolean = false;
-  isLoadingVariables: boolean = false;
+  private readonly test = viewChild(RouteTestComponent);
+  private readonly editor = viewChild(RouteTemplateEditorComponent);
 
-  // Enhanced testing properties for JSON editor
-  bodyJsonContent: string = '{}';
-  sampleBodyJson: string | null = null;
-  queryParams: Array<{key: string, value: string}> = [];
-  bodyJsonExpanded: boolean = false;
-  queryParamsExpanded: boolean = false;
+  private readonly user = toSignal(inject(AuthService).user$, { initialValue: null });
+  protected readonly isEditor = computed(() => (this.user(), this.auth.hasRole('editor')));
+  protected readonly now = signal(Date.now());
 
-  // SPARQi test generation properties
-  sparqiPanelExpanded: boolean = true;
-  testGenUserContext: string = '';
-  includeEdgeCases: boolean = false;
-  isGeneratingRequest: boolean = false;
-  generationStage: 'analyzing' | 'exploring' | 'generating' | 'applying' | null = null;
-  generationSuccess: boolean = false;
-  generationReasoning: string = '';
-  generationConfidence: number = 0;
-  toolCallsCount: number = 0;
-
-  // Monaco editor options for JSON
-  jsonEditorOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
-    theme: 'vs-dark',
-    language: 'json',
-    automaticLayout: true,
-    formatOnPaste: true,
-    formatOnType: true,
-    minimap: { enabled: false },
-    lineNumbers: 'on' as const,
-    scrollBeyondLastLine: false,
-    wordWrap: 'on' as const
-  };
-
-  @ViewChild('layerElement') layerElement!: ElementRef<HTMLInputElement>;
-  @ViewChild('monacoEditorContainer') monacoEditorContainer!: ElementRef<HTMLDivElement>;
-
-  configRoute = new FormGroup({
-    routeParams: new FormControl<string[]>([], Validators.required),
-    routeDescription: new FormControl('', Validators.required),
-    graphMartUri: new FormControl('', Validators.required),
-    template: new FormControl('', Validators.required),
-    datasourceValidator: new FormControl('', Validators.required),
-    layersInput: new FormControl(''),
-    // Cache fields
-    cacheEnabled: new FormControl(false),
-    cacheTtlSeconds: new FormControl<number | null>(null),
-    cacheKeyStrategy: new FormControl('QUERY_HASH'),
-    // Who may call it (see app-route-access)
-    accessPolicy: new FormControl('default'),
-    requiredRoles: new FormControl('')
-  })
-
-  /** Base URL of the query routes (QUERY_BASE_URL, or "/query" on this server) and the server's default access. */
-  queryBaseUrl: string | null = null;
-  serverDefaultAccess: 'open' | 'authenticated' = 'open';
-  private settingsService = inject(SettingsService);
-  private quickActions = inject(QuickActionsService);
-  private clipboard = inject(Clipboard);
-  private unregisterQuickActions?: () => void;
-  /** "Run test request" from the quick actions bar: run once the Test tab has loaded the template's variables. */
-  private runTestWhenLoaded = false;
-
-  /** The access that applies to this route as currently edited. */
-  get effectiveAccessValue(): 'open' | 'authenticated' {
-    return effectiveAccess(this.configRoute.value['accessPolicy'], this.serverDefaultAccess);
+  get unsavedSubject(): string {
+    return this.routeId();
   }
 
-  /** HTTP methods as currently edited. */
-  get editedMethods(): string[] {
-    return (this.configRoute.value['routeParams'] as string[] | null) || [];
-  }
-  get template() { return this.configRoute.get('template') }
-  get routeParameters() { return this.configRoute.get('routeParameters'); }
-  get routeDescription() { return this.configRoute.get('routeDescription'); }
-  get graphMartUri() { return this.configRoute.get('graphMartUri') }
-  get datasourceValidator() { return this.configRoute.get('datasourceValidator') }
-  get layersInput() { return this.configRoute.get('layersInput') }
-  get cacheEnabledControl() { return this.configRoute.get('cacheEnabled') }
-  get cacheTtlSecondsControl() { return this.configRoute.get('cacheTtlSeconds') }
-  get cacheKeyStrategyControl() { return this.configRoute.get('cacheKeyStrategy') }
+  // --- Live state of the route --------------------------------------------------------------------------------------
 
+  private readonly value = toSignal(this.draft.form.valueChanges.pipe(map(() => this.draft.form.getRawValue())),
+    { initialValue: this.draft.form.getRawValue() });
 
+  /** The row the routes list shows for it: live state, datasource health and traffic. */
+  protected readonly row = computed(() => this.live?.row(this.routeId()));
 
-  constructor(
-    private domSanitzer: DomSanitizer,
-    private route: ActivatedRoute,
-    private datasourceService: DatasourceService,
-    private configRouteService: ConfigRouteService,
-    private routesService: RoutesService,
-    public router: Router,
-    private matIconRegistry: MatIconRegistry,
-    private graphMartService: GraphmartsService,
-    private layersService: LayersService,
-    private ontologyService: OntologyService,
-    private drawerService: DrawerService,
-    private sparqiService: SparqiService,
-    private cacheService: CacheService,
-    private dialog: MatDialog,
-    private snackBar: MatSnackBar,
-    private templateValidationService: TemplateValidationService
-  ) {
-    this.matIconRegistry.addSvgIcon(
-      'anzo-logo',
-      this.domSanitzer.bypassSecurityTrustResourceUrl('assets/icons/anzo.svg')
-    );
-  }
+  protected readonly started = computed(() => this.row()?.started ?? this.stored()?.status === 'Started');
+  protected readonly datasourceId = computed(() => this.stored()?.datasources?.dataSourceId ?? '');
+  protected readonly datasourceStatus = computed(() =>
+    this.row()?.datasourceStatus ?? (this.stored()?.datasources?.status as never) ?? 'UNKNOWN');
+  protected readonly state = computed(() => routeState(this.started(), this.datasourceStatus()));
+  protected readonly startBlocked = computed(() =>
+    this.started() ? null : startBlockedReason(this.datasourceId(), this.datasourceStatus()));
+  protected readonly traffic = computed(() => this.row()?.traffic ?? NO_TRAFFIC);
+  /** A route that isn't running and had no calls shows dashes, not zeros (as the list does). */
+  protected readonly hasTraffic = computed(() => this.state() === 'running' || this.traffic().calls > 0);
+  protected readonly stopNote = computed(() => {
+    const s = this.stored();
+    if (this.started() || !s) {
+      return '';
+    }
+    const when = s.stoppedAt ? relativeTime(new Date(s.stoppedAt as number).toISOString(), this.now()) : '';
+    const why = s.stopReason === 'HEALTH_CHECK' ? 'by the health check' : s.stopReason === 'NO_TEMPLATE' ? 'until it has a template' : '';
+    return [why, when].filter(Boolean).join(' · ');
+  });
 
-  navigateBack(): void {
-    this.router.navigate(['/routes']);
-  }
+  protected readonly endpoint = computed(() => endpointUrl(this.live?.baseUrl(), this.routeId()));
+  protected readonly access = computed(() =>
+    effectiveAccess(this.value().accessPolicy, this.live?.serverDefaultAccess() ?? 'open'));
+  protected readonly methods = computed(() => this.value().methods);
 
-  onFileSelected(event: Event) {
+  constructor() {
+    const destroyRef = inject(DestroyRef);
 
-    if ((!<HTMLInputElement>event.target)) return;
+    this.activated.paramMap.pipe(takeUntilDestroyed()).subscribe(params => void this.switchTo(params.get('routeId') ?? ''));
+    this.activated.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => this.showTab(parseRouteTab(params.get('tab'))));
 
-    let file = (<HTMLInputElement>event.target).files;
-
-    if (file) {
-      this.fileName = file[0].name;
-      this.fileReader.onload = (e) => {
-        const result = this.fileReader.result;
-
-        // Ensure we have a string result
-        if (typeof result !== 'string') {
-          console.error('Invalid file read result type:', typeof result);
-          this.snackBar.open(
-            'Failed to read template file. Invalid file format.',
-            'Close',
-            {
-              duration: 5000,
-              horizontalPosition: 'end',
-              verticalPosition: 'top',
-              panelClass: ['error-snackbar']
-            }
-          );
-          return;
-        }
-
-        this.templateContent = result;
-        this.configRoute.controls['template'].setValue(this.templateContent);
-
-        // Update Monaco editor if it exists, otherwise store as pending
-        if (this.monacoEditor) {
-          this.safelySetEditorValue(this.templateContent);
-        } else {
-          this.pendingTemplateContent = this.templateContent;
-        }
+    // The Test tab reads the template's variables the first time it shows
+    effect(() => {
+      if (this.tab() === 'test') {
+        const test = this.test();
+        untracked(() => test?.ensureLoaded());
       }
-      this.fileReader.onerror = (e) => {
-        console.error('Failed to read file:', e);
-        this.snackBar.open(
-          'Failed to read template file. Please try again.',
-          'Close',
-          {
-            duration: 5000,
-            horizontalPosition: 'end',
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          }
-        );
+    });
+
+    warnBeforeUnload(() => this.hasUnsavedChanges());
+    breadcrumbLabel(ROUTE_CRUMB, () => this.routeId());
+    const clock = setInterval(() => this.now.set(Date.now()), 30000);
+    destroyRef.onDestroy(() => clearInterval(clock));
+    const unregister = this.quickActions.register(this.pageQuickActions());
+    destroyRef.onDestroy(unregister);
+
+    this.sparqi.checkHealth().subscribe({
+      next: health => this.sparqiEnabled.set(health.status === 'available'),
+      error: () => this.sparqiEnabled.set(false),
+    });
+    this.cache.getCacheInfo().subscribe({
+      next: response => {
+        this.cacheInfo.set(cacheOf(response as unknown as CacheInfoResponse));
+        void this.loadCacheStats();
+      },
+      error: () => this.cacheInfo.set(null),
+    });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return !this.deleted && this.loadState() === 'loaded' && this.draft.dirty();
+  }
+
+  // --- Loading ------------------------------------------------------------------------------------------------------
+
+  /** Opens another route (from the quick actions bar): asks first if this one has unsaved changes. */
+  private async switchTo(id: string): Promise<void> {
+    const previous = this.routeId();
+    if (previous && id !== previous && this.hasUnsavedChanges()) {
+      const leave = await firstValueFrom(confirm(this.dialog, {
+        title: 'Leave without saving?',
+        message: [`Your changes to ${previous} haven't been saved; leaving discards them.`],
+        confirmLabel: 'Discard changes',
+      }));
+      if (!leave) {
+        void this.router.navigate(routeLink(previous), { replaceUrl: true, queryParamsHandling: 'preserve' });
+        return;
       }
-      this.fileReader.readAsText(file[0]);
+    }
+    if (id !== previous) {
+      this.routeId.set(id);
+      await this.load(id);
     }
   }
 
-  getDatasources(): void {
-    this.datasourceService.getDatasources()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(datasources => this.datasources = datasources);
-  }
-
-  // Get FTL template content
-  getTemplateContent(routeId: string): void {
-    this.templateLoading = true;
-    this.templateLoadError = false;
-
-    this.configRouteService.getTemplate(this.routeId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (templateContent) => {
-          // Validate template is a string
-          if (typeof templateContent !== 'string') {
-            console.error('Invalid template content type:', typeof templateContent);
-            this.handleTemplateLoadError(new Error('Invalid template content type'));
-            return;
-          }
-
-          // Check template size and warn if large (> 1MB)
-          const templateSize = new Blob([templateContent]).size;
-          if (templateSize > 1048576) {
-            console.warn(`Large template detected: ${(templateSize / 1048576).toFixed(2)}MB`);
-            this.snackBar.open(
-              `Large template (${(templateSize / 1048576).toFixed(2)}MB) may impact editor performance`,
-              'Dismiss',
-              {
-                duration: 5000,
-                horizontalPosition: 'end',
-                verticalPosition: 'top',
-                panelClass: ['warning-snackbar']
-              }
-            );
-          }
-
-          this.templateContent = templateContent;
-          this.configRoute.controls['template'].setValue(this.templateContent);
-          this.templateLoading = false;
-          this.templateLoadError = false;
-
-          // Update Monaco editor if it exists, otherwise store as pending
-          if (this.monacoEditor) {
-            this.safelySetEditorValue(this.templateContent);
-          } else {
-            // Store pending content to apply when editor is created
-            this.pendingTemplateContent = this.templateContent;
-          }
-        },
-        error: (error) => {
-          this.handleTemplateLoadError(error);
-        }
-      });
-  }
-
-  private handleTemplateLoadError(error: any): void {
-    console.error('Failed to load template content:', error);
-    this.templateLoading = false;
-    this.templateLoadError = true;
-
-    // Show user-friendly error message with retry option
-    const snackBarRef = this.snackBar.open(
-      'Failed to load template content. Please check datasource connection.',
-      'Retry',
-      {
-        duration: 10000,
-        horizontalPosition: 'end',
-        verticalPosition: 'top',
-        panelClass: ['error-snackbar']
-      }
-    );
-
-    // Handle retry action
-    snackBarRef.onAction()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.getTemplateContent(this.routeId);
-      });
-  }
-
-  private safelySetEditorValue(content: string): void {
-    if (!this.monacoEditor) {
-      console.warn('Attempted to set editor value but editor does not exist');
-      return;
-    }
-
+  private async load(id: string): Promise<void> {
+    this.loadState.set('loading');
+    this.loadError.set(null);
+    this.saveError.set(null);
     try {
-      this.monacoEditor.setValue(content || '');
+      const [route, template, layers] = await Promise.all([
+        firstValueFrom(this.api.getRoute(id)),
+        firstValueFrom(this.configApi.getTemplate(id)).catch(() => ''),
+        firstValueFrom(this.layersApi.getRouteLayers(id)).catch(() => [] as string[]),
+      ]);
+      if (this.routeId() !== id) {
+        return; // another route was opened meanwhile
+      }
+      this.stored.set(route);
+      this.draft.load(route, template ?? '', (layers ?? []).map(String));
+      this.loadState.set('loaded');
+      void this.loadCacheStats();
     } catch (error) {
-      console.error('Failed to set Monaco editor value:', error);
-      this.snackBar.open(
-        'Failed to display template in editor. Please reload the page.',
-        'Close',
-        {
-          duration: 7000,
-          horizontalPosition: 'end',
-          verticalPosition: 'top',
-          panelClass: ['error-snackbar']
-        }
-      );
+      if (this.routeId() !== id) {
+        return;
+      }
+      const status = (error as { status?: number }).status;
+      this.loadState.set(status === 404 ? 'missing' : 'failed');
+      this.loadError.set(saveErrorMessage(error));
     }
   }
 
-  // Modify a Route
-  putRoute(): void {
-    let httpMethods: string[] = this.configRoute.value['routeParams'] as string[];
-    let routeParams: string = 'httpMethodRestrict=' + httpMethods.join(',');
-    let routeDescription: string = this.configRoute.value['routeDescription'] as string;
-    let graphMartTitle: string = this.configRoute.value['graphMartUri'] as string;
-    let templateBody = this.configRoute.value['template'];
-    let dataSourceId = this.configRoute.value['datasourceValidator'] as string;
-    let graphMartUri = this.graphMarts.find(item => item.title === graphMartTitle)?.iri;
-    let routeId = this.routeId
-    let layers: string = this.concatenanteIris(this.layers, this.allLayers);
-
-    // Cache parameters
-    let cacheEnabled = this.configRoute.value['cacheEnabled'] as boolean;
-    let cacheTtlSeconds = this.configRoute.value['cacheTtlSeconds'] as number | null;
-    let cacheKeyStrategy = this.configRoute.value['cacheKeyStrategy'] as string;
-
-    // Access
-    let accessPolicy = (this.configRoute.value['accessPolicy'] as string) || 'default';
-    let requiredRoles = (this.configRoute.value['requiredRoles'] as string) || '';
-
-    if (!httpMethods || httpMethods.length === 0 || !routeDescription || !graphMartUri || !templateBody || !dataSourceId) { return; }
-
-    this.configRouteService.configRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, accessPolicy, requiredRoles } as NewRoute)
-      .subscribe({
-        next: () => this.navigateBack(),
-        // Stay on the page (keeping the edits) and say why, e.g. a template syntax error
-        error: (error) => this.snackBar.open(`Route not saved: ${saveErrorMessage(error)}`, 'Close',
-          { duration: 10000, panelClass: ['error-snackbar'] })
-      });
+  protected retry(): void {
+    void this.load(this.routeId());
   }
 
-  loadCacheInfo(): void {
-    this.cacheService.getCacheInfo()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response: any) => {
-          // Extract the nested info object from the response
-          this.cacheInfo = response.info;
-          // Set default TTL from global config if not already set
-          if (this.cacheInfo && this.cacheInfo.defaultTtlSeconds && !this.configRoute.value['cacheTtlSeconds']) {
-            this.configRoute.controls['cacheTtlSeconds'].setValue(this.cacheInfo.defaultTtlSeconds);
-          }
-          // Load route-specific cache stats after cache info is loaded
-          this.loadRouteCacheStats();
-        },
-        error: (error) => {
-          console.error('Failed to load cache info:', error);
-        }
-      });
-  }
-
-  loadRouteCacheStats(): void {
-    if (!this.cacheInfo || !this.cacheInfo.enabled) {
+  private async loadCacheStats(): Promise<void> {
+    if (!this.cacheInfo() || !this.routeId()) {
       return;
     }
-
-    this.cacheStatsLoading = true;
-    this.cacheService.getRouteCacheStats(this.routeId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (stats) => {
-          this.routeCacheStats = stats;
-          this.cacheStatsLoading = false;
-        },
-        error: (error) => {
-          console.error('Failed to load route cache stats:', error);
-          this.cacheStatsLoading = false;
-        }
-      });
+    try {
+      this.cacheStats.set(await firstValueFrom(this.cache.getRouteCacheStats(this.routeId())));
+    } catch {
+      this.cacheStats.set(null);
+    }
   }
 
-  getCacheHitRatio(): string {
-    if (!this.routeCacheStats || !this.routeCacheStats.globalStats) {
-      return '0.0';
-    }
-    const hits = this.routeCacheStats.globalStats.hits;
-    const misses = this.routeCacheStats.globalStats.misses;
-    const total = hits + misses;
-    if (total === 0) {
-      return '0.0';
-    }
-    return ((hits / total) * 100).toFixed(1);
+  // --- Tabs ---------------------------------------------------------------------------------------------------------
+
+  private showTab(tab: RouteTab): void {
+    this.tab.set(tab);
+    this.visited.update(set => set.has(tab) ? set : new Set([...set, tab]));
   }
 
-  getCacheTabName(): string {
-    if (!this.cacheInfo) {
-      return 'Cache Info Loading...';
-    }
-    if (!this.cacheInfo.enabled) {
-      return '**Caching Disabled**';
-    }
-    if (!this.cacheInfo.connected) {
-      return '**Caching System Error**';
-    }
-    return 'Cache Configuration';
+  protected selectTab(tab: RouteTab): void {
+    // In the URL, so reload and shared links open it; replaced, so Back leaves the page rather than the tab
+    void this.router.navigate([], { relativeTo: this.activated, queryParams: routeTabParams(tab), replaceUrl: true });
+    this.showTab(tab);
   }
 
-  toggleCacheEnabled(): void {
-    // Note: ngModel already updated cacheEnabled, so don't toggle it again
-    this.configRoute.controls['cacheEnabled'].setValue(this.cacheEnabled);
+  protected tabKeydown(event: KeyboardEvent): void {
+    const tabs: RouteTab[] = ['overview', 'template', 'test'];
+    const at = tabs.indexOf(this.tab());
+    const next = event.key === 'ArrowRight' ? tabs[(at + 1) % 3] : event.key === 'ArrowLeft' ? tabs[(at + 2) % 3] : null;
+    if (next) {
+      event.preventDefault();
+      this.selectTab(next);
+      afterNextRender(() => (document.getElementById(`cr-tab-${next}`) as HTMLElement | null)?.focus(), { injector: this.injector });
+    }
   }
 
-  clearRouteCache(): void {
-    // Show confirmation dialog
-    const dialogRef = this.dialog.open(CacheClearConfirmDialog, {
-      width: '400px',
-      data: { routeId: this.routeId }
-    });
+  // --- Saving -------------------------------------------------------------------------------------------------------
 
-    dialogRef.afterClosed()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(confirmed => {
-        if (confirmed) {
-          // Set loading state
-          this.clearingCache = true;
-          this.cacheJustCleared = false;
-
-          // Call cache service to clear cache
-          this.cacheService.clearRouteCache(this.routeId)
-            .pipe(takeUntil(this.destroy$))
-            .subscribe({
-              next: (response) => {
-                // Clear loading state
-                this.clearingCache = false;
-
-                // Show success state
-                this.cacheJustCleared = true;
-                setTimeout(() => {
-                  this.cacheJustCleared = false;
-                }, 2000);
-
-                // Show success toast with deleted count
-                const deletedCount = response.deletedCount || 0;
-                this.snackBar.open(
-                  `Cache cleared successfully. Deleted ${deletedCount} ${deletedCount === 1 ? 'entry' : 'entries'}.`,
-                  'Close',
-                  {
-                    duration: 5000,
-                    horizontalPosition: 'end',
-                    verticalPosition: 'top',
-                    panelClass: ['success-snackbar']
-                  }
-                );
-
-                // Refresh cache stats to show updated counts
-                this.loadRouteCacheStats();
-              },
-              error: (error) => {
-                // Clear loading state
-                this.clearingCache = false;
-
-                // Show error toast
-                const errorMessage = error.error?.message || 'Failed to clear cache';
-                this.snackBar.open(
-                  `Error: ${errorMessage}`,
-                  'Close',
-                  {
-                    duration: 7000,
-                    horizontalPosition: 'end',
-                    verticalPosition: 'top',
-                    panelClass: ['error-snackbar']
-                  }
-                );
-              }
-            });
-        }
-      });
-  }
-
-  // Method to get and filter graphmarts based on selected DS
-  getGraphMarts(dataSourceId: any) {
-    this.graphMartService.getGraphMarts(dataSourceId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (graphMarts) => {
-          this.graphMarts = graphMarts;
-          this.filteredOptions = this.configRoute.get('graphMartUri')?.valueChanges.pipe(
-            startWith(''),
-            map(value => this.filterGraphmarts(value || '')),
-          );
-        },
-        error: (error) => {
-          this.graphMarts = [];
-          this.filteredOptions = undefined;
-          this.configRoute.controls['graphMartUri'].setValue("");
-          console.log(error);
-
-        }
+  protected async save(): Promise<void> {
+    this.saveAttempted.set(true);
+    this.draft.form.markAllAsTouched();
+    if (this.draft.problems().length || this.saving()) {
+      if (this.draft.problems().length && this.tab() !== 'overview') {
+        this.selectTab('overview');
       }
-      );
-  }
-
-  // Method used to load and filter initial graphmart of configured route
-  loadGraphMarts(dataSourceId: any) {
-    this.graphMartService.getGraphMarts(dataSourceId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (graphMarts) => {
-          this.graphMarts = graphMarts;
-          this.filteredOptions = this.configRoute.get('graphMartUri')?.valueChanges.pipe(
-            startWith(''),
-            map(value => this.filterGraphmarts(value || '')),
-          );
-          if (this.routeData) {
-            // Find and set the graphmart title
-            const graphmartMatch = this.graphMarts.find(obj => obj.iri === this.routeData!.graphMartUri);
-            if (graphmartMatch) {
-              this.configRoute.controls['graphMartUri'].setValue(graphmartMatch.title);
-            } else {
-              // GraphMart not found in list, but preserve the IRI from routeData
-              this.configRoute.controls['graphMartUri'].setValue(this.routeData.graphMartUri);
-            }
-          }
-        },
-        error: (error) => {
-          console.error('Failed to load graphmarts:', error);
-          this.graphMarts = [];
-          this.filteredOptions = undefined;
-
-          // PRESERVE the saved graphMartUri from routeData instead of clearing
-          if (this.routeData && this.routeData.graphMartUri) {
-            this.configRoute.controls['graphMartUri'].setValue(this.routeData.graphMartUri);
-            // Disable the field to prevent changes when datasource is down
-            this.configRoute.controls['graphMartUri'].disable();
-          }
-        }
-      }
-      );
-  }
-
-  //Re fetch layers when new gm is selected
-  getGraphMartLayers(graphMart: any) {
-    this.layers = [];
-    graphMart = this.graphMarts.find(item => item.title === graphMart)?.iri as string;
-    this.layersService.getGraphmartLayers(this.configRoute.value['datasourceValidator'] as string, graphMart)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (layer) => {
-          this.allLayers = layer;
-          this.filteredLayers = this.configRoute.get('layersInput')?.valueChanges.pipe(
-            startWith(''),
-            map(value => this.filterLayers(value || '')),
-          )
-        },
-        error: (error) => {
-          console.log(error);
-
-        }
-      }
-      )
-  }
-
-  // Fetch associated graphmart layers AND all graphmart layers
-  loadGraphMartLayers(datasourceId: any, graphMart: any) {
-    this.layersService.getGraphmartLayers(datasourceId, graphMart)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (layer) => {
-          this.allLayers = layer;
-          this.loadAssociatedLayers(this.routeId);
-          this.filteredLayers = this.configRoute.get('layersInput')?.valueChanges.pipe(
-            startWith(''),
-            map(value => this.filterLayers(value || '')),
-          )
-        },
-        error: (error) => {
-          console.error('Failed to load graphmart layers:', error);
-          this.allLayers = [];
-
-          // STILL LOAD associated layers from database to preserve UI state
-          this.loadAssociatedLayers(this.routeId);
-
-          // Disable layer input when datasource is unavailable
-          this.configRoute.controls['layersInput']?.disable();
-        }
-      }
-      )
-  }
-
-  // Load layers tied to a route
-  loadAssociatedLayers(routeId: string){
-    let associatedLayers: String[]=[];
-    this.layersService.getRouteLayers(routeId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (layer) => {
-          // Load layers associated to a route
-          associatedLayers = layer;
-          // Loop through each layer uri associated to the route
-          for (let iri of associatedLayers) {
-            // See if the iri exists within all the layers pulled for specific graphmart
-            let match = this.allLayers.find(obj => obj.iri === iri);
-            // If a match is found, add the iri's title to the angular chips
-            if (match) {
-              this.layers.push(match.title);
-            }
-          }
-          this.layerPlaceholder= this.layers.length < 1 ? "Keep blank to target all layers" : "Add a new layer(s)...";
-
-        }
-      })
-  }
-
-  add(event: MatChipInputEvent): void {
-    const value = (event.value || '').trim();
-
-    // Ensure custom layers cannot be specified, only those listed.
-    if (!this.allLayers.some(layer => layer.title == value)) {
-      console.log("Cannot specify layer which does not exist.")
       return;
     }
-
-    if (this.layers.includes(value)) {
-      console.log("Layer: " + value + " already included.")
-    }
-    // Add our layer
-    else if (value) {
-      this.layers.push(value);
-    }
-
-    // Clear the input value
-    event.chipInput!.clear();
-    this.configRoute.get('layersInput')?.setValue(null);
-
-    // Update placeholder
-    if (this.layers) {
-      this.layerPlaceholder = "Add a new layer(s)...";
-
-    }
-
-  }
-
-  remove(layer: string): void {
-    const index = this.layers.indexOf(layer);
-
-    if (index >= 0) {
-      this.layers.splice(index, 1);
-    }
-
-    if (this.layers.length < 1) {
-      this.layerPlaceholder = "Keep blank to target all layers"
+    this.saving.set(true);
+    this.saveError.set(null);
+    try {
+      await firstValueFrom(this.api.updateRoute(this.draft.toRequest()), { defaultValue: null });
+      this.draft.markSaved();
+      this.saveAttempted.set(false);
+      this.snackBar.open(`Saved ${this.routeId()}.`, 'Close', { duration: 3500 });
+      // The audit line and the stored state come back from the server
+      this.stored.set(await firstValueFrom(this.api.getRoute(this.routeId())).catch(() => this.stored()));
+      void this.live?.load();
+      void this.loadCacheStats();
+    } catch (error) {
+      this.saveError.set(saveErrorMessage(error));
+    } finally {
+      this.saving.set(false);
     }
   }
 
-  selected(event: MatAutocompleteSelectedEvent): void {
-    if (this.layers.includes(event.option.viewValue)) {
-      console.log("Layer: " + event.option.viewValue + " already included.");
-      this.layerElement.nativeElement.value = '';
-      this.configRoute.get('layersInput')?.setValue(null);
-    }
-    else if (event.option.viewValue) {
-      this.layers.push(event.option.viewValue);
-      this.layerElement.nativeElement.value = '';
-      this.configRoute.get('layersInput')?.setValue(null);
-    }
-
-    // Update placeholder
-    if (this.layers) {
-      this.layerPlaceholder = "Add a new layer(s)...";
-
-    }
+  protected discard(): void {
+    this.draft.discard();
+    this.saveAttempted.set(false);
+    this.saveError.set(null);
   }
 
-  checkGraphMartStatus(graphMartTitle: string): boolean {
-    let graphMartMatch = this.graphMarts.find(obj => obj.title === graphMartTitle);
-    if (graphMartMatch && graphMartMatch.active === 'true') {
-      return true;
-    } else {
-      return false;
-    }
+  // --- Actions ------------------------------------------------------------------------------------------------------
+
+  private target(): RouteTarget {
+    return { id: this.routeId(), startBlocked: this.startBlocked(), perMinute: this.traffic().perMinute };
   }
 
-  filterGraphmarts(searchTerm: string): Graphmarts[] {
-    const filteredOptions = this.graphMarts.filter(graphmart => {
-      return graphmart.title.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-    return filteredOptions;
-  }
-
-  filterLayers(searchTerm: string): GraphmartLayers[] {
-    const filteredOptions = this.allLayers.filter(layer => {
-      return layer.title.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-    return filteredOptions;
-  }
-
-  concatenanteIris(layers: string[], allLayers: GraphmartLayers[]): string {
-    const iris: string[] = [];
-    for (const title of layers) {
-      const matchingItem = allLayers.find(item => item.title === title);
-      if (matchingItem) {
-        iris.push(matchingItem.iri);
+  protected async start(): Promise<void> {
+    this.pending.set(true);
+    try {
+      const result = await this.actions.start([this.target()]);
+      if (result.done.length) {
+        this.applyStatus({ status: 'Started', stopReason: null, stoppedAt: null });
       }
-    }
-    return iris.join(",");
-  }
-
-  chipStatus(title: string): boolean {
-    const foundLayer = this.allLayers.find(layer => layer.title === title);
-    return foundLayer?.active === "true";
-  }
-
-  onEditorInit(editor: any): void {
-    // Configure word pattern FIRST, before registering providers
-    // This prevents Monaco from breaking URIs at dots, slashes, etc.
-    monaco.languages.setLanguageConfiguration('freemarker2', {
-      wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\=\+\[\{\]\}\\\|\;\:\'\"\,\?\s]+)/g,
-    });
-
-    // Add a small delay to ensure Monaco is fully ready
-    setTimeout(() => {
-      this.initializeOntologyAutocomplete(this.routeId);
-    }, 100);
-  }
-
-  private initializeOntologyAutocomplete(routeId: string): void {
-    if (this.ontologyAutocompleteProvider) {
-      // Update existing provider with new route ID
-      this.ontologyAutocompleteProvider.setRouteId(routeId);
-    } else {
-      // Register new provider
-      this.ontologyAutocompleteProvider = registerOntologyAutocomplete(
-        this.ontologyService,
-        routeId
-      );
-    }
-    // Warm cache for better performance
-    this.ontologyService.warmCache(routeId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe();
-  }
-
-  ngOnInit(): void {
-    // Get routeId from URL params
-    this.route.params
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(params => {
-        this.routeId = params['routeId'];
-
-        // Load the route data
-        this.loadRouteData();
-      });
-
-    this.getDatasources();
-
-    // Where the route is called, and what "default" access means on this server
-    this.routesService.getBaseUrl().pipe(takeUntil(this.destroy$))
-      .subscribe({ next: metadata => this.queryBaseUrl = metadata.baseUrl, error: () => this.queryBaseUrl = '/query' });
-    this.settingsService.getSsoInfo().pipe(takeUntil(this.destroy$)).subscribe({
-      next: info => this.serverDefaultAccess = info.queryAuthDefault === 'authenticated' ? 'authenticated' : 'open',
-      error: () => { /* keep "open"; informational only */ }
-    });
-
-    // Check if SPARQI is enabled
-    this.checkSparqiStatus();
-
-    this.unregisterQuickActions = this.quickActions.register(this.pageQuickActions());
-
-    // Load saved chat panel width from localStorage
-    const savedWidth = localStorage.getItem('sparqi-panel-width');
-    if (savedWidth) {
-      this.chatPanelWidth = parseInt(savedWidth, 10);
+    } finally {
+      this.pending.set(false);
     }
   }
 
-  // Load route data from the server
-  loadRouteData(): void {
-    this.routesService.getRoutes()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(routes => {
-        this.routeData = routes.find(r => r.routeId === this.routeId) || null;
-
-        if (this.routeData) {
-          this.selectedDatasource = this.routeData.datasources.dataSourceId;
-          this.fileName = this.routeId;
-
-          // Load datasource health status
-          this.loadDatasourceStatus(this.routeData.datasources.dataSourceId);
-
-          // Load dependent data
-          this.getTemplateContent(this.routeId);
-          this.loadGraphMarts(this.routeData.datasources.dataSourceId);
-          this.loadGraphMartLayers(this.routeData.datasources.dataSourceId, this.routeData.graphMartUri);
-
-          // Parse the existing routeParams to extract HTTP methods
-          const existingParams = this.routeData.routeParams;
-          let httpMethods: string[] = [];
-          if (existingParams && existingParams.includes('httpMethodRestrict=')) {
-            const methodsString = existingParams.split('httpMethodRestrict=')[1];
-            httpMethods = methodsString.split(',');
-          }
-          this.configRoute.controls['routeParams'].setValue(httpMethods);
-
-          this.configRoute.controls['routeDescription'].setValue(this.routeData.description);
-          this.configRoute.controls['datasourceValidator'].setValue(this.routeData.datasources.dataSourceId);
-
-          // Load cache configuration
-          if (this.routeData.cacheEnabled !== undefined) {
-            this.cacheEnabled = this.routeData.cacheEnabled;
-            this.configRoute.controls['cacheEnabled'].setValue(this.routeData.cacheEnabled);
-          }
-          if (this.routeData.cacheTtlSeconds !== undefined) {
-            this.configRoute.controls['cacheTtlSeconds'].setValue(this.routeData.cacheTtlSeconds);
-          }
-          if (this.routeData.cacheKeyStrategy) {
-            this.configRoute.controls['cacheKeyStrategy'].setValue(this.routeData.cacheKeyStrategy);
-          }
-
-          // Load access configuration
-          this.configRoute.controls['accessPolicy'].setValue(this.routeData.accessPolicy || 'default');
-          this.configRoute.controls['requiredRoles'].setValue(this.routeData.requiredRoles || '');
-
-          // Load cache info for displaying defaults
-          this.loadCacheInfo();
-        }
-      });
-  }
-
-  // Load datasource health status
-  loadDatasourceStatus(dataSourceId: string): void {
-    this.datasourceService.getDatasource(dataSourceId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (datasource) => {
-          this.datasourceStatus = datasource.status;
-          this.datasourceHealthError = datasource.lastHealthError;
-          this.datasourceConsecutiveFailures = datasource.consecutiveFailures;
-        },
-        error: (error) => {
-          console.error('Failed to load datasource status:', error);
-        }
-      });
-  }
-
-  // Helper methods for status display
-  getStatusIcon(status?: string): string {
-    switch(status) {
-      case 'UP': return 'check_circle';
-      case 'DOWN': return 'error';
-      case 'DISABLED': return 'block';
-      case 'CHECKING': return 'sync';
-      default: return 'help';
+  protected async stop(): Promise<void> {
+    this.pending.set(true);
+    try {
+      const result = await this.actions.stop([this.target()]);
+      if (result?.done.length) {
+        this.applyStatus({ status: 'Stopped', stopReason: 'MANUAL', stoppedAt: Date.now() });
+      }
+    } finally {
+      this.pending.set(false);
     }
   }
 
-  getStatusClass(status?: string): string {
-    switch(status) {
-      case 'UP': return 'status-up';
-      case 'DOWN': return 'status-down';
-      case 'DISABLED': return 'status-disabled';
-      case 'CHECKING': return 'status-checking';
-      default: return 'status-unknown';
+  private applyStatus(change: Partial<Routes>): void {
+    this.stored.update(r => r ? { ...r, ...change } : r);
+    this.live?.patch(this.routeId(), change);
+    void this.live?.load();
+  }
+
+  protected async clone(): Promise<void> {
+    const copy = await this.actions.clone(this.routeId());
+    if (copy) {
+      void this.live?.load();
+      void this.router.navigate(routeLink(copy));
     }
   }
 
-  isDatasourceHealthy(): boolean {
-    return this.datasourceStatus === 'UP' || this.datasourceStatus === 'CHECKING';
-  }
-
-  // Check if SPARQI is enabled
-  checkSparqiStatus(): void {
-    this.sparqiService.checkHealth()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response) => {
-          // SPARQI is enabled if status is "available"
-          this.isSparqiEnabled = response.status === 'available';
-        },
-        error: (error) => {
-          // If health check fails, assume SPARQI is disabled
-          console.log('SPARQI not available:', error);
-          this.isSparqiEnabled = false;
-        }
-      });
-  }
-
-  ngAfterViewInit(): void {
-    // Only create Monaco editor if Template Editor tab is initially active (index 2)
-    // Otherwise, wait for user to switch to that tab
-    if (this.selectedTabIndex === 2) {
-      setTimeout(() => {
-        this.ensureMonacoEditorExists();
-      }, 100);
+  protected async remove(): Promise<void> {
+    const result = await this.actions.delete([this.target()]);
+    if (result?.done.length) {
+      this.deleted = true;
+      void this.live?.load();
+      void this.router.navigate(['/routes']);
     }
   }
 
-  toggleEditor(): void {
-    this.showTemplateEditor = !this.showTemplateEditor;
+  protected copyUrl(): void {
+    this.actions.copy(this.endpoint());
+  }
 
-    if (this.showTemplateEditor) {
-      // Wait for Angular to render the div, then ensure editor exists
-      setTimeout(() => {
-        this.ensureMonacoEditorExists();
-      }, 50);
+  /** Opens the Test tab and runs the test. */
+  protected async runTest(): Promise<void> {
+    this.selectTab('test');
+    await new Promise<void>(resolve => afterNextRender(() => resolve(), { injector: this.injector }));
+    await this.test()?.run();
+  }
+
+  protected async clearCache(): Promise<void> {
+    const entries = this.cacheStats()?.routeKeyCount;
+    const ok = await firstValueFrom(confirm(this.dialog, {
+      title: `Clear ${this.routeId()}'s cache?`,
+      message: [entries ? `${entries} cached ${entries === 1 ? 'result' : 'results'} will be deleted.`
+        : 'Its cached results will be deleted.', 'The next requests go to the datasource until the cache fills again.'],
+      confirmLabel: 'Clear cache',
+    }));
+    if (!ok) {
+      return;
+    }
+    this.clearingCache.set(true);
+    try {
+      const result = await firstValueFrom(this.cache.clearRouteCache(this.routeId())) as { deletedCount?: number } | null;
+      const n = result?.deletedCount ?? 0;
+      this.snackBar.open(`Cleared ${n} cached ${n === 1 ? 'result' : 'results'}.`, 'Close', { duration: 4000 });
+      await this.loadCacheStats();
+    } catch (error) {
+      this.snackBar.open(`Cache not cleared: ${saveErrorMessage(error)}`, 'Close', { duration: 10000, panelClass: ['error-snackbar'] });
+    } finally {
+      this.clearingCache.set(false);
     }
   }
 
-  toggleFullscreen(): void {
-    this.isFullscreen = !this.isFullscreen;
+  // --- SPARQi panel -------------------------------------------------------------------------------------------------
 
-    // Close the navigation drawer when entering fullscreen
-    if (this.isFullscreen) {
-      this.drawerService.requestCloseDrawer();
-    }
-
-    // Trigger editor layout after fullscreen animation
-    setTimeout(() => {
-      this.monacoEditor?.layout();
-    }, 350);
+  protected toggleChat(): void {
+    this.chatOpen.update(open => !open);
+    this.relayoutEditor();
   }
 
-  toggleChatPanel(): void {
-    this.isChatPanelOpen = !this.isChatPanelOpen;
-    // Trigger editor layout after chat panel animation
-    setTimeout(() => {
-      this.monacoEditor?.layout();
-    }, 350);
-  }
-
-  /**
-   * Start resizing the chat panel
-   */
-  startResize(event: MouseEvent): void {
+  protected startResize(event: PointerEvent): void {
     event.preventDefault();
-    this.isResizing = true;
-
     const startX = event.clientX;
-    const startWidth = this.chatPanelWidth;
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!this.isResizing) return;
-
-      // Calculate new width (dragging left increases width)
-      const deltaX = startX - e.clientX;
-      let newWidth = startWidth + deltaX;
-
-      // Enforce min/max constraints
-      newWidth = Math.max(this.minChatWidth, Math.min(this.maxChatWidth, newWidth));
-
-      this.chatPanelWidth = newWidth;
-
-      // Trigger editor layout during resize
-      this.monacoEditor?.layout();
+    const startWidth = this.chatWidth();
+    const move = (e: PointerEvent) => {
+      this.chatWidth.set(Math.min(CHAT_MAX, Math.max(CHAT_MIN, startWidth + startX - e.clientX)));
     };
-
-    const onMouseUp = () => {
-      this.isResizing = false;
-
-      // Save width to localStorage
-      localStorage.setItem('sparqi-panel-width', this.chatPanelWidth.toString());
-
-      // Clean up event listeners
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-
-      // Final editor layout
-      setTimeout(() => {
-        this.monacoEditor?.layout();
-      }, 50);
-    };
-
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-  }
-
-  /**
-   * Ensure Monaco editor exists, creating it if necessary
-   */
-  private ensureMonacoEditorExists(): void {
-    // If editor already exists, just refresh layout and apply pending content
-    if (this.monacoEditor) {
-      this.monacoEditor.layout();
-
-      // Apply any pending template content
-      if (this.pendingTemplateContent !== null) {
-        this.safelySetEditorValue(this.pendingTemplateContent);
-        this.pendingTemplateContent = null;
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      try {
+        localStorage.setItem(CHAT_WIDTH_KEY, String(this.chatWidth()));
+      } catch {
+        // not kept
       }
-      return;
-    }
-
-    // Create new editor
-    this.createMonacoEditor();
-  }
-
-  private createMonacoEditor(): void {
-    if (!this.monacoEditorContainer) {
-      console.error('Monaco editor container not found - tab may not be active');
-      return;
-    }
-
-    // Determine initial value: use pending content if available, otherwise templateContent
-    const initialValue = this.pendingTemplateContent !== null
-      ? this.pendingTemplateContent
-      : this.templateContent || '';
-
-    try {
-      loadMonacoStyles();
-      this.monacoEditor = monaco.editor.create(this.monacoEditorContainer.nativeElement, {
-        value: initialValue,
-        language: 'freemarker2',
-        theme: 'vs-dark',
-        automaticLayout: true,
-        minimap: { enabled: false },
-        suggestOnTriggerCharacters: true,
-        quickSuggestionsDelay: 0,
-        suggest: {
-          showWords: true,
-          showSnippets: true,
-          snippetsPreventQuickSuggestions: false,
-          showMethods: true,
-          showFunctions: true,
-          showConstructors: true,
-          showFields: true,
-          showVariables: true,
-          showClasses: true,
-        },
-        quickSuggestions: {
-          other: 'on' as any,
-          comments: false,
-          strings: 'on' as any
-        }
-      });
-
-      // Clear pending content since it's now applied
-      this.pendingTemplateContent = null;
-
-      // Bind to form control
-      this.monacoEditor.onDidChangeModelContent(() => {
-        const value = this.monacoEditor?.getValue() || '';
-        this.configRoute.controls['template'].setValue(value);
-        // Keep templateContent in sync
-        this.templateContent = value;
-      });
-
-      // Mark syntax errors as the user types (the server rejects saving a template that does not parse)
-      this.templateValidation = this.templateValidationService.attach(this.monacoEditor,
-        result => this.templateSyntaxError = result && !result.valid ? result : null);
-
-      // Wait a bit then initialize autocomplete
-      setTimeout(() => {
-        this.onEditorInit(this.monacoEditor!);
-      }, 100);
-
-      console.log('Monaco editor created successfully');
-    } catch (error) {
-      console.error('Failed to create Monaco editor:', error);
-      this.snackBar.open(
-        'Failed to create template editor. Please reload the page.',
-        'Close',
-        {
-          duration: 7000,
-          horizontalPosition: 'end',
-          verticalPosition: 'top',
-          panelClass: ['error-snackbar']
-        }
-      );
-    }
-  }
-
-  /**
-   * Handle tab change event
-   */
-  onTabChange(event: MatTabChangeEvent): void {
-    this.selectedTabIndex = event.index;
-
-    // If switching to Template Editor tab (index 2)
-    if (event.index === 2) {
-      // Ensure Monaco editor exists when switching to this tab
-      setTimeout(() => {
-        this.ensureMonacoEditorExists();
-      }, 50);
-    }
-
-    // If switching to Test Route tab (index 3)
-    if (event.index === 3) {
-      this.loadTestVariables();
-    }
-  }
-
-  /**
-   * Load test variables from current template
-   */
-  loadTestVariables(): void {
-    this.isLoadingVariables = true;
-    this.testVariables = [];
-    this.testError = '';
-
-    const templateContent = this.configRoute.value['template'] || '';
-
-    this.configRouteService.extractTestVariables(templateContent)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response: any) => {
-          this.testVariables = response.variables || [];
-          this.sampleBodyJson = response.sampleBodyJson;
-
-          // Initialize body JSON content with sample or empty object
-          if (this.sampleBodyJson) {
-            this.bodyJsonContent = this.sampleBodyJson;
-          } else {
-            this.bodyJsonContent = '{}';
-          }
-
-          // Initialize query parameters from headers.* variables (without the prefix)
-          this.queryParams = [];
-          this.testVariables.forEach(variable => {
-            if (variable.name.startsWith('headers.')) {
-              // Extract parameter name without "headers." prefix
-              const paramName = variable.name.substring('headers.'.length);
-              this.queryParams.push({
-                key: paramName,
-                value: variable.defaultValue || ''
-              });
-            }
-          });
-
-          this.generateTestForm();
-          this.isLoadingVariables = false;
-          if (this.runTestWhenLoaded) {
-            this.runTestWhenLoaded = false;
-            this.executeTest();
-          }
-        },
-        error: (error: any) => {
-          console.error('Error extracting variables:', error);
-          this.testError = 'Failed to extract template variables: ' + (error.error?.error || error.message);
-          this.isLoadingVariables = false;
-          this.runTestWhenLoaded = false;
-          this.testErrorExpanded = true;
-        }
-      });
-  }
-
-  /**
-   * Generate dynamic form from extracted variables
-   */
-  generateTestForm(): void {
-    const group: any = {};
-
-    this.testVariables.forEach(variable => {
-      group[variable.name] = new FormControl(variable.defaultValue || '');
-    });
-
-    this.testForm = new FormGroup(group);
-  }
-
-  /**
-   * Execute test with current template and parameters
-   */
-  executeTest(): void {
-    this.isTestExecuting = true;
-    this.testError = '';
-    this.testStackTrace = '';
-    this.testResults = null;
-    this.generatedSparql = '';
-    this.testExecutionTime = null;
-
-    // Validate and parse JSON body
-    let bodyJson: any = {};
-    try {
-      bodyJson = JSON.parse(this.bodyJsonContent);
-    } catch (e: any) {
-      this.testError = 'Invalid JSON in request body: ' + e.message;
-      this.testErrorExpanded = true;
-      this.isTestExecuting = false;
-      return;
-    }
-
-    // Convert JSON body to flat parameters (body.field format)
-    const parameters: any = this.flattenJson(bodyJson, 'body');
-
-    // Add query parameters
-    this.queryParams.forEach(param => {
-      if (param.key && param.value) {
-        parameters[param.key] = param.value;
-      }
-    });
-
-    // Look up the actual graphmart IRI from the title stored in the form
-    const graphMartTitle = this.configRoute.value['graphMartUri'] || '';
-    const graphMartIri = this.graphMarts.find(item => item.title === graphMartTitle)?.iri || graphMartTitle;
-
-    const request = {
-      templateContent: this.configRoute.value['template'] || '',
-      dataSourceId: this.configRoute.value['datasourceValidator'] || '',
-      graphMartUri: graphMartIri,
-      layers: this.layers.join(','),
-      routeParams: 'httpMethodRestrict=' + (this.configRoute.value['routeParams'] || []).join(','),
-      parameters: parameters
+      this.relayoutEditor();
     };
-
-    this.configRouteService.executeRouteTest(request)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response: any) => {
-          if (response.status === 'success') {
-            this.testResults = response.results;
-            this.generatedSparql = response.generatedSparql;
-            this.testExecutionTime = response.executionTimeMs;
-            this.testResultsExpanded = true;
-            this.testSparqlExpanded = true;
-            this.testErrorExpanded = false;
-          } else {
-            this.testError = response.error || 'Test execution failed';
-            this.testStackTrace = response.stackTrace || '';
-            this.generatedSparql = response.generatedSparql || '';
-            this.testErrorExpanded = true;
-            this.testResultsExpanded = false;
-            this.testSparqlExpanded = !!response.generatedSparql;  // Expand if SPARQL was generated
-          }
-          this.isTestExecuting = false;
-        },
-        error: (error: any) => {
-          console.error('Error executing test:', error);
-          this.testError = 'Failed to execute test: ' + (error.error?.error || error.message);
-          this.testStackTrace = error.error?.stackTrace || '';
-          this.generatedSparql = error.error?.generatedSparql || '';
-          this.testErrorExpanded = true;
-          this.testResultsExpanded = false;
-          this.testSparqlExpanded = !!error.error?.generatedSparql;
-          this.isTestExecuting = false;
-        }
-      });
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   }
 
-  /**
-   * Flatten JSON object into dot-notation parameters
-   * e.g., {name: {first: "John"}} => {"body.name.first": "John"}
-   */
-  flattenJson(obj: any, prefix: string = ''): {[key: string]: string} {
-    const result: {[key: string]: string} = {};
-
-    for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        const value = obj[key];
-        const newKey = prefix ? `${prefix}.${key}` : key;
-
-        if (value && typeof value === 'object' && !Array.isArray(value)) {
-          // Recursively flatten nested objects
-          Object.assign(result, this.flattenJson(value, newKey));
-        } else {
-          // Convert to string
-          result[newKey] = String(value);
-        }
-      }
+  protected resizeKey(event: KeyboardEvent): void {
+    const step = event.key === 'ArrowLeft' ? 24 : event.key === 'ArrowRight' ? -24 : 0;
+    if (step) {
+      event.preventDefault();
+      this.chatWidth.update(w => Math.min(CHAT_MAX, Math.max(CHAT_MIN, w + step)));
+      this.relayoutEditor();
     }
-
-    return result;
   }
 
-  /**
-   * Add a new query parameter row
-   */
-  addQueryParam(): void {
-    this.queryParams.push({key: '', value: ''});
+  private relayoutEditor(): void {
+    setTimeout(() => this.editor()?.monacoEditor?.layout(), 320);
   }
 
-  /**
-   * Remove a query parameter row
-   */
-  removeQueryParam(index: number): void {
-    this.queryParams.splice(index, 1);
-  }
+  // --- Display ------------------------------------------------------------------------------------------------------
 
-  /**
-   * Get route configuration for test execution
-   */
-  getRouteConfigForTest(): any {
-    return {
-      dataSourceId: this.configRoute.value['datasourceValidator'],
-      graphMartUri: this.configRoute.value['graphMartUri'],
-      layers: this.layers.join(','),
-      routeParams: 'httpMethodRestrict=' + (this.configRoute.value['routeParams'] || []).join(',')
+  protected readonly formatRate = formatRate;
+  protected readonly formatErrorRate = formatErrorRate;
+  protected readonly formatMs = formatMs;
+  protected readonly statusLabel = statusLabel;
+  protected readonly statusTone = statusTone;
+
+  protected readonly stateLabel = computed(() => {
+    switch (this.state()) {
+      case 'running': return 'Running';
+      case 'blocked': return this.datasourceStatus() === 'DOWN' ? 'Blocked: datasource down' : 'Blocked: datasource disabled';
+      default: return 'Stopped';
+    }
+  });
+
+  protected readonly changedText = computed(() => {
+    const names: Record<string, string> = {
+      methods: 'methods', description: 'description', datasourceId: 'datasource', graphmart: 'graphmart',
+      layers: 'layers', template: 'template', cacheEnabled: 'caching', cacheTtlSeconds: 'caching',
+      cacheKeyStrategy: 'caching', accessPolicy: 'access', requiredRoles: 'access', routeId: 'name',
     };
-  }
+    return [...new Set(this.draft.changedFields().map(f => names[f] ?? f))].join(', ');
+  });
 
-  /**
-   * Generate test request using SPARQi AI
-   */
-  generateTestRequestWithSparqi(): void {
-    this.isGeneratingRequest = true;
-    this.generationSuccess = false;
-    this.generationStage = 'analyzing';
-    this.toolCallsCount = 0;
+  protected readonly hitRate = computed(() => {
+    const s = this.cacheStats()?.globalStats;
+    const total = (s?.hits ?? 0) + (s?.misses ?? 0);
+    return total ? `${Math.round((s!.hits / total) * 100)}%` : '';
+  });
 
-    const graphMartTitle = this.configRoute.value['graphMartUri'] || '';
-    const graphMartIri = this.graphMarts.find(item => item.title === graphMartTitle)?.iri || graphMartTitle;
-
-    const request = {
-      routeId: this.routeId,
-      templateContent: this.configRoute.value['template'] || '',
-      dataSourceId: this.configRoute.value['datasourceValidator'] || '',
-      graphMartUri: graphMartIri,
-      layerUris: this.layers,
-      includeEdgeCases: this.includeEdgeCases,
-      userContext: this.testGenUserContext || null
-    };
-
-    // Simulate stage progression
-    setTimeout(() => this.generationStage = 'exploring', 500);
-
-    this.sparqiService.generateTestRequest(request)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response: any) => {
-          this.generationStage = 'generating';
-
-          setTimeout(() => {
-            this.generationStage = 'applying';
-
-            // Apply generated data
-            if (response.bodyJson) {
-              this.bodyJsonContent = JSON.stringify(response.bodyJson, null, 2);
-              this.bodyJsonExpanded = true;
-            }
-
-            if (response.queryParams) {
-              this.queryParams = Object.entries(response.queryParams).map(([key, value]) => ({
-                key,
-                value: String(value)
-              }));
-              if (this.queryParams.length > 0) {
-                this.queryParamsExpanded = true;
-              }
-            }
-
-            // Update tool calls count from response
-            if (response.toolCallsSummary && response.toolCallsSummary.length > 0) {
-              // Extract number from summary like "3 tool calls executed"
-              const match = response.toolCallsSummary[0].match(/(\d+)/);
-              if (match) {
-                this.toolCallsCount = parseInt(match[1], 10);
-              }
-            }
-
-            // Show success
-            setTimeout(() => {
-              this.isGeneratingRequest = false;
-              this.generationStage = null;
-              this.generationSuccess = true;
-              this.generationReasoning = response.reasoning || 'Generated intelligent test data';
-              this.generationConfidence = response.confidence || 0.85;
-            }, 300);
-          }, 500);
-        },
-        error: (error: any) => {
-          console.error('Test generation failed:', error);
-          this.isGeneratingRequest = false;
-          this.generationStage = null;
-
-          this.snackBar.open(
-            'Failed to generate test data: ' + (error.error?.error || error.message),
-            'Retry',
-            { duration: 10000 }
-          ).onAction()
-            .pipe(takeUntil(this.destroy$))
-            .subscribe(() => {
-              this.generateTestRequestWithSparqi();
-            });
-        }
-      });
-  }
-
-  /**
-   * Regenerate test request with different values
-   */
-  regenerateTestRequest(): void {
-    this.generationSuccess = false;
-    this.generateTestRequestWithSparqi();
-  }
+  // --- Quick actions ------------------------------------------------------------------------------------------------
 
   /** What this page adds to the quick actions bar while it is open. Roles as on the page's own buttons. */
   private pageQuickActions(): QuickAction[] {
-    const datasourceBlocks = (): string | null => {
-      if (this.datasourceStatus === 'UP' || this.datasourceStatus === 'CHECKING') {
-        return null;
-      }
-      const id = this.routeData?.datasources?.dataSourceId ?? 'its datasource';
-      switch (this.datasourceStatus) {
-        case 'DISABLED': return `Datasource ${id} is disabled`;
-        case 'DOWN': return `Datasource ${id} is down`;
-        default: return `Datasource ${id} hasn't been checked yet: run a health check on it first`;
-      }
-    };
     return [
       {
         id: 'route:save', label: 'Save route', icon: 'save', group: 'page', minRole: 'editor', keywords: ['update'],
-        disabledReason: () => this.configRoute.valid ? null : 'Some required fields are empty',
-        run: () => this.putRoute()
+        disabledReason: () => !this.draft.dirty() ? 'Nothing to save' : this.draft.problems()[0] ?? null,
+        run: () => this.save(),
       },
       {
-        id: 'route:start', label: 'Turn route on', icon: 'wifi', group: 'page', minRole: 'editor',
-        keywords: ['start', 'enable'],
-        visible: () => this.routeData?.status === 'Stopped',
-        disabledReason: datasourceBlocks,
-        run: () => this.setRouteStatus('Started')
+        id: 'route:start', label: 'Start route', icon: 'play_arrow', group: 'page', minRole: 'editor',
+        keywords: ['turn on', 'enable'],
+        visible: () => this.loadState() === 'loaded' && !this.started(),
+        disabledReason: () => this.startBlocked(),
+        run: () => this.start(),
       },
       {
-        id: 'route:stop', label: 'Turn route off', icon: 'wifi_off', group: 'page', minRole: 'editor',
-        keywords: ['stop', 'disable'],
-        visible: () => this.routeData?.status === 'Started',
-        run: () => this.setRouteStatus('Stopped')
+        id: 'route:stop', label: 'Stop route', icon: 'stop', group: 'page', minRole: 'editor',
+        keywords: ['turn off', 'disable'],
+        visible: () => this.loadState() === 'loaded' && this.started(),
+        run: () => this.stop(),
+      },
+      {
+        id: 'route:test', label: 'Run test request', icon: 'science', group: 'page', minRole: 'editor',
+        keywords: ['execute', 'try'],
+        run: () => this.runTest(),
+      },
+      {
+        id: 'route:template', label: 'Edit template', icon: 'code', group: 'page', keywords: ['freemarker', 'sparql'],
+        run: () => this.selectTab('template'),
       },
       {
         id: 'route:clear-cache', label: "Clear this route's cache", icon: 'delete_sweep', group: 'page',
         minRole: 'editor', keywords: ['flush'],
-        disabledReason: () => !this.cacheEnabled ? 'Caching is off for this route'
-          : this.clearingCache ? 'Already clearing' : null,
-        run: () => this.clearRouteCache()
-      },
-      {
-        id: 'route:test', label: 'Run test request', icon: 'play_arrow', group: 'page', minRole: 'editor',
-        keywords: ['execute', 'try'],
-        disabledReason: () => this.isTestExecuting || this.isGeneratingRequest ? 'A test is already running' : null,
-        run: () => this.runTestFromQuickActions()
+        disabledReason: () => !this.cacheInfo() ? 'This server has no query cache'
+          : this.clearingCache() ? 'Already clearing' : null,
+        run: () => this.clearCache(),
       },
       {
         id: 'route:sparqi', label: 'Toggle SPARQi assistant', icon: 'smart_toy', group: 'page', minRole: 'editor',
         keywords: ['ai', 'chat', 'assistant'],
-        visible: () => this.isSparqiEnabled,
-        run: () => this.toggleChatPanel()
+        visible: () => this.sparqiEnabled(),
+        run: () => this.toggleChat(),
       },
       {
-        id: 'route:fullscreen', label: 'Toggle full-screen editor', icon: 'fullscreen', group: 'page',
-        keywords: ['maximize', 'template editor'],
-        run: () => {
-          this.selectedTabIndex = 2;
-          this.toggleFullscreen();
-        }
+        id: 'route:clone', label: 'Clone route', icon: 'content_copy', group: 'page', minRole: 'editor', keywords: ['copy', 'duplicate'],
+        run: () => this.clone(),
       },
       {
-        id: 'route:copy-url', label: 'Copy endpoint URL', icon: 'content_copy', group: 'page',
-        keywords: ['link', 'url', 'curl'],
-        run: () => this.copyEndpointUrl()
-      }
+        id: 'route:copy-url', label: 'Copy endpoint URL', icon: 'link', group: 'page', keywords: ['link', 'url', 'curl'],
+        run: () => this.copyUrl(),
+      },
     ];
   }
-
-  /** Turns the route on or off (the Routes table's "Turn On" / "Turn Off", here for the quick actions bar). */
-  private setRouteStatus(status: 'Started' | 'Stopped'): void {
-    const word = status === 'Started' ? 'on' : 'off';
-    this.routesService.updateRouteStatus(this.routeId, status)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          if (this.routeData) {
-            this.routeData.status = status;
-          }
-          this.snackBar.open(`Route ${this.routeId} is ${word}.`, 'Close', { duration: 4000 });
-        },
-        error: error => this.snackBar.open(`Route not turned ${word}: ${saveErrorMessage(error)}`, 'Close',
-          { duration: 10000, panelClass: ['error-snackbar'] })
-      });
-  }
-
-  /** Runs the test request on the Test tab, opening the tab (and loading the template's variables) first. */
-  private runTestFromQuickActions(): void {
-    if (this.selectedTabIndex === 3 && !this.isLoadingVariables) {
-      this.executeTest();
-      return;
-    }
-    this.runTestWhenLoaded = true;
-    // Selecting the tab loads the variables (onTabChange); executeTest runs when they arrive.
-    this.selectedTabIndex = 3;
-  }
-
-  private copyEndpointUrl(): void {
-    const url = endpointUrl(this.queryBaseUrl, this.routeId);
-    const copied = this.clipboard.copy(url);
-    this.snackBar.open(copied ? `Copied ${url}` : 'Could not copy the endpoint URL', 'Close', { duration: 4000 });
-  }
-
-  ngOnDestroy(): void {
-    this.unregisterQuickActions?.();
-
-    // Signal all subscriptions to complete
-    this.destroy$.next();
-    this.destroy$.complete();
-
-    this.templateValidation?.dispose();
-    this.templateValidation = undefined;
-
-    // Dispose Monaco editor
-    if (this.monacoEditor) {
-      this.monacoEditor.dispose();
-      this.monacoEditor = undefined;
-    }
-
-    // Clear ontology autocomplete provider reference
-    // Note: Provider doesn't have dispose method, just clear the reference
-    this.ontologyAutocompleteProvider = undefined;
-
-    // Clear pending template content
-    this.pendingTemplateContent = null;
-  }
-
-}
-
-// Confirmation Dialog Component for Cache Clearing
-@Component({
-    selector: 'cache-clear-confirm-dialog',
-    template: `
-    <h2 mat-dialog-title>Clear Cache for Route?</h2>
-    <mat-dialog-content>
-      <p>Are you sure you want to clear all cached query results for route <strong>{{data.routeId}}</strong>?</p>
-      <p class="warning-text">
-        <mat-icon class="warning-icon">warning</mat-icon>
-        This will remove all cached data for this route. Future queries will need to be re-executed and cached again.
-      </p>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button [mat-dialog-close]="false">Cancel</button>
-      <button mat-raised-button color="warn" [mat-dialog-close]="true" cdkFocusInitial>Clear Cache</button>
-    </mat-dialog-actions>
-  `,
-    styles: [`
-    .warning-text {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 16px;
-      padding: 12px;
-      background-color: #fff3cd;
-      border-radius: 4px;
-      color: #856404;
-    }
-    .warning-icon {
-      color: #ff9800;
-    }
-    mat-dialog-content p {
-      margin: 8px 0;
-    }
-  `],
-    changeDetection: ChangeDetectionStrategy.Eager,
-    imports: [MatDialogTitle, CdkScrollable, MatDialogContent, MatIcon, MatDialogActions, MatButton, MatDialogClose]
-})
-export class CacheClearConfirmDialog {
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: { routeId: string }
-  ) {}
 }

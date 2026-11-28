@@ -1,196 +1,398 @@
-import { Component, OnInit, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
-import { Routes } from '../../core/models/routes-interfaces/routes';
-import { TableData } from '../../core/models/routes-interfaces/table-data';
-import { RoutesService } from './routes.service';
-import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
-import { MatTableDataSource, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort, MatSortHeader } from '@angular/material/sort';
-import { MatDialog } from '@angular/material/dialog';
-import { DeleteRouteModalComponent } from '../delete-route-modal/delete-route-modal.component';
-import { filter } from 'rxjs';
-import { SettingsService } from '../../core/services/settings.service';
-import { effectiveAccess, endpointUrl } from '../../shared/query-endpoint';
-import { MatCard } from '@angular/material/card';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, signal, untracked } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
+import { filter, interval, map, startWith } from 'rxjs';
+import { MatIcon } from '@angular/material/icon';
+import { MatAnchor, MatButton, MatIconButton } from '@angular/material/button';
+import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import { MatIcon } from '@angular/material/icon';
-import { IfRoleDirective } from '../../shared/if-role.directive';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatSelect } from '@angular/material/select';
+import { MatOption } from '@angular/material/core';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatTooltip } from '@angular/material/tooltip';
-import { MatMenuTrigger, MatMenu, MatMenuItem } from '@angular/material/menu';
-import { onRequestedAction } from '../../shared/quick-actions/requested-action';
-import { ADD_ROUTE_PARAM } from '../../shared/quick-actions/global-actions';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
+import { AuthService } from '../../core/services/auth.service';
+import { DatasourceLiveService } from '../../core/services/datasource-live.service';
+import { MetricsLiveService } from '../../core/services/metrics-live.service';
+import { LiveHub } from '../../core/services/live-hub';
+import { IfRoleDirective } from '../../shared/if-role.directive';
+import { LiveIndicatorComponent } from '../../shared/live-indicator/live-indicator.component';
+import { SparklineComponent } from '../../shared/sparkline/sparkline.component';
+import { relativeTime, statusLabel, statusTone } from '../../shared/datasource-health/health-status';
+import { endpointUrl } from '../../shared/query-endpoint';
+import { ADD_ROUTE_LINK, routeLink } from '../../shared/route-links';
+import { liveText } from '../datasources/datasources.component';
+import { RouteActionsService, RouteTarget } from './route-actions.service';
+import { RoutesLiveService } from './routes-live.service';
+import {
+  AccessFilter, countStates, filterRows, formatErrorRate, formatMs, formatRate, groupByDatasource, headline,
+  NO_FILTER, recoveries, Recovery, RouteFilter, RouteGroup, RouteRow, RouteSort, RouteState, sortRows, StateFilter,
+} from './routes-derive';
 
+/** What a viewer's list looks like, kept in their browser: the sort, grouping, and collapsed groups. */
+interface ViewPrefs {
+  sort: RouteSort;
+  grouped: boolean;
+  collapsed: string[];
+}
+
+const PREFS_KEY = 'qtt.routes.view';
+const DEFAULT_PREFS: ViewPrefs = { sort: 'name', grouped: false, collapsed: [] };
+
+export function readPrefs(storage: Pick<Storage, 'getItem'> | null): ViewPrefs {
+  try {
+    const stored = JSON.parse(storage?.getItem(PREFS_KEY) ?? 'null') as Partial<ViewPrefs> | null;
+    const sorts: RouteSort[] = ['name', 'status', 'busiest', 'slowest', 'errors'];
+    return {
+      sort: sorts.includes(stored?.sort as RouteSort) ? stored!.sort! : DEFAULT_PREFS.sort,
+      grouped: stored?.grouped === true,
+      collapsed: Array.isArray(stored?.collapsed) ? stored!.collapsed!.filter(c => typeof c === 'string') : [],
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+function storage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** The split bar's segments, in display order. */
+const SEGMENTS: { key: RouteState; label: string }[] = [
+  { key: 'running', label: 'Running' },
+  { key: 'blocked', label: 'Blocked' },
+  { key: 'stopped', label: 'Stopped' },
+];
+
+/**
+ * The routes: one sentence and a bar for the state of all of them, filters, then a row per route with its status,
+ * its datasource's health, who may call it and its traffic over the last half hour, with start/stop, copy URL and
+ * a menu at hand. Rows can be selected for a bulk start, stop or delete. Live: states, health and traffic change in
+ * place as the server pushes them (see {@link RoutesLiveService}).
+ *
+ * A route's page renders under it (router outlet) and shares its live connection.
+ */
 @Component({
-    selector: 'app-routes',
-    templateUrl: './routes.component.html',
-    styleUrls: ['./routes.component.scss'],
-    changeDetection: ChangeDetectionStrategy.Eager,
-    imports: [MatCard, MatFormField, MatLabel, MatInput, MatIcon, MatSuffix, IfRoleDirective, MatButton, MatTable, MatSort, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatSortHeader, MatCellDef, MatCell, MatTooltip, MatIconButton, MatMenuTrigger, MatMenu, MatMenuItem, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatPaginator, RouterOutlet]
+  selector: 'app-routes',
+  templateUrl: './routes.component.html',
+  styleUrls: ['./routes.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [LiveHub, DatasourceLiveService, MetricsLiveService, RoutesLiveService],
+  imports: [RouterLink, RouterOutlet, NgTemplateOutlet, MatIcon, MatAnchor, MatButton, MatIconButton, MatButtonToggleGroup,
+    MatButtonToggle, MatFormField, MatLabel, MatSuffix, MatInput, MatSelect, MatOption, MatCheckbox, MatSlideToggle,
+    MatTooltip, MatMenu, MatMenuItem, MatMenuTrigger, IfRoleDirective, LiveIndicatorComponent, SparklineComponent],
 })
-export class RoutesComponent implements OnInit {
+export class RoutesComponent {
+  protected readonly live = inject(RoutesLiveService);
+  protected readonly actions = inject(RouteActionsService);
+  private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
-  routes: Routes[] = []
-  dataSource = new MatTableDataSource<TableData>;
-  displayedColumns: string[] = ['Status', 'Route ID', 'URL', 'Description', 'DataSource ID', 'Menu Actions'];
-  baseUrl!: string;
-  /** QUERY_AUTH_DEFAULT: what routes left at "default" require. */
-  serverDefaultAccess: 'open' | 'authenticated' = 'open';
-  private settingsService = inject(SettingsService);
+  private readonly url = toSignal(this.router.events.pipe(
+    filter(event => event instanceof NavigationEnd),
+    map(() => this.router.url),
+    startWith(this.router.url),
+  ), { initialValue: this.router.url });
+  /** The list shows only at /routes itself, not under a route's page. */
+  protected readonly listActive = computed(() => this.url().split(/[?#]/)[0] === '/routes');
 
-  // Store sort state in memory
-  private sortState: { active: string, direction: 'asc' | 'desc' | '' } = {
-    active: 'routeId',
-    direction: 'asc'
-  };
+  protected readonly now = toSignal(interval(30000).pipe(map(() => Date.now())), { initialValue: Date.now() });
+  /** Set after the first render: entrances animate only for changes, not on load. */
+  protected readonly ready = signal(false);
+  private readonly user = toSignal(this.auth.user$, { initialValue: null });
+  protected readonly isEditor = computed(() => (this.user(), this.auth.hasRole('editor')));
 
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
+  // --- Filters and view ---------------------------------------------------------------------------------------------
 
-  constructor(private routeService: RoutesService, public router: Router, private dialogRef: MatDialog) {
-    // "Add route" in the quick actions bar
-    onRequestedAction(ADD_ROUTE_PARAM, () => this.openAddRouteDialog());
-  }
+  protected readonly filter = signal<RouteFilter>(NO_FILTER);
+  private readonly prefs = signal<ViewPrefs>(readPrefs(storage()));
+  protected readonly sort = computed(() => this.prefs().sort);
+  protected readonly grouped = computed(() => this.prefs().grouped);
 
+  protected readonly rows = this.live.rows;
+  protected readonly counts = computed(() => countStates(this.rows() ?? []));
+  /** Counts for the toggles: every filter but the status one applies. */
+  protected readonly toggleCounts = computed(() =>
+    countStates(filterRows(this.rows() ?? [], this.filter(), true)));
+  protected readonly headline = computed(() => headline(this.counts()));
+  protected readonly segments = computed(() => SEGMENTS.map(s => ({ ...s, count: this.counts()[s.key] })));
+  protected readonly datasourceIds = computed(() => [...new Set((this.rows() ?? []).map(r => r.datasourceId))].sort());
+  protected readonly visible = computed(() => sortRows(filterRows(this.rows() ?? [], this.filter()), this.sort()));
+  protected readonly groups = computed<RouteGroup[]>(() => groupByDatasource(this.visible()));
+  protected readonly recoveries = computed<Recovery[]>(() => recoveries(this.rows() ?? []));
+  protected readonly filtered = computed(() => {
+    const f = this.filter();
+    return f.term.trim() !== '' || f.state !== 'all' || f.datasource !== '' || f.access !== 'all';
+  });
 
+  // --- Selection and work in progress -------------------------------------------------------------------------------
 
-  ngOnInit(): void {
-    // Sets up listener for router changes. If you navigate to /routes, re-get all the routes
-    this.router.events.pipe(filter(event => event instanceof NavigationEnd)).subscribe(() => {
-      if (this.router.url === '/routes' || this.router.url.startsWith('/#/routes') && !this.router.url.includes('config-route')) {
-        this.getRoutes();
-      }
-    });
-    this.settingsService.getSsoInfo().subscribe({
-      next: info => this.serverDefaultAccess = info.queryAuthDefault === 'authenticated' ? 'authenticated' : 'open',
-      error: () => { /* keep "open"; informational only */ }
-    });
-    this.routeService.getBaseUrl().subscribe(response => {
-      this.baseUrl = response.baseUrl;
-      this.getRoutes();
-    });
-  }
+  protected readonly selected = signal<ReadonlySet<string>>(new Set());
+  protected readonly selectedRows = computed(() => (this.rows() ?? []).filter(r => this.selected().has(r.id)));
+  protected readonly allVisibleSelected = computed(() =>
+    this.visible().length > 0 && this.visible().every(r => this.selected().has(r.id)));
+  protected readonly someVisibleSelected = computed(() =>
+    !this.allVisibleSelected() && this.visible().some(r => this.selected().has(r.id)));
+  /** Routes an action is running on. */
+  protected readonly pending = signal<ReadonlySet<string>>(new Set());
+  /** A route that just appeared because of this page (a copy): highlighted once. */
+  protected readonly highlight = signal<string | null>(null);
 
-  ngAfterViewInit(): void {
-    // Listen for sort changes to capture user interactions
-    if (this.sort) {
-      this.sort.sortChange.subscribe(() => {
-        this.sortState = {
-          active: this.sort.active,
-          direction: this.sort.direction
-        };
-      });
-    }
-  }
+  protected readonly skeletons = [0, 1, 2, 3, 4];
 
-  // Display all routes. Needed to map to new interface b/c search-filter doesn't account for sub-arrays (datasourceId's)
-  getRoutes(): void {
-    this.routeService.getRoutes()
-      .subscribe((routes) => {
-        this.routes = routes;
-        let tableData = this.routes.map(value => {
-          //Get file name without path
-          // let stringArray = value.templateLocation.split('/');
-          let templateName = value.routeId;
-          return <TableData>{
-            routeId: value.routeId,
-            description: value.description,
-            datasource: value.datasources.dataSourceId,
-            templateName: templateName,
-            routeParams: value.routeParams,
-            datasources: value.datasources,
-            status: value.status,
-            graphMartUri: value.graphMartUri,
-            accessPolicy: value.accessPolicy
-          }
-        });
-        this.dataSource = new MatTableDataSource(tableData);
-        this.dataSource.paginator = this.paginator;
-        this.dataSource.sort = this.sort;
+  constructor() {
+    afterNextRender(() => this.ready.set(true));
 
-        // Apply default sort by routeId to maintain consistent order
-        if (this.sort) {
-          this.sort.active = 'routeId';
-          this.sort.direction = 'asc';
-          this.dataSource.sort = this.sort;
+    // Forget selected routes that are gone (deleted here or elsewhere)
+    effect(() => {
+      const ids = new Set((this.rows() ?? []).map(r => r.id));
+      untracked(() => {
+        const kept = [...this.selected()].filter(id => ids.has(id));
+        if (kept.length !== this.selected().size) {
+          this.selected.set(new Set(kept));
         }
       });
-
-  }
-
-  /** Absolute URL of a route's endpoint. */
-  endpointUrl(routeId: string): string {
-    return endpointUrl(this.baseUrl, routeId);
-  }
-
-  /** Whether a route is open to anyone ("open"), or needs a token or API key ("authenticated"). */
-  accessOf(element: TableData): 'open' | 'authenticated' {
-    return effectiveAccess(element.accessPolicy, this.serverDefaultAccess);
-  }
-
-  //On key press, update the table based on search
-  applyFilter(filterValue: string) {
-    this.dataSource.filter = filterValue.trim();
-  }
-
-  async openAddRouteDialog() {
-    // Loaded on demand: the dialog's template editor brings in Monaco.
-    const { AddRouteComponent } = await import('../add-route/add-route.component');
-    this.dialogRef.open(AddRouteComponent, {
-      maxWidth: '150rem',
-      // The form (with the access and cache sections) can be taller than the window; scroll inside the dialog
-      maxHeight: '90vh'
-    })
-  }
-
-  openDeleteDialog(routeId: string) {
-    this.dialogRef.open(DeleteRouteModalComponent, {
-      data: {
-        routeId: routeId
+    });
+    // Back on the list from a route's page: show what changed there
+    effect(() => {
+      if (this.listActive()) {
+        untracked(() => void this.live.load());
       }
     });
   }
 
-  navigateToConfigRoute(routeId: string) {
-    this.router.navigate(['routes/config-route', routeId]);
+  // --- Filters ------------------------------------------------------------------------------------------------------
+
+  protected setFilter(change: Partial<RouteFilter>): void {
+    this.filter.update(f => ({ ...f, ...change }));
   }
 
-  toggleRouteStatus(routeId: string, status: string) {
-    this.routeService.updateRouteStatus(routeId, status).subscribe(() => {
-      this.getRoutes();
+  protected setState(state: StateFilter): void {
+    this.setFilter({ state });
+  }
+
+  protected setAccess(access: AccessFilter): void {
+    this.setFilter({ access });
+  }
+
+  protected clearFilters(): void {
+    this.filter.set(NO_FILTER);
+  }
+
+  protected setSort(sort: RouteSort): void {
+    this.savePrefs({ sort });
+  }
+
+  protected setGrouped(grouped: boolean): void {
+    this.savePrefs({ grouped });
+  }
+
+  protected isCollapsed(group: RouteGroup): boolean {
+    return this.prefs().collapsed.includes(group.datasourceId);
+  }
+
+  protected toggleGroup(group: RouteGroup): void {
+    const collapsed = this.prefs().collapsed;
+    this.savePrefs({ collapsed: collapsed.includes(group.datasourceId)
+      ? collapsed.filter(c => c !== group.datasourceId) : [...collapsed, group.datasourceId] });
+  }
+
+  private savePrefs(change: Partial<ViewPrefs>): void {
+    this.prefs.update(p => ({ ...p, ...change }));
+    try {
+      storage()?.setItem(PREFS_KEY, JSON.stringify(this.prefs()));
+    } catch {
+      // Not kept (private window, storage blocked): the view still changes
+    }
+  }
+
+  // --- Selection ----------------------------------------------------------------------------------------------------
+
+  protected toggleSelected(id: string, on?: boolean): void {
+    this.selected.update(set => {
+      const next = new Set(set);
+      if (on ?? !next.has(id)) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
     });
   }
 
-  cloneRoute(routeId: string) {
-    this.routeService.cloneRoute(routeId).subscribe(() => {
-      this.getRoutes();
+  protected toggleAllVisible(on: boolean): void {
+    this.selected.update(set => {
+      const next = new Set(set);
+      this.visible().forEach(r => on ? next.add(r.id) : next.delete(r.id));
+      return next;
     });
   }
 
-  // Check if datasource is healthy
-  isDatasourceHealthy(element: TableData): boolean {
-    return element.datasources?.status === 'UP' || element.datasources?.status === 'CHECKING';
+  protected toggleGroupSelected(group: RouteGroup, on: boolean): void {
+    this.selected.update(set => {
+      const next = new Set(set);
+      group.rows.forEach(r => on ? next.add(r.id) : next.delete(r.id));
+      return next;
+    });
   }
 
-  // Check if datasource is disabled
-  isDatasourceDisabled(element: TableData): boolean {
-    return element.datasources?.status === 'DISABLED';
+  protected groupSelection(group: RouteGroup): 'all' | 'some' | 'none' {
+    const count = group.rows.filter(r => this.selected().has(r.id)).length;
+    return count === 0 ? 'none' : count === group.rows.length ? 'all' : 'some';
   }
 
-  // Check if datasource is down
-  isDatasourceDown(element: TableData): boolean {
-    return element.datasources?.status === 'DOWN';
+  protected clearSelection(): void {
+    this.selected.set(new Set());
   }
 
-  // Get tooltip message for disabled actions
-  getDisabledTooltip(element: TableData): string {
-    if (this.isDatasourceDisabled(element)) {
-      return `Cannot start route - datasource '${element.datasources.dataSourceId}' is disabled`;
+  // --- Actions ------------------------------------------------------------------------------------------------------
+
+  private target(row: RouteRow): RouteTarget {
+    return { id: row.id, startBlocked: row.startBlocked, perMinute: row.traffic.perMinute };
+  }
+
+  protected async start(rows: RouteRow[]): Promise<void> {
+    const result = await this.withPending(rows, () => this.actions.start(rows.map(r => this.target(r))));
+    result.done.forEach(id => this.live.patch(id, { status: 'Started', stopReason: null, stoppedAt: null }));
+    this.afterAction(result.done);
+  }
+
+  protected async stop(rows: RouteRow[]): Promise<void> {
+    const result = await this.withPending(rows, () => this.actions.stop(rows.map(r => this.target(r))));
+    if (result) {
+      result.done.forEach(id => this.live.patch(id, { status: 'Stopped', stopReason: 'MANUAL', stoppedAt: Date.now() }));
+      this.afterAction(result.done);
     }
-    if (this.isDatasourceDown(element)) {
-      return `Cannot start route - datasource '${element.datasources.dataSourceId}' is down`;
+  }
+
+  protected async remove(rows: RouteRow[]): Promise<void> {
+    const result = await this.withPending(rows, () => this.actions.delete(rows.map(r => this.target(r))));
+    if (result) {
+      this.live.routes.update(list => list?.filter(r => !result.done.includes(r.routeId)) ?? list);
+      this.afterAction(result.done);
     }
-    return '';
+  }
+
+  protected async clone(row: RouteRow): Promise<void> {
+    const copy = await this.withPending([row], () => this.actions.clone(row.id));
+    if (copy) {
+      await this.live.load();
+      this.highlight.set(copy);
+      afterNextRender(() => this.host.nativeElement.querySelector(`[data-route-id="${CSS.escape(copy)}"]`)
+        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), { injector: this.injector });
+      setTimeout(() => this.highlight.update(h => h === copy ? null : h), 2400);
+    }
+  }
+
+  protected startRecovery(recovery: Recovery): void {
+    const rows = (this.rows() ?? []).filter(r => recovery.routeIds.includes(r.id));
+    void this.start(rows);
+  }
+
+  protected reviewRecovery(recovery: Recovery): void {
+    this.filter.set({ ...NO_FILTER, state: 'awaiting-restart', datasource: recovery.datasourceId });
+  }
+
+  protected copyUrl(row: RouteRow): void {
+    this.actions.copy(this.endpoint(row));
+  }
+
+  protected bulkStart(): void {
+    // Blocked ones too: the result says they were skipped and why
+    void this.start(this.selectedRows().filter(r => !r.started));
+  }
+
+  protected bulkStop(): void {
+    void this.stop(this.selectedRows().filter(r => r.started));
+  }
+
+  protected bulkDelete(): void {
+    void this.remove(this.selectedRows());
+  }
+
+  /** Selected routes that can start now (stopped, on a datasource that can serve them). */
+  protected readonly selectedStopped = computed(() => this.selectedRows().filter(r => !r.started && !r.startBlocked).length);
+  protected readonly selectedStarted = computed(() => this.selectedRows().filter(r => r.started).length);
+
+  private async withPending<T>(rows: RouteRow[], work: () => Promise<T>): Promise<T> {
+    const ids = rows.map(r => r.id);
+    this.pending.update(set => new Set([...set, ...ids]));
+    try {
+      return await work();
+    } finally {
+      this.pending.update(set => new Set([...set].filter(id => !ids.includes(id))));
+    }
+  }
+
+  private afterAction(done: string[]): void {
+    this.selected.update(set => new Set([...set].filter(id => !done.includes(id))));
+    void this.live.load();
+  }
+
+  // --- Display ------------------------------------------------------------------------------------------------------
+
+  protected readonly routeLink = routeLink;
+  protected readonly addRouteLink = ADD_ROUTE_LINK;
+  protected readonly formatRate = formatRate;
+  protected readonly formatErrorRate = formatErrorRate;
+  protected readonly formatMs = formatMs;
+  protected readonly statusLabel = statusLabel;
+  protected readonly statusTone = statusTone;
+
+  /** Whether the row has traffic to show: a stopped or blocked route without calls in the window shows dashes. */
+  protected hasTraffic(row: RouteRow): boolean {
+    return row.state === 'running' || row.traffic.calls > 0;
+  }
+
+  protected endpoint(row: RouteRow): string {
+    return endpointUrl(this.live.baseUrl(), row.id);
+  }
+
+  protected stateLabel(row: RouteRow): string {
+    if (row.state === 'running') {
+      return 'Running';
+    }
+    if (row.state === 'blocked') {
+      return row.datasourceStatus === 'DOWN' ? 'Blocked: datasource down' : 'Blocked: datasource disabled';
+    }
+    return row.awaitingRestart ? 'Stopped: waiting to be restarted' : 'Stopped';
+  }
+
+  /** The second line: why it is blocked or stopped, with when; otherwise the description. */
+  protected detail(row: RouteRow): string {
+    if (!row.note) {
+      return row.description;
+    }
+    const when = row.stoppedAt !== null && row.stopReason === 'HEALTH_CHECK'
+      ? relativeTime(new Date(row.stoppedAt).toISOString(), this.now()) : '';
+    return when ? `${row.note} · ${when}` : row.note;
+  }
+
+  protected since(recovery: Recovery): string {
+    return recovery.since === null ? '' : relativeTime(new Date(recovery.since).toISOString(), this.now());
+  }
+
+  protected readonly liveText = computed(() => liveText(this.live.status(), this.live.metrics.transport(),
+    this.live.failed(), this.live.updatedAt(), this.now()));
+  protected readonly liveAnnouncement = computed(() => ({
+    connecting: 'Connecting to live route status', live: 'Route status and traffic are live',
+    stale: 'Connection lost; reconnecting', paused: 'Live updates paused',
+  } as Record<string, string>)[this.live.status()] ?? '');
+
+  protected togglePause(): void {
+    if (this.live.status() === 'paused') {
+      this.live.metrics.resume();
+    } else {
+      this.live.metrics.pause();
+    }
   }
 }

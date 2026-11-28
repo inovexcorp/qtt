@@ -79,7 +79,7 @@ describe('QuickActionsBarComponent', () => {
     expect(options()[0].querySelector('mark')!.textContent).toBe('peop');
     expect(options()[0].querySelector('.qa-option-detail')!.textContent).toContain('Find people');
     press('Enter');
-    expect(router.navigate).toHaveBeenCalledWith(['/routes/config-route', 'people-search']);
+    expect(router.navigate).toHaveBeenCalledWith(['/routes', 'config-route', 'people-search']);
     expect(input.getAttribute('aria-expanded')).toBe('false');
     expect(input.value).toBe('');
   });
@@ -218,7 +218,7 @@ describe('QuickActionsBarComponent', () => {
     it('running a result clears the scope', () => {
       type('#peop');
       press('Enter');
-      expect(router.navigate).toHaveBeenCalledWith(['/routes/config-route', 'people-search']);
+      expect(router.navigate).toHaveBeenCalledWith(['/routes', 'config-route', 'people-search']);
       expect(scopeChip()).toBeNull();
     });
   });

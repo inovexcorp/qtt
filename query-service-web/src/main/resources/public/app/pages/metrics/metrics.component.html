@@ -1,4 +1,4 @@
-<div class="metrics-page" [class.metrics-page--rescoping]="live.rescoping()">
+<div class="qtt-page metrics-page" [class.metrics-page--rescoping]="live.rescoping()">
 
   <!-- One filter row scopes everything below it. -->
   <div class="metrics-toolbar">
@@ -26,10 +26,10 @@
       }
     </div>
 
-    <div class="metrics-live" [attr.data-status]="live.status()">
-      <span class="metrics-live__dot" aria-hidden="true"><span class="metrics-live__ping" #ping></span></span>
-      <span class="metrics-live__text">{{ statusText() }}</span>
-      <span class="metrics-visually-hidden" role="status">{{ statusAnnouncement() }}</span>
+    <div class="qtt-live" [attr.data-status]="live.status()">
+      <span class="qtt-live__dot" aria-hidden="true"><span class="qtt-live__ping" #ping></span></span>
+      <span class="qtt-live__text">{{ statusText() }}</span>
+      <span class="qtt-visually-hidden" role="status">{{ statusAnnouncement() }}</span>
       <button mat-icon-button (click)="togglePause()"
         [matTooltip]="live.status() === 'paused' ? 'Resume live updates' : 'Pause live updates'"
         [attr.aria-label]="live.status() === 'paused' ? 'Resume live updates' : 'Pause live updates'">
@@ -42,9 +42,9 @@
   </div>
 
   @if (live.routesFailed() || live.historyFailed()) {
-    <div class="metrics-banner" role="alert">
-      <mat-icon class="metrics-banner__icon">error_outline</mat-icon>
-      <p class="metrics-banner__text">
+    <div class="qtt-banner" role="alert">
+      <mat-icon class="qtt-banner__icon">error_outline</mat-icon>
+      <p class="qtt-banner__text">
         <strong>Couldn't load {{ live.routesFailed() ? 'metrics' : 'the metrics history' }}.</strong>
         Check that the service is reachable; the page keeps trying every 15 seconds.
       </p>
@@ -53,77 +53,77 @@
   }
 
   <!-- Summary -->
-  <section class="metrics-tiles" aria-label="Summary">
-    <article class="metrics-tile">
-      <h2 class="metrics-tile__label">Endpoints</h2>
+  <section class="qtt-tiles" aria-label="Summary">
+    <article class="qtt-tile">
+      <h2 class="qtt-tile__label">Endpoints</h2>
       @if (summary(); as s) {
-        <p class="metrics-tile__value"><span [qttTweenNumber]="s.endpoints" [format]="formatInteger"></span></p>
-        <p class="metrics-tile__hint">
+        <p class="qtt-tile__value"><span [qttTweenNumber]="s.endpoints" [format]="formatInteger"></span></p>
+        <p class="qtt-tile__hint">
           @if (s.endpoints === 0) {
             No routes yet
           } @else if (stopped() > 0) {
-            <mat-icon inline class="metrics-tile__warn">warning</mat-icon>{{ stopped() }} not started
+            <mat-icon inline class="qtt-tile__warn">warning</mat-icon>{{ stopped() }} not started
           } @else {
             All started
           }
         </p>
       } @else if (live.routesFailed()) {
-        <p class="metrics-tile__value metrics-tile__value--missing">—</p>
-        <p class="metrics-tile__hint">Unavailable</p>
+        <p class="qtt-tile__value qtt-tile__value--missing">—</p>
+        <p class="qtt-tile__hint">Unavailable</p>
       } @else {
-        <span class="metrics-tile__skeleton" aria-label="Loading"></span>
+        <span class="qtt-tile__skeleton" aria-label="Loading"></span>
       }
     </article>
 
-    <article class="metrics-tile">
-      <h2 class="metrics-tile__label">Avg processing time</h2>
+    <article class="qtt-tile">
+      <h2 class="qtt-tile__label">Avg processing time</h2>
       @if (avgParts(); as avg) {
-        <p class="metrics-tile__value">
-          <span [qttTweenNumber]="avg.value" [format]="formatOneDecimal"></span><span class="metrics-tile__unit">{{ avg.unit }}</span>
+        <p class="qtt-tile__value">
+          <span [qttTweenNumber]="avg.value" [format]="formatOneDecimal"></span><span class="qtt-tile__unit">{{ avg.unit }}</span>
         </p>
-        <p class="metrics-tile__hint">Across {{ summary()!.totalExchanges | number }} exchanges</p>
+        <p class="qtt-tile__hint">Across {{ summary()!.totalExchanges | number }} exchanges</p>
       } @else if (summary() || live.routesFailed()) {
-        <p class="metrics-tile__value metrics-tile__value--missing" matTooltip="An average needs at least one exchange">—</p>
-        <p class="metrics-tile__hint">{{ missingReason() }}</p>
+        <p class="qtt-tile__value qtt-tile__value--missing" matTooltip="An average needs at least one exchange">—</p>
+        <p class="qtt-tile__hint">{{ missingReason() }}</p>
       } @else {
-        <span class="metrics-tile__skeleton" aria-label="Loading"></span>
+        <span class="qtt-tile__skeleton" aria-label="Loading"></span>
       }
     </article>
 
-    <article class="metrics-tile">
-      <h2 class="metrics-tile__label">Busiest route</h2>
+    <article class="qtt-tile">
+      <h2 class="qtt-tile__label">Busiest route</h2>
       @if (summary()?.busiestRoute; as busiest) {
         @for (name of [busiest]; track name) {
-          <p class="metrics-tile__value metrics-tile__value--text" animate.enter="metrics-swap-in" [matTooltip]="name">{{ name }}</p>
+          <p class="qtt-tile__value qtt-tile__value--text" animate.enter="qtt-swap-in" [matTooltip]="name">{{ name }}</p>
         }
-        <p class="metrics-tile__hint">
+        <p class="qtt-tile__hint">
           <span [qttTweenNumber]="busiestShare()!.exchanges" [format]="formatInteger"></span> exchanges ·
           <span [qttTweenNumber]="busiestShare()!.share" [format]="formatPercent"></span>% of traffic
         </p>
       } @else if (summary() || live.routesFailed()) {
-        <p class="metrics-tile__value metrics-tile__value--missing" matTooltip="No route has handled an exchange yet">—</p>
-        <p class="metrics-tile__hint">{{ missingReason() }}</p>
+        <p class="qtt-tile__value qtt-tile__value--missing" matTooltip="No route has handled an exchange yet">—</p>
+        <p class="qtt-tile__hint">{{ missingReason() }}</p>
       } @else {
-        <span class="metrics-tile__skeleton" aria-label="Loading"></span>
+        <span class="qtt-tile__skeleton" aria-label="Loading"></span>
       }
     </article>
 
-    <article class="metrics-tile">
-      <h2 class="metrics-tile__label">Success rate</h2>
+    <article class="qtt-tile">
+      <h2 class="qtt-tile__label">Success rate</h2>
       @if (summary()?.successRate != null) {
-        <p class="metrics-tile__value">
-          <span [qttTweenNumber]="summary()!.successRate!" [format]="formatPercent"></span><span class="metrics-tile__unit metrics-tile__unit--tight">%</span>
+        <p class="qtt-tile__value">
+          <span [qttTweenNumber]="summary()!.successRate!" [format]="formatPercent"></span><span class="qtt-tile__unit qtt-tile__unit--tight">%</span>
         </p>
-        <div class="metrics-meter" role="meter" aria-label="Success rate" aria-valuemin="0" aria-valuemax="100"
+        <div class="qtt-meter" role="meter" aria-label="Success rate" aria-valuemin="0" aria-valuemax="100"
           [attr.aria-valuenow]="summary()!.successRate">
-          <span class="metrics-meter__fill" [style.transform]="'scaleX(' + summary()!.successRate! / 100 + ')'"></span>
+          <span class="qtt-meter__fill" [style.transform]="'scaleX(' + summary()!.successRate! / 100 + ')'"></span>
         </div>
-        <p class="metrics-tile__hint">{{ failedTotal() | number }} failed</p>
+        <p class="qtt-tile__hint">{{ failedTotal() | number }} failed</p>
       } @else if (summary() || live.routesFailed()) {
-        <p class="metrics-tile__value metrics-tile__value--missing" matTooltip="A success rate needs at least one exchange">—</p>
-        <p class="metrics-tile__hint">{{ missingReason() }}</p>
+        <p class="qtt-tile__value qtt-tile__value--missing" matTooltip="A success rate needs at least one exchange">—</p>
+        <p class="qtt-tile__hint">{{ missingReason() }}</p>
       } @else {
-        <span class="metrics-tile__skeleton" aria-label="Loading"></span>
+        <span class="qtt-tile__skeleton" aria-label="Loading"></span>
       }
     </article>
   </section>
@@ -137,14 +137,14 @@
   </div>
 
   <!-- Routes table: every value in the charts, as text -->
-  <section class="metrics-card" aria-labelledby="routes-title">
-    <header class="metrics-card__header">
+  <section class="qtt-card" aria-labelledby="routes-title">
+    <header class="qtt-card__header">
       <div class="metrics-card__heading">
-        <h2 id="routes-title" class="metrics-card__title">Routes</h2>
-        <p class="metrics-card__subtitle">Totals since each route started</p>
+        <h2 id="routes-title" class="qtt-card__title">Routes</h2>
+        <p class="qtt-card__subtitle">Totals since each route started</p>
       </div>
       @if (tableMode() === null) {
-        <mat-form-field class="metrics-search" appearance="outline" subscriptSizing="dynamic">
+        <mat-form-field class="qtt-search" appearance="outline" subscriptSizing="dynamic">
           <mat-label>Find a route</mat-label>
           <input #searchBox matInput (input)="search(searchBox.value)">
           <mat-icon matSuffix>search</mat-icon>
@@ -153,13 +153,13 @@
     </header>
 
     @if (tableMode(); as mode) {
-      <div class="metrics-card__body" style="height: 240px">
+      <div class="qtt-card__body" style="height: 240px">
         <app-metrics-status [mode]="mode" emptyIcon="table_chart" emptyTitle="No routes yet"
           emptyDetail="Routes appear here once they are created." [retryable]="false"></app-metrics-status>
       </div>
     }
-    <div class="metrics-table-wrap" [hidden]="tableMode() !== null">
-      <table mat-table [dataSource]="table" matSort matSortActive="completed" matSortDirection="desc" class="metrics-table">
+    <div class="qtt-table-wrap" [hidden]="tableMode() !== null">
+      <table mat-table [dataSource]="table" matSort matSortActive="completed" matSortDirection="desc" class="qtt-table">
         <ng-container matColumnDef="route">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Route</th>
           <td mat-cell *matCellDef="let row" class="metrics-table__route">{{ row.route }}</td>
@@ -168,50 +168,50 @@
         <ng-container matColumnDef="state">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>State</th>
           <td mat-cell *matCellDef="let row">
-            <span class="metrics-state" [class.metrics-state--started]="row.state === 'Started'">{{ row.state }}</span>
+            <span class="qtt-state" [class.qtt-state--started]="row.state === 'Started'">{{ row.state }}</span>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="completed">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="metrics-num">Successful</th>
-          <td mat-cell *matCellDef="let row" class="metrics-num">{{ row.completed | number }}</td>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="qtt-num">Successful</th>
+          <td mat-cell *matCellDef="let row" class="qtt-num">{{ row.completed | number }}</td>
         </ng-container>
 
         <ng-container matColumnDef="failed">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="metrics-num">Failed</th>
-          <td mat-cell *matCellDef="let row" class="metrics-num" [class.metrics-num--bad]="row.failed > 0">{{ row.failed | number }}</td>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="qtt-num">Failed</th>
+          <td mat-cell *matCellDef="let row" class="qtt-num" [class.qtt-num--bad]="row.failed > 0">{{ row.failed | number }}</td>
         </ng-container>
 
         <ng-container matColumnDef="successRate">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="metrics-num">Success</th>
-          <td mat-cell *matCellDef="let row" class="metrics-num">
-            @if (row.successRate !== null) { {{ row.successRate | number:'1.0-1' }}% } @else { <span class="metrics-missing" matTooltip="No exchanges yet">—</span> }
+          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="qtt-num">Success</th>
+          <td mat-cell *matCellDef="let row" class="qtt-num">
+            @if (row.successRate !== null) { {{ row.successRate | number:'1.0-1' }}% } @else { <span class="qtt-missing" matTooltip="No exchanges yet">—</span> }
           </td>
         </ng-container>
 
         <ng-container matColumnDef="mean">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="metrics-num">Avg</th>
-          <td mat-cell *matCellDef="let row" class="metrics-num">
-            @if (row.mean !== null) { {{ row.mean | number }} ms } @else { <span class="metrics-missing" matTooltip="No exchanges yet, so no processing times">—</span> }
+          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="qtt-num">Avg</th>
+          <td mat-cell *matCellDef="let row" class="qtt-num">
+            @if (row.mean !== null) { {{ row.mean | number }} ms } @else { <span class="qtt-missing" matTooltip="No exchanges yet, so no processing times">—</span> }
           </td>
         </ng-container>
 
         <ng-container matColumnDef="range">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="metrics-num">Min – max</th>
-          <td mat-cell *matCellDef="let row" class="metrics-num">
-            @if (row.min !== null) { {{ row.min | number }} – {{ row.max | number }} ms } @else { <span class="metrics-missing" matTooltip="No exchanges yet, so no processing times">—</span> }
+          <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="before" class="qtt-num">Min – max</th>
+          <td mat-cell *matCellDef="let row" class="qtt-num">
+            @if (row.min !== null) { {{ row.min | number }} – {{ row.max | number }} ms } @else { <span class="qtt-missing" matTooltip="No exchanges yet, so no processing times">—</span> }
           </td>
         </ng-container>
 
         <ng-container matColumnDef="uptime">
-          <th mat-header-cell *matHeaderCellDef class="metrics-num">Uptime</th>
-          <td mat-cell *matCellDef="let row" class="metrics-num">{{ row.uptime }}</td>
+          <th mat-header-cell *matHeaderCellDef class="qtt-num">Uptime</th>
+          <td mat-cell *matCellDef="let row" class="qtt-num">{{ row.uptime }}</td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="columns"></tr>
         <tr mat-row *matRowDef="let row; columns: columns"></tr>
         <tr class="mat-mdc-row" *matNoDataRow>
-          <td class="mat-mdc-cell metrics-table__none" [attr.colspan]="columns.length">No routes match “{{ table.filter }}”</td>
+          <td class="mat-mdc-cell qtt-table__none" [attr.colspan]="columns.length">No routes match “{{ table.filter }}”</td>
         </tr>
       </table>
       <mat-paginator [pageSize]="10" [pageSizeOptions]="[10, 25, 50]" [hidePageSize]="table.data.length <= 10"

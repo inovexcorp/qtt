@@ -11,7 +11,6 @@ import { MatIconButton } from '@angular/material/button';
     selector: 'app-endpoint-panel',
     template: `
     <div class="endpoint-panel">
-      <h3>Endpoint</h3>
       <div class="endpoint-row">
         <mat-icon [matTooltip]="access === 'open' ? 'Open: no credentials needed' : 'Needs a token with qtt-query or an API key'">
         {{ access === 'open' ? 'public' : 'lock' }}</mat-icon>
@@ -30,10 +29,16 @@ import { MatIconButton } from '@angular/material/button';
       }
     </div>`,
     styles: [`
-    .endpoint-panel { margin: 8px 0 16px; }
-    .endpoint-row { display: flex; align-items: center; gap: 8px; }
-    .endpoint-row code { flex: 1; overflow-x: auto; white-space: nowrap; padding: 6px 8px; background: rgba(0,0,0,0.05); border-radius: 4px; font-size: 13px; }
-    .endpoint-hint { font-size: 12px; color: rgba(0,0,0,0.6); margin: 4px 0 0 32px; }
+    .endpoint-panel { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.375rem 0.25rem 0.375rem 0.75rem;
+      border-radius: 10px; background: var(--mat-sys-surface-container-low); }
+    .endpoint-row { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+    .endpoint-row > mat-icon { flex: none; width: 18px; height: 18px; font-size: 18px; color: var(--qtt-muted); }
+    .endpoint-row code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: thin;
+      font: 0.8125rem/1.5rem ui-monospace, 'SF Mono', Menlo, Consolas, monospace; color: var(--mat-sys-on-surface); }
+    .endpoint-row .mat-mdc-icon-button { --mat-icon-button-state-layer-size: 36px; --mat-icon-button-icon-size: 18px;
+      --mat-icon-button-icon-color: var(--qtt-muted); padding: 9px; flex: none; }
+    .endpoint-hint { font-size: 0.75rem; color: var(--qtt-muted); margin: 0 0.5rem 0.25rem 1.625rem; }
+    .endpoint-hint code { font-size: 0.75rem; }
   `],
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [MatIcon, MatTooltip, MatIconButton]

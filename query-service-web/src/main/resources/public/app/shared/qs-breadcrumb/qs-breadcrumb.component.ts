@@ -1,9 +1,11 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { BreadcrumbService, BreadcrumbComponent } from 'xng-breadcrumb';
-import { filter } from 'rxjs';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { BreadcrumbComponent } from 'xng-breadcrumb';
 import { MatToolbar } from '@angular/material/toolbar';
 
+/**
+ * The toolbar breadcrumb, labelled from route data. Pages showing one datasource or route label their crumb with its
+ * name (see shared/breadcrumb-label.ts).
+ */
 @Component({
     selector: 'app-qs-breadcrumb',
     templateUrl: './qs-breadcrumb.component.html',
@@ -11,21 +13,5 @@ import { MatToolbar } from '@angular/material/toolbar';
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [MatToolbar, BreadcrumbComponent]
 })
-export class QsBreadcrumbComponent implements OnInit {
-
-  constructor(
-    private breadcrumbService: BreadcrumbService,
-    private route: ActivatedRoute,
-    public router: Router
-  ) { }
-
-  ngOnInit(): void {
-    // Update breadcrumb dynamically for config-datasource routes
-    this.router.events.pipe(filter(event => event instanceof NavigationEnd)).subscribe(() => {
-      if (this.router.url.includes("/config-datasource/")) {
-        const datasourceId = this.router.url.substring(31).replace("%20", "");
-        this.breadcrumbService.set('@dataSourceId', datasourceId);
-      }
-    });
-  }
+export class QsBreadcrumbComponent {
 }

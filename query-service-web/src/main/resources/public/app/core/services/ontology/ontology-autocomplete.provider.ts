@@ -24,6 +24,15 @@ export class OntologyAutocompleteProvider implements monaco.languages.Completion
     this.routeId = routeId;
   }
 
+  /** The provider's registration with Monaco (see registerOntologyAutocomplete). */
+  registration?: monaco.IDisposable;
+
+  /** Unregisters it from Monaco. Safe to call more than once. */
+  dispose(): void {
+    this.registration?.dispose();
+    this.registration = undefined;
+  }
+
   /**
    * Provide completion items based on cursor position and current word.
    */
@@ -284,22 +293,21 @@ export class OntologyAutocompleteProvider implements monaco.languages.Completion
 }
 
 /**
- * Register the ontology autocomplete provider with Monaco Editor.
- * Should be called once during application initialization.
+ * Registers the ontology autocomplete provider with Monaco (globally, for freemarker2). Call `dispose()` on the
+ * result when the editor goes away: Monaco keeps every registered provider, so each page visit used to add another
+ * one, and every completion request then ran all of them.
  */
 export function registerOntologyAutocomplete(
   ontologyService: OntologyService,
-  routeId: string
+  routeId: string,
+  register: typeof monaco.languages.registerCompletionItemProvider = monaco.languages.registerCompletionItemProvider
 ): OntologyAutocompleteProvider {
   const provider = new OntologyAutocompleteProvider(ontologyService, routeId);
-
-  // Register for freemarker2 language
-  monaco.languages.registerCompletionItemProvider('freemarker2', {
+  provider.registration = register('freemarker2', {
     triggerCharacters: ['<', ':', '/'],
     provideCompletionItems: (model, position, context) => {
       return provider.provideCompletionItems(model, position, context);
     }
   });
-
   return provider;
 }

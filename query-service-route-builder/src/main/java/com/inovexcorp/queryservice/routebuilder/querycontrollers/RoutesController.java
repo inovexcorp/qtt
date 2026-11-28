@@ -266,6 +266,13 @@ public class RoutesController {
                     .type(MediaType.APPLICATION_JSON)
                     .build();
         }
+        // Creating under a taken id used to replace that route (its template, settings and audit) without a word
+        else if (routeService.routeExists(routeId)) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(Map.of("message", "A route named " + routeId + " already exists; change it with PUT"))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
         // Else process the request
         else {
             Response invalidTemplate = rejectInvalidTemplate(routeId, freemarker);
@@ -505,13 +512,27 @@ public class RoutesController {
     @POST
     @Path("clone/{routeId}")
     public Response cloneEndpoint(@PathParam("routeId") String routeId) throws Exception {
-        String clonedRouteId = routeId + "Clone";
+        String clonedRouteId = freeCloneId(routeId);
         if (!RouteIds.isValid(clonedRouteId)) {
             return invalidRouteId(clonedRouteId);
         }
         routeManagementService.cloneRoute(routeId, clonedRouteId);
-        return Response.status(Response.Status.CREATED).entity(Map.of("endpointUrl", endpointUrl(clonedRouteId)))
+        return Response.status(Response.Status.CREATED)
+                .entity(Map.of("routeId", clonedRouteId, "endpointUrl", endpointUrl(clonedRouteId)))
                 .type(MediaType.APPLICATION_JSON).build();
+    }
+
+    /**
+     * The id for a copy of a route: "&lt;id&gt;Clone", or "&lt;id&gt;Clone2", "&lt;id&gt;Clone3"... when taken. Creating a
+     * route under an existing id replaces that route, so cloning twice used to overwrite the first copy.
+     */
+    String freeCloneId(String routeId) {
+        String base = routeId + "Clone";
+        String candidate = base;
+        for (int n = 2; routeService.getRoute(candidate) != null; n++) {
+            candidate = base + n;
+        }
+        return candidate;
     }
 
     public String getFileContent(String routeId) {

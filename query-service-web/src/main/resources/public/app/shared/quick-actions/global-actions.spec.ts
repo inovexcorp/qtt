@@ -30,10 +30,10 @@ describe('quick actions: global actions', () => {
     expect(signOut.visible!()).toBe(false);
   });
 
-  it('asks the routes page to open the add-route dialog, and settings to start a new API key', () => {
+  it('opens the new-route page, and asks settings to start a new API key', () => {
     const actions = globalActions(deps({}));
     actions.find(a => a.id === 'add-route')!.run();
-    expect(router.navigate).toHaveBeenCalledWith(['/routes'], { queryParams: { add: 'route' } });
+    expect(router.navigate).toHaveBeenCalledWith(['/routes', 'add']);
     actions.find(a => a.id === 'create-api-key')!.run();
     expect(router.navigate).toHaveBeenCalledWith(['/settings'], { queryParams: { section: 'access', apiKey: 'new' } });
   });

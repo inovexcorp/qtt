@@ -36,11 +36,11 @@ const totalsPlugin: Plugin<'bar'> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ChartComponent, MetricsStatusComponent],
   template: `
-    <section class="metrics-card" aria-labelledby="exchanges-title">
-      <header class="metrics-card__header">
+    <section class="qtt-card" aria-labelledby="exchanges-title">
+      <header class="qtt-card__header">
         <div class="metrics-card__heading">
-          <h2 id="exchanges-title" class="metrics-card__title">Exchanges by route</h2>
-          <p class="metrics-card__subtitle">{{ subtitle() }}</p>
+          <h2 id="exchanges-title" class="qtt-card__title">Exchanges by route</h2>
+          <p class="qtt-card__subtitle">{{ subtitle() }}</p>
         </div>
       </header>
       @if (mode() === null) {
@@ -49,7 +49,7 @@ const totalsPlugin: Plugin<'bar'> = {
           <li><span class="metrics-legend__key" [style.--key-color]="ink.error"></span>Failed</li>
         </ul>
       }
-      <div class="metrics-card__body" [style.height.px]="height()">
+      <div class="qtt-card__body" [style.height.px]="height()">
         @if (mode(); as mode) {
           <app-metrics-status [mode]="mode" emptyIcon="bar_chart"
             [emptyTitle]="routes()?.length ? 'No exchanges yet' : 'No routes yet'"

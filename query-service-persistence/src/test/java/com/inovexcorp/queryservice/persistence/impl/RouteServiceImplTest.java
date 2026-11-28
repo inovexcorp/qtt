@@ -3,6 +3,7 @@ package com.inovexcorp.queryservice.persistence.impl;
 import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.Datasources;
+import com.inovexcorp.queryservice.persistence.RouteStopReason;
 import com.inovexcorp.queryservice.persistence.jpa.EmConsumer;
 import com.inovexcorp.queryservice.persistence.jpa.EmFunction;
 import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
@@ -300,13 +301,15 @@ public class RouteServiceImplTest {
         }).when(jpaTemplate).tx(eq(TransactionType.Required), any(EmConsumer.class));
 
         // Act
-        routeService.updateRouteStatus("testRoute", "Stopped");
+        routeService.updateRouteStatus("testRoute", "Stopped", RouteStopReason.MANUAL);
 
         // Assert
         verify(entityManager).find(CamelRouteTemplate.class, "testRoute");
         verify(entityManager).merge(testRoute);
         verify(entityManager).flush();
         assertEquals("Stopped", testRoute.getStatus());
+        assertEquals(RouteStopReason.MANUAL, testRoute.getStopReason());
+        assertNotNull(testRoute.getStoppedAt());
     }
 
     @Test
@@ -322,10 +325,19 @@ public class RouteServiceImplTest {
         }).when(jpaTemplate).tx(eq(TransactionType.Required), any(EmConsumer.class));
 
         // Act
-        routeService.updateRouteStatus("testRoute", "Started");
+        testRoute.setStopReason(RouteStopReason.HEALTH_CHECK);
+        testRoute.setStoppedAt(new java.util.Date());
+        routeService.updateRouteStatus("testRoute", "Started", RouteStopReason.MANUAL);
 
-        // Assert
+        // Assert: starting clears why and when it was stopped
         assertEquals("Started", testRoute.getStatus());
+        assertNull(testRoute.getStopReason());
+        assertNull(testRoute.getStoppedAt());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testUpdateRouteStatus_StoppingNeedsAReason() {
+        routeService.updateRouteStatus("testRoute", "Stopped", null);
     }
 
     @Test

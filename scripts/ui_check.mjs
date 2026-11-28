@@ -94,7 +94,9 @@ const pages = [
   ['config-datasource', `#/datasources/config-datasource/${ds}`, ds],
   ['add-datasource', '#/datasources/add-datasource', null],
   ['routes', '#/routes', route],
+  ['add-route', '#/routes/add', 'New route'],
   ['config-route', `#/routes/config-route/${route}`, route],
+  ['config-route-test', `#/routes/config-route/${route}?tab=test`, 'Run test'],
   ['settings', '#/settings', null],
 ];
 
@@ -102,12 +104,12 @@ const pages = [
 const domChecks = {
   metrics: () => {
     const errs = [];
-    const tiles = [...document.querySelectorAll('.metrics-tile')];
+    const tiles = [...document.querySelectorAll('.qtt-tile')];
     if (tiles.length !== 4) errs.push(`expected 4 summary tiles, found ${tiles.length}`);
-    if (document.querySelector('.metrics-tile__skeleton, .metrics-skeleton')) errs.push('metrics still loading');
+    if (document.querySelector('.qtt-tile__skeleton, .metrics-skeleton')) errs.push('metrics still loading');
     if (/NaN/.test(document.body.innerText)) errs.push('page shows NaN');
-    if (document.querySelector('.metrics-banner, .metrics-status__icon--error')) errs.push('metrics failed to load');
-    const status = document.querySelector('.metrics-live')?.getAttribute('data-status');
+    if (document.querySelector('.qtt-banner, .metrics-status__icon--error')) errs.push('metrics failed to load');
+    const status = document.querySelector('.qtt-live')?.getAttribute('data-status');
     if (status !== 'live') errs.push(`live status is ${status}, expected live`);
     // Charts draw on canvas once a route has traffic; otherwise each card explains why it is empty.
     for (const card of ['qtt-trend-card', 'qtt-exchanges-card', 'qtt-latency-card']) {
@@ -115,13 +117,28 @@ const domChecks = {
     }
     return errs;
   },
-  'config-datasource': () => {
+  'config-datasource': ds => {
     const crumbs = [...document.querySelectorAll('.xng-breadcrumb-item')].map(c => c.innerText.trim());
-    return crumbs.join(' / ') === 'Datasources / Datasource' ? [] : [`breadcrumbs: ${crumbs.join(' / ')}`];
+    return crumbs.join(' / ') === `Datasources / ${ds}` ? [] : [`breadcrumbs: ${crumbs.join(' / ')}`];
   },
-  'config-route': () => {
+  routes: () => {
+    const errs = [];
+    if (document.querySelector('.rt-row--skeleton')) errs.push('routes still loading');
+    if (!document.querySelector('.rt-summary__headline')?.textContent?.match(/\d+ routes?/)) errs.push('no summary headline');
+    const status = document.querySelector('.qtt-live')?.getAttribute('data-status');
+    if (status !== 'live') errs.push(`live status is ${status}, expected live`);
+    return errs;
+  },
+  'add-route': () => {
     const crumbs = [...document.querySelectorAll('.xng-breadcrumb-item')].map(c => c.innerText.trim());
-    return crumbs.join(' / ') === 'Routes / Config-Route' ? [] : [`breadcrumbs: ${crumbs.join(' / ')}`];
+    return crumbs.join(' / ') === 'Routes / New route' ? [] : [`breadcrumbs: ${crumbs.join(' / ')}`];
+  },
+  'config-route': (ds, route) => {
+    const errs = [];
+    const crumbs = [...document.querySelectorAll('.xng-breadcrumb-item')].map(c => c.innerText.trim());
+    if (crumbs.join(' / ') !== `Routes / ${route}`) errs.push(`breadcrumbs: ${crumbs.join(' / ')}`);
+    if (!document.querySelector('.cr-save')?.textContent?.includes('All changes saved')) errs.push('a freshly loaded route shows unsaved changes');
+    return errs;
   },
 };
 
@@ -143,11 +160,15 @@ try {
     page.on('pageerror', e => errs.push(`pageerror: ${e.message}`));
     page.on('requestfailed', r => errs.push(`requestfailed: ${r.url()} ${r.failure()?.errorText}`));
     page.on('response', r => { if (r.status() >= 400) errs.push(`HTTP ${r.status()}: ${r.url()}`); });
+    // Live pages open one /api/events stream for all their feeds (a streaming request never shows in resource timing)
+    const streams = [];
+    page.on('request', r => { if (r.url().includes('/api/events?')) streams.push(r.url()); });
     await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle2', timeout: 60000 });
     await new Promise(r => setTimeout(r, 1500));
     const text = await page.evaluate(() => document.body.innerText);
     if (expectText && !text.includes(expectText)) errs.push(`expected text not found: ${expectText}`);
-    if (domChecks[name]) errs.push(...await page.evaluate(domChecks[name]));
+    if (domChecks[name]) errs.push(...await page.evaluate(domChecks[name], ds, route));
+    if (name === 'routes' && streams.length !== 1) errs.push(`expected one events stream, found ${streams.length}`);
     if (shots) {
       fs.mkdirSync(shots, { recursive: true });
       await page.screenshot({ path: `${shots}/${name}.png`, fullPage: true });
@@ -158,11 +179,11 @@ try {
   }
 
   // Template editors: a syntax error is marked while typing (before saving), and the mark clears once fixed.
-  // add-route uses app-code-editor, config-route creates its editor itself; check both.
+  // Both pages use the same template editor component; check both.
   // [name, page, buttons/tabs to click (in order) to reveal the editor]
   const editors = [
-    ['config-route editor', `#/routes/config-route/${route}`, ['tab:Template Editor']],
-    ['add-route editor', '#/routes', ['.add-button', '.edit-btn']],
+    ['config-route editor', `#/routes/config-route/${route}`, ['#cr-tab-template']],
+    ['add-route editor', '#/routes/add', []],
   ];
   const selectAll = process.platform === 'darwin' ? 'Meta' : 'Control';
   for (const [name, hash, openSteps] of editors) {
@@ -197,12 +218,12 @@ try {
         await page.keyboard.type(text, { delay: 5 });
       };
       await replaceText('SELECT * WHERE { ?s ?p ?o }\n<#if x>');
-      await page.waitForSelector('.template-syntax-error', { timeout: 10000 });
+      await page.waitForSelector('.te__error', { timeout: 10000 });
       await page.waitForSelector('.monaco-editor .squiggly-error', { timeout: 10000 });
-      const banner = await page.$eval('.template-syntax-error', el => el.innerText);
+      const banner = await page.$eval('.te__error', el => el.innerText);
       if (!banner.includes('Line 2')) errs.push(`unexpected error banner: ${banner}`);
       await replaceText('SELECT * WHERE { ?s ?p ?o }');
-      await page.waitForSelector('.template-syntax-error', { hidden: true, timeout: 10000 });
+      await page.waitForSelector('.te__error', { hidden: true, timeout: 10000 });
       await page.waitForSelector('.monaco-editor .squiggly-error', { hidden: true, timeout: 10000 });
       // Suggestions: words from the text are offered, with codicon kind icons drawn from the codicon font.
       await page.keyboard.type('\nSEL', { delay: 5 });
@@ -274,7 +295,8 @@ try {
       text = await page.evaluate(() => document.body.innerText);
       if (!text.includes('Authorization: Bearer $QTT_TOKEN')) errs.push('curl example has no token header');
       step = 'save the route';
-      await page.click('#config-route-btn');
+      await reveal('#route-save');
+      await page.click('#route-save');
       await waitFor(async () => (await routeAccess()) === 'authenticated', 'the route to be saved as authenticated');
       const anonymous = (await fetch(`${queryBase}/${route}`)).status;
       if (anonymous !== 401) errs.push(`anonymous call to the closed route got ${anonymous}, expected 401`);
@@ -283,8 +305,8 @@ try {
       // The routes list marks it.
       await page.goto(`${base}/#/routes`, { waitUntil: 'networkidle2', timeout: 60000 });
       await new Promise(r => setTimeout(r, 1000));
-      const marked = await page.evaluate(r => [...document.querySelectorAll('tr')]
-        .some(tr => tr.innerText.includes(r) && tr.querySelector('[aria-label="Authenticated route"]')), route);
+      const marked = await page.evaluate(r => !!document.querySelector(
+        `.rt-row[data-route-id="${r}"] .rt-access[aria-label="Signed-in callers only"]`), route);
       if (!marked) errs.push('routes list does not mark the route as authenticated');
 
       step = 'create an API key';
@@ -333,11 +355,11 @@ try {
     const errs = [];
     page.on('pageerror', e => errs.push(`pageerror: ${e.message}`));
     try {
-      await page.goto(`${base}/#/metrics`, { waitUntil: 'networkidle0', timeout: 60000 });
+      await page.goto(`${base}/#/metrics`, { waitUntil: 'networkidle2', timeout: 60000 });
       const found = await quickActions(page, route);
       if (found['Routes']?.[0] !== route) errs.push(`searching "${route}" lists ${JSON.stringify(found)}`);
       await page.keyboard.press('Enter');
-      await page.waitForFunction(r => document.body.innerText.includes('Config Route: ' + r), { timeout: 20000 }, route)
+      await page.waitForFunction(r => document.querySelector('.cr-id')?.textContent?.trim() === r, { timeout: 20000 }, route)
         .catch(() => errs.push(`Enter did not open the route page (at ${page.url()})`));
       const onPage = await quickActions(page);
       for (const label of ['Save route', 'Run test request', 'Copy endpoint URL']) {
@@ -362,7 +384,8 @@ try {
         await signIn(page, 'viewer', '#/routes');
         const menu = await page.$eval('.user-button', b => b.innerText);
         if (!menu.includes('Vera Viewer')) errs.push(`user menu shows "${menu}"`);
-        if (await visible(page, 'Add Route')) errs.push('"Add Route" shown to a viewer');
+        if (await visible(page, 'Add route')) errs.push('"Add route" shown to a viewer');
+        if (await page.$('.rt-check, .rt-power')) errs.push('selection or start/stop shown to a viewer');
         const forbidden = [];
         page.on('response', r => { if (r.status() === 403) forbidden.push(r.url()); });
         await page.goto(`${base}/#/routes/config-route/${route}`, { waitUntil: 'networkidle2', timeout: 60000 });
@@ -377,14 +400,14 @@ try {
       ['oidc quick actions follow the role', async page => {
         const errs = [];
         await signIn(page, 'viewer'); // the sign-in round trip drops the #fragment
-        await page.goto(`${base}/#/routes/config-route/${route}`, { waitUntil: 'networkidle0', timeout: 60000 });
-        await page.waitForFunction(r => document.body.innerText.includes('Config Route: ' + r), { timeout: 20000 }, route);
+        await page.goto(`${base}/#/routes/config-route/${route}`, { waitUntil: 'networkidle2', timeout: 60000 });
+        await page.waitForFunction(r => document.querySelector('.cr-id')?.textContent?.trim() === r, { timeout: 20000 }, route);
         let bar = await quickActions(page);
         const viewerPage = JSON.stringify(bar['This page']);
-        if (viewerPage !== JSON.stringify(['Toggle full-screen editor', 'Copy endpoint URL'])) errs.push(`viewer's route page actions: ${viewerPage}`);
+        if (viewerPage !== JSON.stringify(['Edit template', 'Copy endpoint URL'])) errs.push(`viewer's route page actions: ${viewerPage}`);
         if (JSON.stringify(bar['Actions']) !== JSON.stringify(['Keyboard shortcuts', 'Sign out'])) errs.push(`viewer's actions: ${JSON.stringify(bar['Actions'])}`);
         await page.keyboard.press('Escape');
-        await page.goto(`${base}/#/datasources/config-datasource/${ds}`, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.goto(`${base}/#/datasources/config-datasource/${ds}`, { waitUntil: 'networkidle2', timeout: 60000 });
         bar = await quickActions(page);
         if (JSON.stringify(bar['This page']) !== JSON.stringify(['Show usage'])) errs.push(`viewer's datasource page actions: ${JSON.stringify(bar['This page'])}`);
         return errs;
@@ -392,7 +415,7 @@ try {
       ['oidc quick actions for an editor', async page => {
         const errs = [];
         await signIn(page, 'editor');
-        await page.goto(`${base}/#/datasources/config-datasource/${ds}`, { waitUntil: 'networkidle0', timeout: 60000 });
+        await page.goto(`${base}/#/datasources/config-datasource/${ds}`, { waitUntil: 'networkidle2', timeout: 60000 });
         await page.waitForFunction(d => document.body.innerText.includes(d), { timeout: 20000 }, ds);
         const bar = await quickActions(page);
         if (JSON.stringify(bar['This page']) !== JSON.stringify(['Run health check', 'Show usage'])) errs.push(`editor's datasource page actions: ${JSON.stringify(bar['This page'])}`);

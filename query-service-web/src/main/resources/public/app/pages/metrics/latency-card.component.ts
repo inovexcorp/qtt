@@ -39,11 +39,11 @@ const averagesPlugin: Plugin<'bar'> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ChartComponent, MetricsStatusComponent],
   template: `
-    <section class="metrics-card" aria-labelledby="latency-title">
-      <header class="metrics-card__header">
+    <section class="qtt-card" aria-labelledby="latency-title">
+      <header class="qtt-card__header">
         <div class="metrics-card__heading">
-          <h2 id="latency-title" class="metrics-card__title">Processing time by route</h2>
-          <p class="metrics-card__subtitle">{{ subtitle() }}</p>
+          <h2 id="latency-title" class="qtt-card__title">Processing time by route</h2>
+          <p class="qtt-card__subtitle">{{ subtitle() }}</p>
         </div>
       </header>
       @if (mode() === null) {
@@ -52,7 +52,7 @@ const averagesPlugin: Plugin<'bar'> = {
           <li><span class="metrics-legend__key metrics-legend__key--dot" [style.--key-color]="ink.primary"></span>Average</li>
         </ul>
       }
-      <div class="metrics-card__body" [style.height.px]="height()">
+      <div class="qtt-card__body" [style.height.px]="height()">
         @if (mode(); as mode) {
           <app-metrics-status [mode]="mode" emptyIcon="timer"
             [emptyTitle]="routes()?.length ? 'No exchanges yet' : 'No routes yet'"

@@ -1,151 +1,721 @@
-.mat-mdc-table {
-    min-width:70%!important;
+// Routes list. The page shell, cards, banners, search, toggles and live indicator come from styles/_surfaces.scss;
+// this adds the summary, the rows and the bulk bar. Status colour only where it means good, bad or attention;
+// motion only for change.
+
+$ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+:host {
+  display: block;
+  // Start/stop, copy and the menu; viewers have no start/stop
+  --rt-actions-w: 11.25rem;
 }
 
-.description{
-    width:25%
+:host:has(.rt-list:not(:has(.rt-check))) {
+  --rt-actions-w: 5rem;
 }
 
-.mat-mdc-table{
-    margin:1rem;
+// Tones shared by dots, bars and notes
+[data-tone='good'] { --rt-tone: var(--qtt-good); }
+[data-tone='bad'] { --rt-tone: var(--mat-sys-error); }
+[data-tone='warn'] { --rt-tone: var(--qtt-warn); }
+[data-tone='pending'] { --rt-tone: var(--mat-sys-primary); }
+[data-tone='idle'] { --rt-tone: var(--mat-sys-outline); }
+
+[data-state='running'] { --seg-color: var(--qtt-good); }
+[data-state='blocked'] { --seg-color: var(--mat-sys-error); }
+[data-state='stopped'] { --seg-color: var(--mat-sys-outline); }
+
+// --- Summary ---------------------------------------------------------------------------------------------------------
+
+.rt-summary {
+  gap: 0.875rem;
 }
 
-td.mat-mdc-cell{
-    -webkit-hyphens: auto; /* iOS 4.2+ */
-    -moz-hyphens: auto; /* Firefox 5+ */
-    -ms-hyphens: auto; /* IE 10+ */
-    hyphens: auto;
-    word-wrap: break-word;
-}
-
-.table-card{
-    margin-top:7rem;
-    width: 80%;
-    margin-left: auto;
-    margin-right:auto;
-}
-
-.add-button{
-    float:right;
-    padding-bottom: none;
-    margin-top: .25rem;
-}
-
-
-
-
-// Status cell with warning icons
-.status-cell {
+.rt-summary__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
 }
 
-.started-icon{
-    color:green;
-    vertical-align: middle;
+.rt-summary__headline {
+  margin: 0;
+  font: 500 1.125rem/1.75rem var(--mat-sys-body-medium-font), sans-serif;
+  color: var(--mat-sys-on-surface);
+  text-wrap: balance;
 }
 
-.stopped-icon{
-    color:gray;
-    opacity: 80%;
-    vertical-align: middle;
-}
-
-// Datasource warning indicators
-.datasource-disabled-warning {
-  color: #9e9e9e;
-  font-size: 20px;
-  width: 20px;
-  height: 20px;
-  cursor: help;
-}
-
-.datasource-down-warning {
-  color: #ff9800;
-  font-size: 20px;
-  width: 20px;
-  height: 20px;
-  cursor: help;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.route-table-header{
-    padding:1rem;
-}
-
-// Datasource cell with status indicator
-.datasource-cell {
+.rt-bar {
   display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--mat-sys-surface-container);
+}
+
+.rt-bar__seg {
+  flex: 0 1 0;
+  min-width: 0;
+  border-inline: 1px solid var(--qtt-card-bg);
+  background: var(--seg-color);
+  transition: flex-grow 600ms $ease-out, border-width 600ms $ease-out;
+
+  &:first-child { border-inline-start-width: 0; }
+  &:last-child { border-inline-end-width: 0; }
+  &.is-empty { border-width: 0; }
+}
+
+.rt-controls {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
 }
 
-// Datasource status icons
-.ds-status-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
+.rt-controls__states {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 
-  &.ds-status-up {
-    color: #4caf50;
-  }
-
-  &.ds-status-down {
-    color: #f44336;
-  }
-
-  &.ds-status-disabled {
-    color: #9e9e9e;
-  }
-
-  &.ds-status-checking {
-    color: #ff9800;
-    animation: spin 2s linear infinite;
-  }
-
-  &.ds-status-unknown {
-    color: #757575;
+  @media (max-width: 700px) {
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
   }
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.rt-controls__selects {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
 }
 
-// Warning indicator in menu items
-.warning-indicator {
-  color: #ff9800;
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
+.rt-select {
+  width: 11.5rem;
+  --mat-form-field-container-height: 40px;
+  --mat-form-field-container-vertical-padding: 8px;
+
+  @media (max-width: 560px) {
+    width: calc(50% - 0.375rem);
+  }
+}
+
+.rt-group-toggle {
   margin-left: 0.25rem;
+  font-size: 0.875rem;
 }
 
-// Disabled menu item styling
-button[mat-menu-item][disabled] {
-  opacity: 0.5;
-  cursor: not-allowed;
+.rt-key {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 0.4375rem;
+  border-radius: 50%;
+  background: var(--seg-color);
+  vertical-align: 0.0625rem;
+}
 
-  span {
-    color: #999;
+.rt-count {
+  margin-left: 0.25rem;
+  color: var(--qtt-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mat-button-toggle-checked .rt-count {
+  color: inherit;
+}
+
+.rt-scope {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.25rem 0.25rem 0.25rem 0.875rem;
+  border-radius: 10px;
+  background: var(--mat-sys-surface-container-low);
+  font-size: 0.875rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// --- Rows ------------------------------------------------------------------------------------------------------------
+
+// One grid for the column labels and every row, so columns line up.
+%rt-grid {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(14rem, 1fr) 11rem 17.5rem var(--rt-actions-w);
+  align-items: center;
+  gap: 0 1rem;
+}
+
+.rt-table {
+  padding: 0.25rem 0 0.375rem;
+}
+
+.rt-columns {
+  @extend %rt-grid;
+  padding: 0.375rem 0.75rem 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--qtt-card-border);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--qtt-muted);
+  letter-spacing: 0.01em;
+}
+
+.rt-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rt-row {
+  @extend %rt-grid;
+  position: relative;
+  min-height: 3.25rem;
+  padding: 0.3125rem 0.75rem 0.3125rem 0.5rem;
+  border-bottom: 1px solid var(--qtt-card-border);
+  transition: background-color 120ms ease, opacity 150ms ease;
+
+  &:last-child {
+    border-bottom: 0;
   }
 
-  mat-icon {
-    color: #999 !important;
+  &:hover {
+    background: var(--mat-sys-surface-container-low);
+  }
+
+  // The route id is the link; it stretches over the row so the whole row opens the route.
+  &:has(.rt-row__link:focus-visible) {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -2px;
+  }
+
+  &.is-selected {
+    background: color-mix(in srgb, var(--mat-sys-primary) 7%, transparent);
+  }
+
+  &.is-pending {
+    opacity: 0.6;
+  }
+
+  // A copy just made here: one soft flash
+  &.is-new {
+    animation: rt-flash 2.2s ease-out;
+  }
+
+  // A row's own controls sit above the stretched link
+  .rt-check,
+  .rt-ds,
+  .rt-access,
+  .rt-row__actions,
+  .rt-figures > div,
+  .rt-row__detail.is-note,
+  .rt-dot {
+    position: relative;
+    z-index: 1;
   }
 }
 
-.route-id-cell { display: inline-flex; align-items: center; gap: 6px; }
-.access-icon { font-size: 18px; width: 18px; height: 18px; color: rgba(0, 0, 0, 0.55); }
-.access-icon.access-open { color: #b45309; }
+// Rows in a datasource group have no datasource column
+.rt-group .rt-row {
+  grid-template-columns: 2.25rem minmax(14rem, 1fr) 17.5rem var(--rt-actions-w);
+}
+
+// Viewers have no checkboxes: the first column closes.
+.rt-list:not(:has(.rt-check)) {
+  .rt-row,
+  .rt-columns {
+    grid-template-columns: 0 minmax(14rem, 1fr) 11rem 17.5rem var(--rt-actions-w);
+    column-gap: 0.75rem;
+  }
+  .rt-group .rt-row {
+    grid-template-columns: 0 minmax(14rem, 1fr) 17.5rem var(--rt-actions-w);
+  }
+}
+
+.rt-check {
+  justify-self: center;
+  --mat-checkbox-state-layer-size: 32px;
+}
+
+.rt-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.rt-row__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.rt-row__link {
+  overflow: hidden;
+  font: 500 0.9375rem/1.375rem var(--qtt-mono, ui-monospace, 'SF Mono', Menlo, Consolas, monospace);
+  color: var(--mat-sys-on-surface);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  outline: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  &:hover {
+    color: var(--mat-sys-primary);
+  }
+}
+
+.rt-method {
+  flex: none;
+  padding: 0 0.3125rem;
+  border-radius: 4px;
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface-variant);
+  font: 500 0.6875rem/1.125rem var(--qtt-mono, ui-monospace, 'SF Mono', Menlo, Consolas, monospace);
+  letter-spacing: 0.02em;
+}
+
+.rt-access {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  color: var(--mat-sys-outline);
+
+  &.is-open {
+    color: var(--qtt-warn);
+  }
+}
+
+.rt-row__detail {
+  margin: 0;
+  overflow: hidden;
+  padding-left: 1rem; // under the id, past the dot
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  color: var(--qtt-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.is-note {
+    align-self: flex-start;
+    max-width: 100%;
+    font-weight: 500;
+    color: color-mix(in srgb, var(--rt-tone) 80%, var(--mat-sys-on-surface));
+  }
+  &.is-note[data-tone='idle'] {
+    color: var(--qtt-muted);
+  }
+}
+
+// The status dot: the route's state at a glance. A running route's dot breathes once when it starts.
+.rt-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rt-tone);
+  transition: background-color 300ms ease, box-shadow 300ms ease;
+
+  &[data-tone='bad'],
+  &[data-tone='warn'] {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--rt-tone) 22%, transparent);
+  }
+  &[data-tone='idle'] {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--rt-tone);
+  }
+
+  &--small {
+    width: 7px;
+    height: 7px;
+  }
+}
+
+.rt-ds {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  min-width: 0;
+  justify-self: start;
+  max-width: 100%;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 8px;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  transition: background-color 120ms ease, color 120ms ease;
+
+  .rt-ds__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &:hover,
+  &:focus-visible {
+    background: var(--mat-sys-surface-container-high);
+    color: var(--mat-sys-on-surface);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+  }
+}
+
+.rt-traffic {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+
+  qtt-sparkline {
+    flex: none;
+    width: 84px;
+  }
+}
+
+.rt-columns__traffic {
+  padding-left: calc(84px + 0.75rem);
+}
+
+.rt-figures {
+  display: grid;
+  grid-template-columns: 4.25rem 3rem 3.75rem;
+  gap: 0 0.5rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--mat-sys-on-surface);
+  white-space: nowrap;
+
+  dd {
+    margin: 0;
+    text-align: right;
+  }
+  .is-bad dd {
+    color: var(--qtt-bad);
+    font-weight: 500;
+  }
+}
+
+.rt-row__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.125rem;
+
+  .mat-mdc-icon-button {
+    --mat-icon-button-icon-color: var(--qtt-muted);
+    --mat-icon-button-state-layer-size: 36px;
+    --mat-icon-button-icon-size: 20px;
+    padding: 6px;
+  }
+}
+
+.rt-power {
+  --mat-button-outlined-container-height: 30px;
+  --mat-button-outlined-horizontal-padding: 10px;
+  min-width: 5.25rem;
+  margin-right: 0.25rem;
+  font-size: 0.8125rem;
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}
+
+::ng-deep .rt-menu-danger {
+  --mat-menu-item-label-text-color: var(--mat-sys-error);
+  --mat-menu-item-icon-color: var(--mat-sys-error);
+}
+
+// --- Grouped view ----------------------------------------------------------------------------------------------------
+
+.rt-group {
+  padding: 0.25rem 0 0.375rem;
+
+  &[data-tone='bad'] {
+    border-color: color-mix(in srgb, var(--mat-sys-error) 45%, var(--qtt-card-border));
+  }
+}
+
+.rt-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding: 0.375rem 0.75rem 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--qtt-card-border);
+
+  .rt-check {
+    width: 2.25rem;
+  }
+}
+
+.rt-group__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--mat-sys-on-surface);
+  font: 500 0.9375rem/1.5rem var(--mat-sys-body-medium-font), sans-serif;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--mat-sys-surface-container-high);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+  }
+}
+
+.rt-group__chevron {
+  color: var(--qtt-muted);
+  transition: transform 200ms $ease-out;
+
+  &.is-collapsed {
+    transform: rotate(-90deg);
+  }
+}
+
+.rt-group__status {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--qtt-muted);
+}
+
+.rt-group__counts {
+  flex: 1;
+  font-size: 0.8125rem;
+  color: var(--qtt-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rt-group__open {
+  --mat-button-text-label-text-size: 0.8125rem;
+}
+
+// --- Bulk bar --------------------------------------------------------------------------------------------------------
+
+.rt-bulk {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  align-self: center;
+  width: min(36rem, 100%);
+  box-sizing: border-box;
+  padding: 0.375rem 0.375rem 0.375rem 1.125rem;
+  border-radius: 16px;
+  background: var(--mat-sys-inverse-surface);
+  color: var(--mat-sys-inverse-on-surface);
+  box-shadow: var(--mat-sys-level3);
+  transition: bottom 250ms $ease-out;
+
+  --mat-button-text-label-text-color: var(--mat-sys-inverse-on-surface);
+  --mat-button-text-disabled-label-text-color: color-mix(in srgb, var(--mat-sys-inverse-on-surface) 40%, transparent);
+  --mat-icon-button-icon-color: var(--mat-sys-inverse-on-surface);
+
+  .rt-bulk__count {
+    margin-right: 0.5rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .rt-bulk__danger {
+    --mat-button-text-label-text-color: var(--mat-sys-inverse-primary);
+  }
+  .rt-bulk__spacer {
+    flex: 1;
+  }
+}
+
+// --- Empty, none and loading -----------------------------------------------------------------------------------------
+
+.rt-none {
+  border-style: dashed;
+}
+
+.rt-row--skeleton {
+  grid-template-columns: 2.25rem minmax(14rem, 1fr) 17.5rem;
+  pointer-events: none;
+}
+
+.rt-rows--card {
+  padding: 0.25rem 0;
+  border: 1px solid var(--qtt-card-border);
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--qtt-card-bg);
+}
+
+.rt-skel {
+  display: block;
+  border-radius: 6px;
+
+  &--dot { justify-self: center; width: 10px; height: 10px; border-radius: 50%; }
+  &--title { width: 40%; height: 0.875rem; }
+  &--line { width: 65%; height: 0.75rem; margin-top: 0.375rem; }
+  &--spark { width: 100%; height: 1.5rem; }
+}
+
+.rt-skel-lines {
+  display: flex;
+  flex-direction: column;
+}
+
+// --- Narrow screens --------------------------------------------------------------------------------------------------
+
+@media (max-width: 1100px) {
+  .rt-columns__traffic {
+    visibility: hidden;
+  }
+  .rt-row,
+  .rt-columns {
+    grid-template-columns: 2.25rem minmax(12rem, 1fr) 9rem 11.5rem var(--rt-actions-w);
+  }
+  .rt-group .rt-row {
+    grid-template-columns: 2.25rem minmax(12rem, 1fr) 11.5rem var(--rt-actions-w);
+  }
+  .rt-traffic qtt-sparkline {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .rt-columns {
+    display: none;
+  }
+  // One column: the title, then datasource and traffic on a line, then actions
+  .rt-row,
+  .rt-group .rt-row,
+  .rt-list:not(:has(.rt-check)) .rt-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'check main actions'
+      'check meta meta';
+    row-gap: 0.25rem;
+    padding-block: 0.625rem;
+  }
+  .rt-check { grid-area: check; align-self: start; }
+  .rt-group__counts {
+    flex-basis: 100%;
+    order: 3;
+    padding-left: 2.75rem;
+  }
+  .rt-group__open {
+    margin-left: auto;
+  }
+  .rt-row__main { grid-area: main; }
+  .rt-row__actions { grid-area: actions; align-self: start; }
+  .rt-ds { grid-area: meta; }
+  .rt-traffic { grid-area: meta; justify-self: end; }
+  .rt-power {
+    min-width: 0;
+    --mat-button-outlined-horizontal-padding: 8px;
+  }
+  .rt-figures {
+    grid-template-columns: auto auto auto;
+  }
+  .rt-figures > div:nth-child(3) {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .rt-power {
+    font-size: 0;
+    min-width: 0;
+    .mat-icon { margin: 0; }
+  }
+  .rt-method {
+    display: none;
+  }
+}
+
+// --- Motion ----------------------------------------------------------------------------------------------------------
+
+.rt-list.is-ready .rt-row-in {
+  animation: rt-row-in 280ms $ease-out;
+}
+.rt-row-out {
+  animation: rt-row-out 180ms ease-in forwards;
+}
+.rt-list.is-ready .rt-swap-in {
+  animation: rt-swap-in 300ms $ease-out;
+}
+.rt-expand {
+  animation: rt-expand 260ms $ease-out;
+}
+.rt-collapse {
+  overflow: hidden;
+  animation: rt-collapse 200ms ease-in forwards;
+}
+.rt-bulk-in {
+  animation: rt-bulk-in 260ms $ease-out;
+}
+.rt-bulk-out {
+  animation: rt-bulk-out 160ms ease-in forwards;
+}
+.rt-fade-out {
+  animation: rt-fade-out 200ms ease-in forwards;
+}
+
+@keyframes rt-row-in {
+  from { opacity: 0; transform: translateY(0.375rem); }
+}
+@keyframes rt-row-out {
+  to { opacity: 0; transform: translateX(0.5rem); }
+}
+@keyframes rt-swap-in {
+  from { opacity: 0; transform: translateY(0.25rem); }
+}
+@keyframes rt-expand {
+  from { opacity: 0; transform: translateY(-0.25rem); }
+}
+@keyframes rt-collapse {
+  to { opacity: 0; max-height: 0; }
+}
+@keyframes rt-bulk-in {
+  from { opacity: 0; transform: translateY(1rem) scale(0.98); }
+}
+@keyframes rt-bulk-out {
+  to { opacity: 0; transform: translateY(0.75rem); }
+}
+@keyframes rt-fade-out {
+  to { opacity: 0; }
+}
+@keyframes rt-flash {
+  0%, 30% { background: color-mix(in srgb, var(--mat-sys-primary) 16%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rt-bar__seg,
+  .rt-group__chevron {
+    transition: none;
+  }
+  .rt-list .rt-row-in,
+  .rt-list .rt-swap-in,
+  .rt-expand,
+  .rt-bulk-in {
+    animation: none !important;
+  }
+  .rt-row-out,
+  .rt-collapse,
+  .rt-bulk-out,
+  .rt-fade-out {
+    animation-duration: 1ms !important;
+  }
+}

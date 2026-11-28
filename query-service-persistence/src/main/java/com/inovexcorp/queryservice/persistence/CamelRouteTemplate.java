@@ -15,12 +15,15 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.util.Date;
 import java.util.List;
 
 @Data
@@ -45,6 +48,15 @@ public class CamelRouteTemplate implements AuditListener.Auditable {
     private String description;
     private String graphMartUri;
     private String status;
+
+    /** Why the route is stopped; null while it runs (and on routes stopped before this was recorded). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "stopReason", length = 32)
+    private RouteStopReason stopReason;
+
+    /** When the route was stopped; null while it runs. */
+    @Column(name = "stoppedAt")
+    private Date stoppedAt;
 
     // Cache configuration
     @Column(name = "cacheEnabled")

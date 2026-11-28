@@ -4,8 +4,8 @@ import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 
 /**
- * Runs an action that the quick actions bar asked a page for with a query parameter (e.g. "/routes?add=route" opens
- * the add-route dialog): now if the URL has it, and on every later navigation that has it. The parameter is removed
+ * Runs an action that the quick actions bar asked a page for with a query parameter (e.g. "/settings?apiKey=new"
+ * starts a new API key): now if the URL has it, and on every later navigation that has it. The parameter is removed
  * from the URL first, so going back or reloading doesn't run the action again. Call in an injection context.
  */
 export function onRequestedAction(param: Record<string, string>, run: () => void): void {

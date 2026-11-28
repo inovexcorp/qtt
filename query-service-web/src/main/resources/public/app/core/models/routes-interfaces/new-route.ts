@@ -6,10 +6,10 @@ export interface NewRoute{
     graphMartUri: string;
     templateBody: string;
     layers: string;
-    status?: string;
     // Cache configuration
     cacheEnabled?: boolean;
-    cacheTtlSeconds?: number;
+    // Seconds; absent for the server default
+    cacheTtlSeconds?: number | null;
     cacheKeyStrategy?: string;
     // Who may call it: "default" (QUERY_AUTH_DEFAULT), "open" or "authenticated"
     accessPolicy?: string;

@@ -52,17 +52,17 @@ A route defines a query endpoint with an associated Freemarker template.
 1. **Navigate to Routes**
     - Click "Routes" in the left sidebar
 
-2. **Click "Add Route" button**
+2. **Click "Add route"** (it opens the new-route page)
 
-3. **Fill in Basic Information:**
-    - **Route ID**: `people-search` (this becomes your endpoint: `/people-search`)
+3. **Fill in the request:**
+    - **Route name**: `people-search` (this becomes your endpoint: `/query/people-search`)
     - **HTTP Methods**: Check **GET** (and optionally **POST**)
     - **Description**: `Search for people by name`
 
-4. **Configure Data Source:**
-    - **Datasource**: Select `my-anzo-instance` from dropdown
-    - **GraphMart**: Start typing and select your GraphMart from autocomplete
-    - **GraphMart Layers** (optional): Select relevant layers if applicable
+4. **Pick the data:**
+    - **Datasource**: Select `my-anzo-instance`
+    - **Graphmart**: Start typing and pick your graphmart
+    - **Layers** (optional): Pick layers; none means every layer of the graphmart
 
 5. **Write Your Freemarker Template:**
 
@@ -99,8 +99,8 @@ This template:
 - Optionally limits results if `limit` parameter is provided
 - Returns person data as JSON-LD
 
-6. **Save the Route**
-    - Click "Save"
+6. **Create the route**
+    - Click "Create route"; its page opens
 
 ### Step 4: Test Your Route
 
@@ -134,25 +134,23 @@ curl -k -X GET "https://localhost:8443/query/people-search?name=john&limit=10"
     - See processing times, exchange counts, success rate
 
 3. **Analyze Trends:**
-    - Click on the "Trends" tab
-    - Select your route from the dropdown
-    - View historical performance data
+    - Pick your route in the **Routes** filter at the top
+    - **Exchanges per minute** shows the last 30 minutes (switch to failures or average time)
+    - The Routes page shows each route's last 30 minutes too, live
 
 ### Step 6: Modify and Iterate
 
 1. **Edit the Route:**
-    - Go back to Routes page
-    - Click the menu (three dots) on your route card
-    - Select "Configure"
+    - On the Routes page, click the route's name
 
 2. **Update the template:**
-    - Modify the SPARQL query or Freemarker logic
-    - Click "Save"
-    - Changes take effect immediately (no restart required)
+    - Open the **Template** tab and change the SPARQL or FreeMarker
+    - Try it on the **Test** tab (it runs your unsaved changes)
+    - Click **Save**: changes take effect immediately (no restart required)
 
-3. **Toggle Route Status:**
-    - Use the menu to "Turn Off" or "Turn On" the route
-    - Stopped routes are inaccessible but remain configured
+3. **Stop or start the route:**
+    - Use **Stop** / **Start** in its row or at the top of its page
+    - Stopped routes answer with an error but keep their configuration
 
 ## Web UI Guide
 
@@ -255,98 +253,88 @@ Click the menu button on any datasource card to access configuration.
 
 ### Routes Page
 
-The Routes page displays all configured query endpoints in a searchable, sortable table.
+The Routes page lists every query endpoint with its state, its datasource's health, who may call it, and its
+traffic, all live: states and numbers change in place as the server pushes them (the dot by **Live** shows the
+connection; pause and refresh are next to it).
 
-#### Route Table Columns
+#### Summary and filters
 
-- **Status Icon**: Visual indicator of route and datasource status
-- **Route ID**: Unique identifier (sortable), with a globe for an open route or a lock for one that needs a token
-  or API key
-- **Endpoint URL**: Full query path (https://localhost:8443/query/{route-id})
-- **Description**: User-friendly description (sortable)
-- **DataSource ID**: Associated datasource with health warnings
-- **Actions Menu**: Three-dot menu for route operations
+The card at the top sums up every route in one sentence ("42 routes · 37 running · 2 blocked by their datasources ·
+3 stopped") with a bar split by state, and holds the filters: **All / Running / Blocked / Stopped**, a datasource, who
+may call it (**Access**), and a search over route names, descriptions and datasources. **Sort** orders the list by
+name, by what needs attention first, or by traffic (busiest, slowest, most errors). **Group by datasource** shows a
+section per datasource, troubled ones first; sections fold away. The sort and grouping are remembered in your browser.
 
-#### Route Status Indicators
+#### Route states
 
-- **Green checkmark** - Route started and healthy
-- **Red stop circle** - Route stopped
-- **Orange warning** - Datasource down (route may fail)
-- **Red block** - Datasource disabled (route operations restricted)
+- **Running** (green dot): started, and its datasource can serve it.
+- **Blocked** (red, or amber for a disabled datasource): started, but its datasource is down or disabled, so calls
+  fail. The row says why.
+- **Stopped** (hollow dot): stopped by someone, by the health check, or because it has no template yet; the row says
+  which, and when for the health check.
 
-#### Route Actions Menu
+When the health check has stopped routes and their datasource is back up, a banner offers **Start them** (or
+**Review** to list just those routes).
 
-Each route provides these actions:
+#### A route's row
 
-1. **Configure** - Open route editor with template and settings
-2. **Turn On/Off** - Start or stop the route dynamically
-3. **Clone** - Duplicate route for quick template variations
-4. **Delete** - Remove route with confirmation dialog
+The route name (opens its page), its HTTP methods, a lock (callers need a token or API key) or a globe (open to
+anyone), its datasource with its health (opens the datasource), and the last 30 minutes: calls per minute (averaged
+over the last 5), the share of failed calls, the mean time per call, and a line of calls per minute with a red tick
+for each minute that had failures. Then **Start** or **Stop** (stopping asks first, and says when the route is in
+use; starting is disabled while the datasource is down or disabled), copy the endpoint URL, and a menu: **Open**,
+**Test**, **Clone**, **Delete**.
 
-**Note**: Start/stop actions are disabled if the datasource is unhealthy or disabled.
+Editors can select routes (the checkboxes) to start, stop or delete several at once; one confirmation lists them,
+and one message says what happened, including any that failed or were skipped.
 
 #### Adding a Route
 
-1. Click **"Add Route"** button (top-right)
-2. Fill in the full-screen dialog:
-    - **Route ID**: Endpoint name (becomes `/{route-id}`)
-    - **HTTP Methods**: Select GET, POST, PUT, PATCH, DELETE
-    - **Description**: User-friendly description
-    - **Datasource**: Select from dropdown
-    - **GraphMart**: Autocomplete selector (fetched from datasource)
-    - **GraphMart Layers** (optional): Chip-based multi-select
-    - **Template**: Freemarker SPARQL template (Monaco editor)
+**Add route** opens the new-route page:
 
-3. **Monaco Editor Features:**
-    - Freemarker2 syntax highlighting
-    - Dark theme
-    - Smart autocomplete for ontology elements
-    - File upload button for existing templates
-    - Context-aware suggestions (triggered by typing)
-    - Syntax checking as you type: a FreeMarker syntax error is underlined in the editor, and its line, column and
-      message are shown above it. A route whose template does not parse cannot be saved.
+- **Request**: the route name (it becomes `/query/{name}`: letters, digits, `.`, `_` and `-`), the HTTP methods, and
+  a description. The endpoint URL and a `curl` command update as you type.
+- **Data**: the datasource (with its health), the graphmart and the layers, listed from Graph Studio. No layers means
+  every layer of the graphmart.
+- **Template**: the FreeMarker template (see the editor features below). It can be added later: a route without one
+  is created stopped.
+- **Access** and **Caching**.
 
-4. Click **"Save"** to create the route
+**Create route** creates it and opens its page; it says what is missing first, if anything. Leaving the page with
+something entered asks before discarding it.
 
-#### Configuring a Route
+#### A Route's Page
 
-Click **"Configure"** from the route's action menu.
+The header stays at the top: the route's state with **Start**/**Stop**, **Test**, the SPARQi assistant (when
+enabled) and a menu (**Copy endpoint URL**, **Clone**, **Delete**); its description, endpoint URL (click to copy),
+who may call it, its datasource's health, who created and last changed it, and its traffic over the last 30 minutes.
 
-**Configuration Screen Features:**
+Three tabs, kept in the URL (`?tab=template`, `?tab=test`) so a reload or a shared link opens the same one:
 
-- **Datasource Status Warning Banner**:
-    - Shows if datasource is DOWN or DISABLED
-    - Displays error details and last check time
-    - Provides link to datasource configuration
+- **Overview**: the request (methods, description, endpoint and `curl` command), the data (datasource, graphmart,
+  layers), access, and caching with the number of results cached for this route and **Clear cache**. When Graph
+  Studio can't list graphmarts or layers (the datasource is down), the saved ones are kept, shown by their IRIs, and
+  the route can still be saved.
+- **Template**: the editor, filling the window. Its features:
+    - FreeMarker syntax highlighting and completion of ontology terms (classes, properties, individuals)
+    - syntax checking as you type: an error is underlined, with its line, column and message above the editor; a
+      route whose template does not parse cannot be saved
+    - **Upload** to replace the template with a file, and full screen (Esc leaves it)
+- **Test**: a request built from the variables the template reads (a JSON body and query parameters), which SPARQi
+  can fill in with realistic values; **Run test** runs it against the datasource with the route as you are editing
+  it (saved or not) and shows the SPARQL it built and the results, as a table for SELECT results or as JSON.
 
-- **SPARQi AI Assistant** (if enabled):
-    - Chat panel button in top-right corner
-    - Opens resizable side panel (300-800px width)
-    - Provides natural language help with templates
-    - Shows route context and ontology information
+Every tab edits the same route: **Save** (in the tab bar) saves all of it, and the bar says what is unsaved
+("Unsaved: template, caching") with **Discard** next to it. Leaving the page, or closing the tab, with unsaved changes
+asks first. Saving a stopped route keeps it stopped.
 
-- **Template Editor**:
-    - Full Monaco editor with Freemarker2 support
-    - Fullscreen mode toggle
-    - File upload for templates
-    - Ontology autocomplete provider
-    - Syntax highlighting
-
-- **Cache Settings** (expandable panel):
-    - **Cache Enabled**: Toggle to enable/disable caching for this specific route
-    - **Cache TTL**: Time-to-live in seconds (leave blank to use global default)
-    - **Cache Statistics** (live display when cache enabled)
-    - **Clear Cache**: Button to invalidate all cached results for this route
+**SPARQi** opens beside any tab; drag its edge (or focus it and use the arrow keys) to resize it.
 
 #### Cloning a Route
 
-The Clone feature creates a copy of an existing route:
-
-1. Click **Clone** from the route's action menu
-2. System creates new route with ID: `{original-id}-copy`
-3. All configuration and template content is duplicated
-4. New route starts in "Stopped" state
-5. Edit the cloned route to customize
+**Clone** (in a route's menu, on the list or its page) copies the route, its template and its settings to
+`{route}Clone` (or `{route}Clone2`, … when that is taken). The copy starts in the same state the original's template
+allows: running if it has a template. Open it to change it.
 
 ### Metrics Page
 

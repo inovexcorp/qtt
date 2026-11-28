@@ -1,41 +1,9 @@
-// Metrics dashboard. Calm surfaces, one accent (the theme's violet), status colour only where it means good or bad.
-// Motion explains change: live values morph and count, the live dot pings when data lands, a scope change dims what
-// is about to be replaced. Everything respects prefers-reduced-motion.
+// Metrics dashboard. The page shell, cards, tiles, meter, live indicator, banners, table and toggles come from
+// styles/_surfaces.scss (shared with the routes and datasources pages); this adds what only the dashboard has: the
+// filter row, the chart grid, legends, the charts and their tooltips, and chart loading states.
+// Not encapsulated: the chart cards are separate components that use these classes.
 
 $ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-
-.metrics-page {
-  --metrics-card-bg: var(--mat-sys-surface-container-lowest);
-  --metrics-card-border: color-mix(in srgb, var(--mat-sys-outline-variant) 60%, transparent);
-  --metrics-muted: var(--mat-sys-on-surface-variant);
-  --metrics-good: #1b7f3b;
-
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 1rem 2rem 3rem;
-  box-sizing: border-box;
-
-  @media (max-width: 700px) {
-    padding: 0.75rem 1rem 2rem;
-  }
-
-  ::selection {
-    background: var(--mat-sys-primary-container);
-    color: var(--mat-sys-on-primary-container);
-  }
-}
-
-.metrics-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
 
 // --- Filter row and live status --------------------------------------------------------------------------------
 
@@ -60,191 +28,6 @@ $ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --mat-form-field-container-vertical-padding: 10px;
 }
 
-.metrics-live {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--metrics-muted);
-  font-size: 0.8125rem;
-  font-variant-numeric: tabular-nums;
-
-  .metrics-live__dot {
-    position: relative;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--metrics-dot, var(--mat-sys-outline));
-    transition: background-color 200ms ease;
-  }
-
-  .metrics-live__ping {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: var(--metrics-dot, var(--mat-sys-outline));
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  &[data-status='live'] { --metrics-dot: var(--metrics-good); }
-  &[data-status='stale'] { --metrics-dot: #b45309; }
-  &[data-status='paused'] { --metrics-dot: var(--mat-sys-outline); }
-
-  .mat-mdc-icon-button {
-    --mat-icon-button-icon-color: var(--metrics-muted);
-  }
-  .metrics-live__text {
-    margin-right: 0.25rem;
-  }
-}
-
-// --- Error banner: one Retry for the page ------------------------------------------------------------------------
-
-.metrics-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.625rem 0.75rem 0.625rem 1rem;
-  border-radius: 12px;
-  background: var(--mat-sys-error-container);
-  color: var(--mat-sys-on-error-container);
-  animation: metrics-banner-in 250ms $ease-out;
-
-  .metrics-banner__icon {
-    flex: none;
-    color: var(--mat-sys-error);
-  }
-  .metrics-banner__text {
-    flex: 1;
-    margin: 0;
-    font-size: 0.875rem;
-  }
-  .mat-mdc-outlined-button {
-    flex: none;
-    --mat-button-outlined-label-text-color: var(--mat-sys-on-error-container);
-    --mat-button-outlined-outline-color: color-mix(in srgb, var(--mat-sys-on-error-container) 40%, transparent);
-  }
-}
-
-@keyframes metrics-banner-in {
-  from { opacity: 0; transform: translateY(-0.25rem); }
-}
-
-// --- Summary tiles ---------------------------------------------------------------------------------------------
-
-.metrics-tiles {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
-
-  @media (max-width: 1100px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  @media (max-width: 560px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.metrics-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-height: 8.5rem;
-  box-sizing: border-box;
-  padding: 1.125rem 1.25rem 1rem;
-  border: 1px solid var(--metrics-card-border);
-  border-radius: var(--mat-sys-corner-large);
-  background: var(--metrics-card-bg);
-
-  .metrics-tile__label {
-    margin: 0;
-    font: 500 0.8125rem/1.25rem var(--mat-sys-body-medium-font), sans-serif;
-    color: var(--metrics-muted);
-  }
-
-  .metrics-tile__value {
-    display: flex;
-    align-items: baseline;
-    margin: 0.25rem 0 0;
-    height: 2.5rem;
-    font: 500 2rem/2.5rem var(--mat-sys-body-medium-font), sans-serif;
-    letter-spacing: -0.01em;
-    color: var(--mat-sys-on-surface);
-  }
-
-  .metrics-tile__value--text {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 1.625rem;
-  }
-
-  .metrics-tile__value--missing {
-    color: var(--mat-sys-outline);
-    cursor: help;
-  }
-
-  .metrics-tile__unit.metrics-tile__unit--tight {
-    margin-left: 0.0625rem;
-  }
-
-  .metrics-tile__unit {
-    margin-left: 0.1875rem;
-    font-size: 1rem;
-    font-weight: 400;
-    color: var(--metrics-muted);
-  }
-
-  .metrics-tile__hint {
-    margin: auto 0 0;
-    font-size: 0.8125rem;
-    color: var(--metrics-muted);
-  }
-
-  .metrics-tile__warn {
-    margin-right: 0.25rem;
-    vertical-align: -0.125em;
-    color: #b45309;
-  }
-
-  .metrics-tile__skeleton {
-    display: block;
-    width: 55%;
-    height: 1.75rem;
-    margin: 0.5rem 0 0;
-    border-radius: 6px;
-    @extend %shimmer;
-  }
-}
-
-.metrics-meter {
-  height: 6px;
-  margin: 0.375rem 0 0.25rem;
-  border-radius: 3px;
-  background: var(--mat-sys-primary-container);
-  overflow: hidden;
-
-  .metrics-meter__fill {
-    display: block;
-    height: 100%;
-    background: var(--mat-sys-primary);
-    border-radius: inherit;
-    transform-origin: left center;
-    transition: transform 650ms $ease-out;
-  }
-}
-
-.metrics-swap-in {
-  animation: metrics-swap-in 300ms $ease-out;
-}
-
-@keyframes metrics-swap-in {
-  from { opacity: 0; transform: translateY(0.35rem); }
-}
-
-// --- Cards -----------------------------------------------------------------------------------------------------
-
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -256,47 +39,16 @@ $ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
 
-.metrics-card {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 1.25rem 1.25rem 1rem;
-  border: 1px solid var(--metrics-card-border);
-  border-radius: var(--mat-sys-corner-large);
-  background: var(--metrics-card-bg);
-
-  .metrics-card__header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.75rem 1rem;
-  }
-
-  .metrics-card__title {
-    margin: 0;
-    font: 500 1rem/1.5rem var(--mat-sys-body-medium-font), sans-serif;
-    color: var(--mat-sys-on-surface);
-  }
-
-  .metrics-card__subtitle {
-    margin: 0.125rem 0 0;
-    font-size: 0.8125rem;
-    color: var(--metrics-muted);
-  }
-
-  .metrics-card__body {
-    position: relative;
-    margin-top: 0.75rem;
-    transition: opacity 150ms ease, height 300ms $ease-out;
-  }
+.metrics-page .qtt-card__body {
+  margin-top: 0.75rem;
+  transition: opacity 150ms ease, height 300ms $ease-out;
 }
 
 // A new datasource's data is on its way: what's shown is about to be replaced.
 .metrics-page--rescoping {
-  .metrics-card__body,
-  .metrics-tile__value,
-  .metrics-table-wrap {
+  .qtt-card__body,
+  .qtt-tile__value,
+  .qtt-table-wrap {
     opacity: 0.45;
   }
 }
@@ -309,7 +61,7 @@ $ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   padding: 0;
   list-style: none;
   font-size: 0.8125rem;
-  color: var(--metrics-muted);
+  color: var(--qtt-muted);
 
   li {
     display: inline-flex;
@@ -335,19 +87,6 @@ $ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     width: 14px;
     height: 6px;
     border-radius: 3px;
-  }
-}
-
-.metrics-toggle {
-  --mat-button-toggle-height: 32px;
-  --mat-button-toggle-shape: 8px;
-  --mat-button-toggle-label-text-size: 0.8125rem;
-  --mat-button-toggle-selected-state-background-color: var(--mat-sys-primary-container);
-  --mat-button-toggle-selected-state-text-color: var(--mat-sys-on-primary-container);
-  --mat-button-toggle-divider-color: var(--mat-sys-outline-variant);
-
-  .mat-button-toggle-label-content {
-    padding: 0 0.875rem;
   }
 }
 
@@ -488,7 +227,7 @@ $ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   padding: 1rem;
   box-sizing: border-box;
   text-align: center;
-  color: var(--metrics-muted);
+  color: var(--qtt-muted);
 
   .metrics-status__icon {
     width: 32px;
@@ -517,97 +256,18 @@ $ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
 // --- Routes table ----------------------------------------------------------------------------------------------
 
-.metrics-search {
-  width: 16rem;
-  --mat-form-field-container-height: 40px;
-  --mat-form-field-container-vertical-padding: 8px;
-}
-
-.metrics-table-wrap {
-  margin-top: 0.75rem;
-  overflow-x: auto;
-  transition: opacity 150ms ease;
-}
-
-.metrics-table {
-  --mat-table-background-color: transparent;
-  --mat-table-header-headline-color: var(--metrics-muted);
-  --mat-table-header-headline-size: 0.8125rem;
-  --mat-table-header-container-height: 40px;
-  --mat-table-row-item-container-height: 44px;
-  --mat-table-row-item-outline-color: var(--metrics-card-border);
+.metrics-page .qtt-table {
   min-width: 52rem;
-
-  .mat-mdc-row {
-    transition: background-color 120ms ease;
-  }
-  .mat-mdc-row:hover {
-    background: var(--mat-sys-surface-container-low);
-  }
-
-  .metrics-num {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-  // arrowPosition="before" reverses the header's row, so its start is the right-hand edge.
-  th.metrics-num .mat-sort-header-container {
-    justify-content: flex-start;
-  }
-  .metrics-num--bad {
-    color: var(--mat-sys-error);
-    font-weight: 500;
-  }
 
   .metrics-table__route {
     font-weight: 500;
   }
-
-  .metrics-table__none {
-    padding: 1.5rem 1rem;
-    color: var(--metrics-muted);
-    text-align: center;
-  }
 }
 
-.metrics-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-
-  &::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #b45309;
-  }
-  &.metrics-state--started::before {
-    background: var(--metrics-good);
-  }
-}
-
-.metrics-missing {
-  color: var(--mat-sys-outline);
-  cursor: help;
-}
-
-.metrics-card .mat-mdc-paginator {
-  --mat-paginator-container-background-color: transparent;
-}
-
-// --- Reduced motion: no movement; state still changes (colour, opacity). ----------------------------------------
+// --- Reduced motion (the shared rules cover the page's animations) -----------------------------------------------
 
 @media (prefers-reduced-motion: reduce) {
-  .metrics-page *,
-  .metrics-page *::before {
-    animation-duration: 1ms !important;
-    animation-iteration-count: 1 !important;
-  }
-  .metrics-meter .metrics-meter__fill {
-    transition: none;
-  }
-  .metrics-card .metrics-card__body {
+  .metrics-page .qtt-card__body {
     transition: opacity 150ms ease;
   }
 }

@@ -10,6 +10,7 @@ import com.inovexcorp.queryservice.persistence.DatasourceHealthService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.RouteService;
+import com.inovexcorp.queryservice.persistence.RouteStopReason;
 import org.apache.camel.CamelContext;
 import org.apache.camel.ServiceStatus;
 import org.apache.camel.spi.RouteController;
@@ -464,7 +465,7 @@ class SimpleHealthCheckerTest {
 
             // Then
             verify(routeController).stopRoute("testRoute");
-            verify(routeService).updateRouteStatus("testRoute", "Stopped");
+            verify(routeService).updateRouteStatus("testRoute", "Stopped", RouteStopReason.HEALTH_CHECK);
         }
     }
 
@@ -550,7 +551,7 @@ class SimpleHealthCheckerTest {
             // Then - only testRoute should be stopped
             verify(routeController).stopRoute("testRoute");
             verify(routeController, never()).stopRoute("stoppedRoute");
-            verify(routeService, times(1)).updateRouteStatus(anyString(), eq("Stopped"));
+            verify(routeService, times(1)).updateRouteStatus(anyString(), eq("Stopped"), eq(RouteStopReason.HEALTH_CHECK));
         }
     }
 
@@ -612,7 +613,7 @@ class SimpleHealthCheckerTest {
             // Then - route2 should still be stopped despite testRoute failure
             verify(routeController).stopRoute("testRoute");
             verify(routeController).stopRoute("route2");
-            verify(routeService, times(1)).updateRouteStatus("route2", "Stopped");
+            verify(routeService, times(1)).updateRouteStatus("route2", "Stopped", RouteStopReason.HEALTH_CHECK);
         }
     }
 }
