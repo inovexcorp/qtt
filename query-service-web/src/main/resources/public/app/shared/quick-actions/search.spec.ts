@@ -1,5 +1,5 @@
 import { QuickAction } from './quick-action';
-import { search, flatten } from './search';
+import { SCOPED_LIMIT, search, flatten } from './search';
 
 const action = (id: string, label: string, group: QuickAction['group'], extra: Partial<QuickAction> = {}): QuickAction =>
   ({ id, label, icon: 'bolt', group, run: () => undefined, ...extra });
@@ -80,5 +80,55 @@ describe('quick actions search', () => {
 
   it('returns no groups when nothing matches', () => {
     expect(search({ query: 'zzz', actions, routes, datasources })).toEqual([]);
+  });
+
+  describe('scopes', () => {
+    it('lists everything of the scope\'s kind before anything is typed, and nothing else', () => {
+      const groups = search({ query: '', scope: 'routes', actions, routes, datasources });
+      expect(groups.map(g => g.id)).toEqual(['routes']);
+      expect(groups[0].items.length).toBe(2);
+    });
+
+    it('lists more than 5 rows when narrowed', () => {
+      const many = Array.from({ length: 60 }, (_, i) => ({ routeId: 'r' + i, description: '', status: 'Started', dataSourceId: 'd' }));
+      const [group] = search({ query: '', scope: 'routes', actions: [], routes: many, datasources: [] });
+      expect(group.items.length).toBe(SCOPED_LIMIT);
+      expect(group.more).toBe(10);
+    });
+
+    it('narrows to actions, including search-only ones', () => {
+      const groups = search({ query: '', scope: 'actions', actions, routes, datasources });
+      expect(groups.map(g => g.id)).toEqual(['page', 'navigation', 'actions']);
+      expect(flatten(groups).map(i => i.label)).toContain('Settings: Caching');
+    });
+
+    it('narrows to datasources', () => {
+      expect(flatten(search({ query: 'peo', scope: 'datasources', actions, routes, datasources }))).toEqual([]);
+      expect(flatten(search({ query: 'anzo', scope: 'datasources', actions, routes, datasources })).map(i => i.kind))
+        .toEqual(['datasource']);
+    });
+  });
+
+  describe('recent pages', () => {
+    const recents = [{ kind: 'datasource' as const, id: 'anzo-prod' }, { kind: 'route' as const, id: 'gone' },
+      { kind: 'route' as const, id: 'people-search' }];
+
+    it('are listed after the page\'s actions when nothing is typed, with their status', () => {
+      const groups = search({ query: '', actions, routes, datasources, recents, entitiesLoaded: true });
+      expect(groups.map(g => g.id)).toEqual(['page', 'recent', 'navigation', 'actions']);
+      expect(groups[1].items.map(i => [i.kind, i.entityId, i.hint])).toEqual([
+        ['datasource', 'anzo-prod', 'Up'], ['route', 'people-search', 'Started']]);
+    });
+
+    it('are listed without status, and none dropped, until the lists have loaded', () => {
+      const groups = search({ query: '', actions: [], routes: [], datasources: [], recents, entitiesLoaded: false });
+      expect(groups[0].items.map(i => [i.entityId, i.hint])).toEqual([
+        ['anzo-prod', 'Datasource'], ['gone', 'Route'], ['people-search', 'Route']]);
+    });
+
+    it('are not listed once something is typed', () => {
+      const groups = search({ query: 'peo', actions, routes, datasources, recents, entitiesLoaded: true });
+      expect(groups.some(g => g.id === 'recent')).toBe(false);
+    });
   });
 });

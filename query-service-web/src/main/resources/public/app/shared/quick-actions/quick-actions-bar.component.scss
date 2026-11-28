@@ -46,6 +46,16 @@
   opacity: 0.85;
 }
 
+.qa-scope {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+  font: var(--mat-sys-label-medium);
+  white-space: nowrap;
+}
+
 .qa-input {
   flex: 1;
   min-width: 0;
@@ -264,6 +274,10 @@ kbd {
   background: var(--mat-sys-surface-container-low);
   font: var(--mat-sys-label-small);
   color: var(--mat-sys-on-surface-variant);
+
+  .qa-footer-end {
+    margin-left: auto;
+  }
 
   kbd {
     margin-right: 2px;

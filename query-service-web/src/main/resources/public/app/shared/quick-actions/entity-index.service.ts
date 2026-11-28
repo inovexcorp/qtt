@@ -23,8 +23,9 @@ export class EntityIndexService {
   readonly datasources = signal<DatasourceEntry[]>([]);
   /** True until the first fetch answers. */
   readonly loading = signal(false);
+  /** True once a fetch has answered. */
+  readonly loaded = signal(false);
 
-  private loaded = false;
   private fetchedAt = 0;
   private inFlight = false;
 
@@ -38,7 +39,7 @@ export class EntityIndexService {
       return;
     }
     this.inFlight = true;
-    this.loading.set(!this.loaded);
+    this.loading.set(!this.loaded());
     forkJoin({
       // A list that fails to load is left as it was; the other still updates.
       routes: this.routesService.getRoutes().pipe(catchError(() => of(null))),
@@ -57,7 +58,7 @@ export class EntityIndexService {
           .sort((a, b) => a.dataSourceId.localeCompare(b.dataSourceId)));
       }
       this.fetchedAt = now;
-      this.loaded = true;
+      this.loaded.set(true);
       this.inFlight = false;
       this.loading.set(false);
     });

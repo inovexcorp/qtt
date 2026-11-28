@@ -15,12 +15,31 @@ import { Subscription, map } from 'rxjs';
 import { QuickActionsService } from './quick-actions.service';
 import { EntityIndexService } from './entity-index.service';
 import { GlobalShortcutsService } from './global-shortcuts.service';
-import { globalActions, navigationActions } from './global-actions';
-import { ResultItem, flatten, search } from './search';
+import { globalActions, navigationActions, openShortcuts } from './global-actions';
+import { RecentsService } from './recents.service';
+import {
+  GROUP_LABELS, ResultGroup, ResultItem, SCOPE_LABELS, SCOPE_PREFIXES, Scope, flatten, search
+} from './search';
 import { Segment, segments } from './match';
 
 /** Below this width the field collapses to a search button. */
 export const NARROW_QUERY = '(max-width: 719.98px)';
+
+/** Shown when the query is "?": the prefixes, and the full shortcut list. */
+const HELP_GROUP: ResultGroup = {
+  id: 'help',
+  label: GROUP_LABELS.help,
+  more: 0,
+  items: [
+    ...(Object.entries(SCOPE_PREFIXES) as [string, Scope][]).map(([prefix, scope]) => ({
+      key: 'help:' + scope, kind: 'help' as const, label: `Search ${SCOPE_LABELS[scope].toLowerCase()}`, ranges: [],
+      icon: scope === 'actions' ? 'bolt' : scope === 'routes' ? 'dashboard' : 'dns', hint: prefix,
+      helpScope: scope, score: 0
+    })),
+    { key: 'help:shortcuts', kind: 'help', label: 'Keyboard shortcuts', ranges: [], icon: 'keyboard', hint: '?',
+      helpScope: null, score: 0 }
+  ]
+};
 
 /**
  * The quick actions bar: a search field in the toolbar that finds pages, routes, datasources and actions, and runs
@@ -43,6 +62,7 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly registry = inject(QuickActionsService);
   readonly entities = inject(EntityIndexService);
+  private readonly recents = inject(RecentsService);
   private readonly shortcuts = inject(GlobalShortcutsService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly document = inject(DOCUMENT);
@@ -54,6 +74,9 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
   @ViewChild('input', { static: true }) input!: ElementRef<HTMLInputElement>;
 
   readonly query = signal('');
+  /** Set by typing ">", "#" or "@" first; shown as a chip in the field, removed with Backspace. */
+  readonly scope = signal<Scope | null>(null);
+  readonly scopeLabels = SCOPE_LABELS;
   readonly open = signal(false);
   readonly narrow = toSignal(inject(BreakpointObserver).observe(NARROW_QUERY).pipe(map(s => s.matches)),
     { initialValue: false });
@@ -62,14 +85,29 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
   private readonly revision = signal(0);
   private readonly activeIndex = signal(0);
 
-  readonly groups = computed(() => {
+  readonly groups = computed<ResultGroup[]>(() => {
     this.revision();
+    if (!this.scope() && this.query().trim() === '?') {
+      return [HELP_GROUP];
+    }
+    const current = this.recents.current();
     return search({
       query: this.query(),
+      scope: this.scope(),
       actions: this.registry.actions(),
       routes: this.entities.routes(),
-      datasources: this.entities.datasources()
+      datasources: this.entities.datasources(),
+      recents: this.recents.entries().filter(e => e.kind !== current?.kind || e.id !== current?.id),
+      entitiesLoaded: this.entities.loaded()
     });
+  });
+  readonly placeholder = computed(() => {
+    switch (this.scope()) {
+      case 'actions': return 'Search actions…';
+      case 'routes': return 'Search routes…';
+      case 'datasources': return 'Search datasources…';
+      default: return 'Search or jump to…';
+    }
   });
   readonly items = computed(() => flatten(this.groups()));
   readonly active = computed<ResultItem | null>(() => {
@@ -105,6 +143,9 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
     this.subscription = this.shortcuts.shortcut$.subscribe(shortcut => {
       if (shortcut === 'open') {
         this.openFromShortcut();
+      } else {
+        this.close(false);
+        openShortcuts(this.globalDeps.dialog);
       }
     });
   }
@@ -114,7 +155,7 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
     this.unregister?.();
   }
 
-  /** Cmd/Ctrl+K or "/": remember where focus was, open, and select what was typed before. */
+  /** Cmd/Ctrl+K or "/": remember where focus was, open, and focus the field. */
   openFromShortcut(): void {
     const focused = this.document.activeElement;
     if (focused instanceof HTMLElement && focused !== this.input.nativeElement && focused !== this.document.body) {
@@ -135,6 +176,12 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
   }
 
   onInput(value: string): void {
+    const scope = this.scope() ? null : SCOPE_PREFIXES[value.charAt(0)];
+    if (scope) {
+      this.scope.set(scope);
+      value = value.slice(1);
+      this.input.nativeElement.value = value;
+    }
     this.query.set(value);
     this.activeIndex.set(0);
     this.show();
@@ -168,6 +215,15 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
       case 'Tab':
         this.close(false);
         return;
+      case 'Backspace': {
+        const field = this.input.nativeElement;
+        if (this.scope() && field.selectionStart === 0 && field.selectionEnd === 0) {
+          event.preventDefault();
+          this.scope.set(null);
+          this.activeIndex.set(0);
+        }
+        return;
+      }
     }
   }
 
@@ -191,9 +247,19 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
     if (item.disabledReason) {
       return;
     }
+    if (item.kind === 'help') {
+      this.query.set('');
+      this.input.nativeElement.value = '';
+      if (item.helpScope) {
+        this.scope.set(item.helpScope);
+        this.activeIndex.set(0);
+      } else {
+        this.close(false);
+        openShortcuts(this.globalDeps.dialog);
+      }
+      return;
+    }
     this.close(false);
-    this.query.set('');
-    this.input.nativeElement.value = '';
     let result: unknown;
     if (item.kind === 'route') {
       result = this.router.navigate(['/routes/config-route', item.entityId]);
@@ -214,7 +280,11 @@ export class QuickActionsBarComponent implements OnInit, OnDestroy {
       }
       return;
     }
+    // Each opening starts afresh: no leftover text or narrowing in the closed field.
     this.open.set(false);
+    this.scope.set(null);
+    this.query.set('');
+    this.input.nativeElement.value = '';
     const back = this.returnFocus;
     this.returnFocus = null;
     if (restoreFocus && back?.isConnected) {

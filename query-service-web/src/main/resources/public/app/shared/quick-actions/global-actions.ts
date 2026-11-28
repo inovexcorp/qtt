@@ -7,6 +7,7 @@ import { CacheService } from '../../core/services/cache.service';
 import { saveErrorMessage } from '../../core/http-error-message';
 import { confirm } from '../confirm-dialog/confirm-dialog.component';
 import { QuickAction } from './quick-action';
+import { ShortcutsDialogComponent } from './shortcuts-dialog.component';
 
 /** Query parameters a page reads to start an action the bar asked for (and then removes from the URL). */
 export const ADD_ROUTE_PARAM = { add: 'route' };
@@ -67,11 +68,19 @@ export function globalActions(d: GlobalActionDeps): QuickAction[] {
       run: () => clearAllCaches(d)
     },
     {
+      id: 'shortcuts', label: 'Keyboard shortcuts', icon: 'keyboard', group: 'actions', keywords: ['help', 'keys'],
+      run: () => { openShortcuts(d.dialog); }
+    },
+    {
       id: 'sign-out', label: 'Sign out', icon: 'logout', group: 'actions', keywords: ['log out', 'logout'],
       visible: () => d.auth.user.authEnabled && !!d.auth.user.logoutUrl,
       run: () => window.location.assign(d.auth.user.logoutUrl!)
     }
   ];
+}
+
+export function openShortcuts(dialog: MatDialog): void {
+  dialog.open(ShortcutsDialogComponent, { width: '520px', maxWidth: 'calc(100vw - 32px)' });
 }
 
 /** GET /routes/cache/info. */
@@ -92,6 +101,10 @@ export function clearAllCaches(d: Pick<GlobalActionDeps, 'dialog' | 'snackBar' |
         return;
       }
       const count = info.stats?.keyCount;
+      if (count === 0) {
+        d.snackBar.open('The query cache is already empty.', 'Close', { duration: 5000 });
+        return;
+      }
       confirm(d.dialog, {
         title: 'Clear all caches?',
         message: [

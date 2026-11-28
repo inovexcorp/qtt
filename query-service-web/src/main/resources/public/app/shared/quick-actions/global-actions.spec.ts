@@ -19,7 +19,7 @@ describe('quick actions: global actions', () => {
   it('gates each action by role', () => {
     const roles = Object.fromEntries(globalActions(deps({})).map(a => [a.id, a.minRole ?? 'viewer']));
     expect(roles).toEqual({ 'add-route': 'editor', 'add-datasource': 'admin', 'create-api-key': 'admin',
-      'clear-all-caches': 'admin', 'sign-out': 'viewer' });
+      'clear-all-caches': 'admin', shortcuts: 'viewer', 'sign-out': 'viewer' });
   });
 
   it('offers sign out only when sign-in is on', () => {
@@ -61,6 +61,13 @@ describe('quick actions: global actions', () => {
       expect(config.data.message[0]).toBe('7 cached results, for every route, will be deleted.');
       expect(d.cache.clearAllCache).toHaveBeenCalled();
       expect(d.snackBar.open.mock.lastCall[0]).toBe('Cleared 7 cached results.');
+    });
+
+    it('says so when there is nothing cached, without asking', () => {
+      const d = deps({ available: true, stats: { keyCount: 0 } });
+      clearAllCaches(d);
+      expect(d.dialog.open).not.toHaveBeenCalled();
+      expect(d.snackBar.open.mock.lastCall[0]).toBe('The query cache is already empty.');
     });
 
     it('does nothing when not confirmed', () => {

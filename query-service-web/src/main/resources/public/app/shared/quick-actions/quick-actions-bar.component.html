@@ -4,8 +4,11 @@
 
 <div class="qa-field" cdkOverlayOrigin #origin="cdkOverlayOrigin" (click)="input.focus()">
   <mat-icon class="qa-field-icon" aria-hidden="true">search</mat-icon>
+  @if (scope(); as s) {
+    <span class="qa-scope" [attr.aria-label]="'Searching ' + scopeLabels[s].toLowerCase() + ' only'">{{ scopeLabels[s] }}</span>
+  }
   <input #input class="qa-input" type="text" role="combobox" autocomplete="off" spellcheck="false"
-         placeholder="Search or jump to…" aria-label="Search or jump to" aria-autocomplete="list"
+         [placeholder]="placeholder()" aria-label="Search or jump to" aria-autocomplete="list"
          aria-haspopup="listbox" aria-controls="qa-listbox" [attr.aria-expanded]="open()"
          [attr.aria-activedescendant]="activeId()"
          (focus)="onFocus()" (input)="onInput(input.value)" (keydown)="onKeydown($event)" />
@@ -67,6 +70,7 @@
       <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
       <span><kbd>↵</kbd> open</span>
       <span><kbd>esc</kbd> close</span>
+      <span class="qa-footer-end"><kbd>&gt;</kbd><kbd>#</kbd><kbd>&#64;</kbd> narrow · <kbd>?</kbd> help</span>
     </div>
   </div>
 </ng-template>

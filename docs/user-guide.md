@@ -168,6 +168,34 @@ The application uses a left sidebar navigation with four main sections:
 - **DataSources**: Graph database connection management
 - **Settings**: System information and statistics
 
+### Search and Quick Actions
+
+The search field in the top bar finds pages, routes and datasources, and runs common actions without leaving the
+keyboard. Open it by clicking it, pressing **/** (when you aren't typing in a field), or pressing **⌘K** (macOS) or
+**Ctrl+K** (elsewhere). ⌘K/Ctrl+K works everywhere, including in the template editor; there it replaces the editor's
+own ⌘K/Ctrl+K two-key shortcuts.
+
+- **Before you type**, the list shows the current page's actions, the routes and datasources you opened lately, the
+  pages, and actions available everywhere.
+- **Type** part of a route or datasource ID (or a word from a route's description, or a datasource's URL), a page name
+  or an action. Matches are highlighted; letters in order work too (`crc` finds "Clear this route's cache").
+- **↑ ↓** move, **Enter** opens or runs the highlighted row, **Esc** closes and puts you back where you were.
+- **Narrow the search** by starting with **>** (actions), **#** (routes) or **@** (datasources). A chip shows the
+  narrowing; **Backspace** in the empty field removes it. Type **?** to see these options.
+- Press **?** anywhere outside a field to see every shortcut.
+
+Actions follow your role, as the buttons do: viewers see only what they can do, editors also see route actions, and
+admins also see datasource and system actions. An action that can't run right now is greyed out with the reason
+(for example "Caching is off for this route").
+
+| Where | Actions |
+|---|---|
+| Everywhere | Add route (editor), Add datasource, Create API key, Clear all caches (admin), Keyboard shortcuts, Sign out |
+| A route's page | Save route, Turn route on/off, Clear this route's cache, Run test request, Toggle SPARQi assistant (editor); Toggle full-screen editor, Copy endpoint URL |
+| A datasource's page | Save datasource, Test connection, Enable/Disable datasource, Delete datasource (admin); Run health check (editor); Show usage |
+
+Clearing all caches and disabling a datasource ask for confirmation first, as deleting does.
+
 ### DataSources Page
 
 The DataSources page displays all configured Anzo graph database connections as cards.

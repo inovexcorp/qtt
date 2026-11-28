@@ -65,7 +65,7 @@ describe('QuickActionsBarComponent', () => {
     // Signed-in state unknown in the test: every role, sign-in off (so no "Sign out").
     expect(groupLabels()).toEqual(['Go to', 'Actions']);
     expect(labels()).toEqual(['Metrics', 'Routes', 'Datasources', 'Settings',
-      'Add route', 'Add datasource', 'Create API key', 'Clear all caches']);
+      'Add route', 'Add datasource', 'Create API key', 'Clear all caches', 'Keyboard shortcuts']);
     expect(input.getAttribute('aria-activedescendant')).toBe(options()[0].id);
   });
 
@@ -144,9 +144,13 @@ describe('QuickActionsBarComponent', () => {
     await new Promise(resolve => setTimeout(resolve));
     expect(document.activeElement).toBe(input);
     answerEntities();
+    type('#peo');
     press('Escape');
     expect(input.getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(before);
+    // Closing clears the text and the narrowing.
+    expect(input.value).toBe('');
+    expect(fixture.nativeElement.querySelector('.qa-scope')).toBeNull();
     before.remove();
   });
 
@@ -156,5 +160,66 @@ describe('QuickActionsBarComponent', () => {
     answerEntities();
     press('Tab');
     expect(input.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  describe('narrowing the search', () => {
+    beforeEach(() => {
+      input.focus();
+      fixture.detectChanges();
+      answerEntities();
+    });
+
+    const scopeChip = () => fixture.nativeElement.querySelector('.qa-scope')?.textContent.trim() ?? null;
+
+    it('"#" narrows to routes: a chip, and every route listed before anything is typed', () => {
+      type('#');
+      expect(scopeChip()).toBe('Routes');
+      expect(input.value).toBe('');
+      expect(input.placeholder).toBe('Search routes…');
+      expect(groupLabels()).toEqual(['Routes']);
+      expect(labels()).toEqual(['people-search']);
+      type('zzz');
+      expect(document.querySelector('.qa-empty')).not.toBeNull();
+    });
+
+    it('"@" narrows to datasources and ">" to actions', () => {
+      type('@an');
+      expect(scopeChip()).toBe('Datasources');
+      expect(labels()).toEqual(['anzo']);
+      press('Backspace'); // the caret is after "an": just deletes text, keeps the scope
+      expect(scopeChip()).toBe('Datasources');
+      type('');
+      press('Backspace');
+      type('>sett');
+      expect(scopeChip()).toBe('Actions');
+      expect(groupLabels()).toEqual(['Go to']);
+      expect(labels()[0]).toBe('Settings');
+    });
+
+    it('Backspace in an empty field removes the scope', () => {
+      type('#');
+      input.setSelectionRange(0, 0);
+      press('Backspace');
+      expect(scopeChip()).toBeNull();
+      expect(groupLabels()).toEqual(['Go to', 'Actions']);
+    });
+
+    it('"?" lists the prefixes; choosing one narrows the search', () => {
+      type('?');
+      expect(groupLabels()).toEqual(['Narrow the search']);
+      expect(labels()).toEqual(['Search actions', 'Search routes', 'Search datasources', 'Keyboard shortcuts']);
+      press('ArrowDown');
+      press('Enter');
+      expect(scopeChip()).toBe('Routes');
+      expect(input.value).toBe('');
+      expect(input.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('running a result clears the scope', () => {
+      type('#peop');
+      press('Enter');
+      expect(router.navigate).toHaveBeenCalledWith(['/routes/config-route', 'people-search']);
+      expect(scopeChip()).toBeNull();
+    });
   });
 });

@@ -1527,7 +1527,11 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
         return null;
       }
       const id = this.routeData?.datasources?.dataSourceId ?? 'its datasource';
-      return this.datasourceStatus === 'DISABLED' ? `Datasource ${id} is disabled` : `Datasource ${id} is down`;
+      switch (this.datasourceStatus) {
+        case 'DISABLED': return `Datasource ${id} is disabled`;
+        case 'DOWN': return `Datasource ${id} is down`;
+        default: return `Datasource ${id} hasn't been checked yet: run a health check on it first`;
+      }
     };
     return [
       {
