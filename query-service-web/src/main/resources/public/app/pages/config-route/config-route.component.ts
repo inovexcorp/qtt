@@ -32,7 +32,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabChangeEvent } from '@angular/material/tabs';
 import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
 import * as monaco from 'monaco-editor'; // the full editor: every contribution (suggest, find, ...) and language
-import '../../shared/code-editor/monaco-environment';
+import { loadMonacoStyles } from '../../shared/code-editor/monaco-environment';
 
 
 
@@ -1128,6 +1128,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
       : this.templateContent || '';
 
     try {
+      loadMonacoStyles();
       this.monacoEditor = monaco.editor.create(this.monacoEditorContainer.nativeElement, {
         value: initialValue,
         language: 'freemarker2',

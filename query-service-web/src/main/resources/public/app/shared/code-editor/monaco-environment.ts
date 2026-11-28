@@ -14,4 +14,18 @@ env.MonacoEnvironment ??= {
   }
 };
 
-export {};
+/**
+ * Monaco's stylesheet is built as its own file (angular.json: bundleName "monaco-editor", inject false), so pages
+ * without an editor don't load it. Call this before creating an editor. The link goes first in <head> so the app's
+ * own overrides still win; the query string changes with each build, since the file name has no hash.
+ */
+export function loadMonacoStyles(): void {
+  if (typeof document === 'undefined' || document.querySelector('link[data-monaco-styles]')) {
+    return;
+  }
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.dataset['monacoStyles'] = '';
+  link.href = `monaco-editor.css?v=${encodeURIComponent(new URL(import.meta.url).pathname.split('/').pop() ?? '')}`;
+  document.head.prepend(link);
+}

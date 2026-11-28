@@ -4,7 +4,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import * as monaco from 'monaco-editor';
-import './monaco-environment';
+import { loadMonacoStyles } from './monaco-environment';
 
 /** Defaults under every editor's options (what the app configured for ngx-monaco-editor before). */
 const DEFAULT_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
@@ -50,6 +50,7 @@ export class CodeEditorComponent implements AfterViewInit, OnChanges, OnDestroy,
   constructor(private readonly zone: NgZone) {}
 
   ngAfterViewInit(): void {
+    loadMonacoStyles();
     this.editor = this.zone.runOutsideAngular(() => monaco.editor.create(this.container.nativeElement, {
       ...DEFAULT_OPTIONS,
       ...this.options,
