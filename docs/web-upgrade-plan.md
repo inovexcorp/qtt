@@ -2,7 +2,15 @@
 
 Goal: move `query-service-web` from Node 20 / Angular 18 to the current LTS Node and the current Angular. Every step is a small change that must pass a fixed set of checks before the next one starts. Styling may change along the way (Angular Material moves on), but redesign work belongs to the next project; here we only keep the UI correct and consistent.
 
-Status: plan, 2026-11-27. Nothing implemented. Work happens on `chore/web-upgrade`, branched from `refactor/optimize`.
+Status: implemented on `chore/web-upgrade` (from `refactor/optimize`, for 2.0), 2026-11-27, Phases 0–10. Results and gate runs: [perf/web-upgrade-log.md](perf/web-upgrade-log.md).
+
+Where execution differed from this plan:
+- **Monaco:** the ESM build is the one kept, with an in-house `app-code-editor` (decision updated during Phase 0; the plan below reflects it). Phases 2–3 carry a known regression in the test-body JSON editor (Monaco 0.52's AMD JSON worker); Monaco 0.55 fixed it in Phase 4, and Phase 6a removed the AMD build.
+- **Control flow:** Angular 21's `ng update` made the `@if`/`@for` migration mandatory, so it happened in Phase 4 rather than Phase 8.
+- **Monaco version:** 0.58 (not 0.56), once `ngx-monaco-editor-v2`, which pinned 0.56, was gone; 0.56's bundled DOMPurify had advisories.
+- **`@angular/animations`:** the app's own use is gone, but the package stays because ngx-charts 25 requires it. Revisit before Angular 23.
+- **Lazy loading:** added in Phase 8 (not in the draft): the route editor page and the add-route dialog load Monaco on demand, so the initial bundle went from 5.6 MB to 1.6 MB.
+- **Skipped optional items:** the `inject()`/signal-input migrations and angular-eslint (Phase 8, step 6–7).
 
 ## Where we are
 
