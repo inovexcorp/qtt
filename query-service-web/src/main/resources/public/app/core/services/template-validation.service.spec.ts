@@ -1,4 +1,4 @@
-import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { NgZone } from '@angular/core';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 
@@ -24,6 +24,12 @@ class FakeEditor implements ValidatedEditor {
 }
 
 describe('TemplateValidationService', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   let service: TemplateValidationService;
   let http: HttpTestingController;
   let markers: any[][];
@@ -63,87 +69,87 @@ describe('TemplateValidationService', () => {
     expect(TemplateValidationService.markersFor({ valid: true })).toEqual([]);
   });
 
-  it('validates the initial content, then each change after a pause', fakeAsync(() => {
+  it('validates the initial content, then each change after a pause', async () => {
     const editor = new FakeEditor('SELECT ${headers.x');
     const handle = service.attach(editor, r => results.push(r), 400, setMarkers);
 
-    tick(400);
+    await vi.advanceTimersByTimeAsync(400);
     http.expectOne(r => r.body === 'SELECT ${headers.x').flush(syntaxError);
     expect(markers.pop()!.length).toBe(1);
     expect(results.pop()).toEqual(syntaxError);
 
     editor.type('SELECT ${headers.x}');
-    tick(399);
+    await vi.advanceTimersByTimeAsync(399);
     http.expectNone(URL);
-    tick(1);
+    await vi.advanceTimersByTimeAsync(1);
     http.expectOne(r => r.body === 'SELECT ${headers.x}').flush({ valid: true });
     expect(markers.pop()).toEqual([]);
 
     handle.dispose();
-  }));
+  });
 
-  it('only validates the latest text when typing quickly', fakeAsync(() => {
+  it('only validates the latest text when typing quickly', async () => {
     const editor = new FakeEditor('');
     service.attach(editor, undefined, 400, setMarkers);
-    tick(400);
+    await vi.advanceTimersByTimeAsync(400);
     http.expectOne(URL).flush({ valid: true });
 
     editor.type('S');
-    tick(100);
+    await vi.advanceTimersByTimeAsync(100);
     editor.type('SE');
-    tick(100);
+    await vi.advanceTimersByTimeAsync(100);
     editor.type('SEL');
-    tick(400);
+    await vi.advanceTimersByTimeAsync(400);
     const reqs = http.match(URL);
     expect(reqs.length).toBe(1);
     expect(reqs[0].request.body).toBe('SEL');
     reqs[0].flush({ valid: true });
-  }));
+  });
 
-  it('drops a result for text that has since changed', fakeAsync(() => {
+  it('drops a result for text that has since changed', async () => {
     const editor = new FakeEditor('first ${');
     service.attach(editor, r => results.push(r), 400, setMarkers);
-    tick(400);
+    await vi.advanceTimersByTimeAsync(400);
     const stale = http.expectOne(r => r.body === 'first ${');
 
     editor.type('second');
-    tick(400);
+    await vi.advanceTimersByTimeAsync(400);
     http.expectOne(r => r.body === 'second').flush({ valid: true });
-    expect(stale.cancelled).toBeTrue();
+    expect(stale.cancelled).toBe(true);
     expect(results).toEqual([{ valid: true }]);
-  }));
+  });
 
-  it('reports results inside the Angular zone, even for editors running outside it', fakeAsync(() => {
+  it('reports results inside the Angular zone, even for editors running outside it', async () => {
     const zone = TestBed.inject(NgZone);
     const editor = new FakeEditor('SELECT');
     let insideZone: boolean | undefined;
     zone.runOutsideAngular(() => service.attach(editor, () => insideZone = NgZone.isInAngularZone(), 400, setMarkers));
-    tick(400);
+    await vi.advanceTimersByTimeAsync(400);
     http.expectOne(URL).flush({ valid: true });
-    expect(insideZone).toBeTrue();
-  }));
+    expect(insideZone).toBe(true);
+  });
 
-  it('clears markers when the server cannot be reached', fakeAsync(() => {
+  it('clears markers when the server cannot be reached', async () => {
     const editor = new FakeEditor('SELECT');
     service.attach(editor, r => results.push(r), 400, setMarkers);
-    tick(400);
+    await vi.advanceTimersByTimeAsync(400);
     http.expectOne(URL).flush('down', { status: 503, statusText: 'Unavailable' });
     expect(markers.pop()).toEqual([]);
     expect(results.pop()).toBeNull();
-  }));
+  });
 
-  it('stops validating and clears markers on dispose', fakeAsync(() => {
+  it('stops validating and clears markers on dispose', async () => {
     const editor = new FakeEditor('SELECT');
     const handle = service.attach(editor, undefined, 400, setMarkers);
-    tick(400);
+    await vi.advanceTimersByTimeAsync(400);
     http.expectOne(URL).flush({ valid: true });
 
     handle.dispose();
     expect(markers.pop()).toEqual([]);
     editor.type('changed ${');
-    tick(1000);
+    await vi.advanceTimersByTimeAsync(1000);
     http.expectNone(URL);
-  }));
+  });
 });
 
 describe('saveErrorMessage', () => {

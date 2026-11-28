@@ -1,24 +1,23 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { IfRoleDirective } from './if-role.directive';
 import { AuthService } from '../core/services/auth.service';
 
 @Component({
-  template: `
+    template: `
     <span id="viewer" *qttIfRole="'viewer'">v</span>
     <span id="editor" *qttIfRole="'editor'">e</span>
-    <span id="admin" *qttIfRole="'admin'">a</span>`
+    <span id="admin" *qttIfRole="'admin'">a</span>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [IfRoleDirective]
 })
 class HostComponent {
 }
 
 describe('IfRoleDirective', () => {
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      declarations: [HostComponent, IfRoleDirective]
-    });
+    TestBed.configureTestingModule({ imports: [HttpClientTestingModule, HostComponent] });
   });
 
   function shown(): string[] {

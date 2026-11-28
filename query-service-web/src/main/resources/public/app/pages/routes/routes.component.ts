@@ -1,22 +1,31 @@
-import { Component, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, OnInit, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Routes } from '../../core/models/routes-interfaces/routes';
 import { TableData } from '../../core/models/routes-interfaces/table-data';
 import { RoutesService } from './routes.service';
-import { Router, NavigationEnd } from '@angular/router';
-import { MatTableDataSource } from '@angular/material/table';
+import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
+import { MatTableDataSource, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
+import { MatSort, MatSortHeader } from '@angular/material/sort';
 import { MatDialog } from '@angular/material/dialog';
-import { AddRouteComponent } from '../add-route/add-route.component';
 import { DeleteRouteModalComponent } from '../delete-route-modal/delete-route-modal.component';
 import { filter } from 'rxjs';
 import { SettingsService } from '../../core/services/settings.service';
 import { effectiveAccess, endpointUrl } from '../../shared/query-endpoint';
+import { MatCard } from '@angular/material/card';
+import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatIcon } from '@angular/material/icon';
+import { IfRoleDirective } from '../../shared/if-role.directive';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatMenuTrigger, MatMenu, MatMenuItem } from '@angular/material/menu';
 
 @Component({
-  selector: 'app-routes',
-  templateUrl: './routes.component.html',
-  styleUrls: ['./routes.component.scss']
+    selector: 'app-routes',
+    templateUrl: './routes.component.html',
+    styleUrls: ['./routes.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MatCard, MatFormField, MatLabel, MatInput, MatIcon, MatSuffix, IfRoleDirective, MatButton, MatTable, MatSort, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatSortHeader, MatCellDef, MatCell, MatTooltip, MatIconButton, MatMenuTrigger, MatMenu, MatMenuItem, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatPaginator, RouterOutlet]
 })
 export class RoutesComponent implements OnInit {
 
@@ -120,7 +129,9 @@ export class RoutesComponent implements OnInit {
     this.dataSource.filter = filterValue.trim();
   }
 
-  openAddRouteDialog() {
+  async openAddRouteDialog() {
+    // Loaded on demand: the dialog's template editor brings in Monaco.
+    const { AddRouteComponent } = await import('../add-route/add-route.component');
     this.dialogRef.open(AddRouteComponent, {
       maxWidth: '150rem',
       // The form (with the access and cache sections) can be taller than the window; scroll inside the dialog

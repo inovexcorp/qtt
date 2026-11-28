@@ -1,5 +1,5 @@
-import {Component, OnInit, ViewEncapsulation, ViewChild, AfterViewInit} from '@angular/core';
-import {AbstractControl, FormControl, FormGroup, ValidationErrors, Validators} from '@angular/forms';
+import {Component, OnInit, ViewEncapsulation, ViewChild, AfterViewInit, ChangeDetectionStrategy} from '@angular/core';
+import { AbstractControl, FormControl, FormGroup, ValidationErrors, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import {DatasourceService} from '../../core/services/datasource.service';
 import {AuditInfo} from '../../core/models/audit';
@@ -9,15 +9,30 @@ import {DeleteDatasourceModalComponent} from '../delete-datasource-modal/delete-
 import {ConfigDatasourceModalComponent} from '../config-datasource-modal/config-datasource-modal.component';
 import {MetricsService} from '../../core/services/metrics.service';
 import {RouteMetric, RouteMetricsResponse} from '../../core/models/metric-data';
-import {MatTableDataSource} from '@angular/material/table';
+import { MatTableDataSource, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow } from '@angular/material/table';
 import {MatPaginator} from '@angular/material/paginator';
-import {MatSort} from '@angular/material/sort';
+import { MatSort, MatSortHeader } from '@angular/material/sort';
+import { MatCard, MatCardHeader, MatCardTitle, MatCardContent } from '@angular/material/card';
+import { AuditLineComponent } from '../../shared/audit-line/audit-line.component';
+import { IfRoleDirective } from '../../shared/if-role.directive';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTabGroup, MatTab } from '@angular/material/tabs';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatDivider } from '@angular/material/list';
+import { MatFormField, MatLabel, MatSuffix, MatError, MatHint } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { NgClass, JsonPipe } from '@angular/common';
+import { MatProgressBar } from '@angular/material/progress-bar';
 
 @Component({
-  selector: 'app-config-datasource',
-  templateUrl: './config-datasource.component.html',
-  styleUrls: ['./config-datasource.component.scss'],
-  encapsulation: ViewEncapsulation.None
+    selector: 'app-config-datasource',
+    templateUrl: './config-datasource.component.html',
+    styleUrls: ['./config-datasource.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MatCard, AuditLineComponent, IfRoleDirective, MatIconButton, MatIcon, MatTabGroup, MatTab, MatButton, MatTooltip, MatDivider, FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatSuffix, MatError, MatHint, MatSelect, MatOption, NgClass, MatProgressBar, MatCardHeader, MatCardTitle, MatCardContent, MatTable, MatSort, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatSortHeader, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatPaginator, JsonPipe]
 })
 export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
   /** Who created and last changed this datasource. */

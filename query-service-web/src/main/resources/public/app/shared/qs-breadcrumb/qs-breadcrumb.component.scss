@@ -12,6 +12,7 @@
     -webkit-font-smoothing: antialiased;
 }
 
+// The toolbar background is a gradient, which the toolbar tokens (a single color) can't express.
 .mat-toolbar{
     height: 3rem;
     background: linear-gradient(to right, #4a148c, #7b1fa2, #9c27b0, #ba68c8) !important;
@@ -23,6 +24,7 @@ font-size: 1rem;
 }
 
 // Ensure breadcrumb links are visible on purple background
+// xng-breadcrumb renders its own links; ::ng-deep reaches into it.
 ::ng-deep xng-breadcrumb a {
     color: rgba(255, 255, 255, 0.9) !important;
     text-decoration: none;

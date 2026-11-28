@@ -167,8 +167,10 @@ export class OntologyAutocompleteProvider implements monaco.languages.Completion
     });
   }
 
-  private localName(uri: string): string | undefined{
-    return uri.split('#').pop() || uri.split('/').pop();
+  /** The part after the last '#', or after the last '/' for slash URIs. */
+  private localName(uri: string): string | undefined {
+    const local = uri.includes('#') ? uri.substring(uri.lastIndexOf('#') + 1) : uri.substring(uri.lastIndexOf('/') + 1);
+    return local || undefined;
   }
 
   /**

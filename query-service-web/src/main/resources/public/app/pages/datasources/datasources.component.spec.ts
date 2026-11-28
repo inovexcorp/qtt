@@ -10,8 +10,7 @@ describe('DatasourcesComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [DatasourcesComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, DatasourcesComponent],
       schemas: [NO_ERRORS_SCHEMA]
     })
     .compileComponents();

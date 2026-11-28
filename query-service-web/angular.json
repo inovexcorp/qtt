@@ -15,26 +15,37 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-builders/custom-webpack:browser",
+          "builder": "@angular/build:application",
           "options": {
-            "customWebpackConfig": {
-              "path": "./webpack.config.js"
+            "outputPath": {
+              "base": "target/classes/META-INF/resources",
+              "browser": ""
             },
-            "outputPath": "target/classes/META-INF/resources",
             "index": "src/main/resources/public/index.html",
-            "main": "src/main/resources/public/main.ts",
+            "browser": "src/main/resources/public/main.ts",
             "polyfills": [
               "zone.js",
               "@angular/localize/init"
             ],
             "tsConfig": "tsconfig.app.json",
+            "webWorkerTsConfig": "tsconfig.worker.json",
             "inlineStyleLanguage": "scss",
+            "loader": {
+              ".css": "empty"
+            },
+            "externalDependencies": [
+              "marked-katex-extension"
+            ],
             "assets": [
               "src/main/resources/public/favicon.ico",
-              "src/main/resources/public/assets",
-              { "glob": "**/*", "input": "node_modules/monaco-editor/min/vs", "output": "/assets/monaco/min/vs/" }
+              "src/main/resources/public/assets"
             ],
             "styles": [
+              {
+                "input": "node_modules/monaco-editor/min/vs/editor/editor.main.css",
+                "bundleName": "monaco-editor",
+                "inject": false
+              },
               "src/main/resources/public/styles.scss"
             ],
             "scripts": []
@@ -44,12 +55,12 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "6mb",
-                  "maximumError": "10mb"
+                  "maximumWarning": "2mb",
+                  "maximumError": "4mb"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "15kb",
+                  "maximumWarning": "20kb",
                   "maximumError": "150kb"
                 }
               ],
@@ -62,18 +73,26 @@
               "outputHashing": "all"
             },
             "development": {
-              "buildOptimizer": false,
               "optimization": false,
-              "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
+            },
+            "testing": {
+              "aot": false,
+              "optimization": false,
+              "extractLicenses": false,
+              "polyfills": [
+                "zone.js",
+                "zone.js/testing",
+                "@angular/localize/init"
+              ]
             }
           },
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular-builders/custom-webpack:dev-server",
+          "builder": "@angular/build:dev-server",
           "options": {
             "proxyConfig": "proxy.conf.js"
           },
@@ -88,34 +107,35 @@
           "defaultConfiguration": "development"
         },
         "extract-i18n": {
-          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "builder": "@angular/build:extract-i18n",
           "options": {
-            "browserTarget": "query-service-ui:build"
+            "buildTarget": "query-service-ui:build"
           }
         },
         "test": {
-          "builder": "@angular-builders/custom-webpack:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "customWebpackConfig": {
-              "path": "./webpack.config.js"
-            },
-            "main": "src/main/resources/public/test.ts",
-            "polyfills": [
-              "zone.js",
-              "zone.js/testing",
-              "@angular/localize/init"
-            ],
             "tsConfig": "tsconfig.spec.json",
-            "karmaConfig": "karma.conf.js",
-            "inlineStyleLanguage": "scss",
-            "assets": [
-              "src/main/resources/public/favicon.ico",
-              "src/main/resources/public/assets"
+            "reporters": [
+              "default",
+              "junit"
             ],
-            "styles": [
-              "src/main/resources/public/styles.scss"
+            "coverageReporters": [
+              "html",
+              "text-summary"
             ],
-            "scripts": []
+            "coverageThresholds": {
+              "statements": 53,
+              "branches": 39,
+              "functions": 49,
+              "lines": 52,
+              "perFile": false
+            },
+            "buildTarget": ":build:testing",
+            "runner": "vitest",
+            "providersFile": "src/main/resources/public/test-providers.ts",
+            "runnerConfig": "vitest-base.config.mts",
+            "outputFile": "target/test-reports/vitest-junit.xml"
           }
         }
       }
@@ -123,5 +143,31 @@
   },
   "cli": {
     "analytics": false
+  },
+  "schematics": {
+    "@schematics/angular:component": {
+      "type": "component"
+    },
+    "@schematics/angular:directive": {
+      "type": "directive"
+    },
+    "@schematics/angular:service": {
+      "type": "service"
+    },
+    "@schematics/angular:guard": {
+      "typeSeparator": "."
+    },
+    "@schematics/angular:interceptor": {
+      "typeSeparator": "."
+    },
+    "@schematics/angular:module": {
+      "typeSeparator": "."
+    },
+    "@schematics/angular:pipe": {
+      "typeSeparator": "."
+    },
+    "@schematics/angular:resolver": {
+      "typeSeparator": "."
+    }
   }
 }

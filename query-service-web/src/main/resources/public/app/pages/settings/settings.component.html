@@ -1,40 +1,44 @@
 <div class="settings">
   <nav class="section-nav" aria-label="Settings sections">
-    <a *ngFor="let s of sections"
-       class="section-link"
-       [class.active]="section === s.id"
-       [attr.aria-current]="section === s.id ? 'page' : null"
-       [routerLink]="[]"
-       [queryParams]="sectionParams(s.id)">
-      <mat-icon aria-hidden="true">{{ s.icon }}</mat-icon>
-      <span class="section-label">{{ s.label }}</span>
-      <mat-icon *ngIf="needsAttention(s.id)" class="attention" aria-hidden="false" aria-label="Needs attention">warning</mat-icon>
-    </a>
+    @for (s of sections; track s.id) {
+      <a
+        class="section-link"
+        [class.active]="section === s.id"
+        [attr.aria-current]="section === s.id ? 'page' : null"
+        [routerLink]="[]"
+        [queryParams]="sectionParams(s.id)">
+        <mat-icon aria-hidden="true">{{ s.icon }}</mat-icon>
+        <span class="section-label">{{ s.label }}</span>
+        @if (needsAttention(s.id)) {
+          <mat-icon class="attention" aria-hidden="false" aria-label="Needs attention">warning</mat-icon>
+        }
+      </a>
+    }
   </nav>
 
   <main class="section-body">
 
     <!-- ================================================================ Overview -->
-    <ng-container *ngIf="section === 'overview'">
+    @if (section === 'overview') {
       <header class="section-head">
         <h2>Overview</h2>
         <p>How this QTT server is set up and whether anything needs attention.</p>
       </header>
-
       <section class="panel">
         <h3 class="panel-title">Status</h3>
         <ul class="status-list">
-          <li *ngFor="let s of statusLines">
-            <a class="status-row" [routerLink]="[]" [queryParams]="sectionParams(s.section)">
-              <mat-icon class="tone tone-{{ s.tone }}" aria-hidden="true">{{ statusIcon(s.tone) }}</mat-icon>
-              <span class="status-label">{{ s.label }}</span>
-              <span class="status-text">{{ s.text }}</span>
-              <mat-icon class="chevron" aria-hidden="true">chevron_right</mat-icon>
-            </a>
-          </li>
+          @for (s of statusLines; track s.label) {
+            <li>
+              <a class="status-row" [routerLink]="[]" [queryParams]="sectionParams(s.section)">
+                <mat-icon class="tone tone-{{ s.tone }}" aria-hidden="true">{{ statusIcon(s.tone) }}</mat-icon>
+                <span class="status-label">{{ s.label }}</span>
+                <span class="status-text">{{ s.text }}</span>
+                <mat-icon class="chevron" aria-hidden="true">chevron_right</mat-icon>
+              </a>
+            </li>
+          }
         </ul>
       </section>
-
       <section class="panel">
         <h3 class="panel-title">System</h3>
         <dl class="kv">
@@ -43,7 +47,9 @@
           <div>
             <dt>Database</dt>
             <dd>{{ databaseType ?? '…' }}
-              <span class="sub mono" *ngIf="databaseRemoteUrl">{{ databaseRemoteUrl }}</span>
+              @if (databaseRemoteUrl) {
+                <span class="sub mono">{{ databaseRemoteUrl }}</span>
+              }
             </dd>
           </div>
           <div>
@@ -62,244 +68,271 @@
           </div>
         </dl>
       </section>
-    </ng-container>
+    }
 
     <!-- ================================================================ Sign-in -->
-    <ng-container *ngIf="section === 'sign-in'">
+    @if (section === 'sign-in') {
       <header class="section-head">
         <h2>Sign-in</h2>
         <p>Single sign-on through your identity provider. It protects the UI and the management API.</p>
       </header>
-
-      <p class="muted" *ngIf="ssoLoadFailed">Could not load the sign-in configuration.</p>
-      <p class="muted" *ngIf="!ssoInfo && !ssoLoadFailed">Loading…</p>
-
-      <div *ngIf="ssoInfo && !ssoInfo.enabled" class="callout callout-warn" role="status">
-        <mat-icon aria-hidden="true">warning</mat-icon>
-        <div>
-          <strong>Sign-in is off.</strong>
-          Anyone who can reach this server can view and change datasources, routes and templates.
-          Set <code>OIDC_ENABLED=true</code> and configure an identity provider (see the Administration Guide).
+      @if (ssoLoadFailed) {
+        <p class="muted">Could not load the sign-in configuration.</p>
+      }
+      @if (!ssoInfo && !ssoLoadFailed) {
+        <p class="muted">Loading…</p>
+      }
+      @if (ssoInfo && !ssoInfo.enabled) {
+        <div class="callout callout-warn" role="status">
+          <mat-icon aria-hidden="true">warning</mat-icon>
+          <div>
+            <strong>Sign-in is off.</strong>
+            Anyone who can reach this server can view and change datasources, routes and templates.
+            Set <code>OIDC_ENABLED=true</code> and configure an identity provider (see the Administration Guide).
+          </div>
         </div>
-      </div>
-
-      <ng-container *ngIf="ssoInfo?.enabled">
+      }
+      @if (ssoInfo?.enabled) {
         <div class="callout callout-ok" role="status">
           <mat-icon aria-hidden="true">verified_user</mat-icon>
           <div>
             <strong>Sign-in is on.</strong>
-            Signed in as {{ auth.user.displayName }}<span *ngIf="auth.user.displayName !== auth.user.username"> ({{ auth.user.username }})</span>
-            · {{ auth.roleLabel ?? 'No QTT role' }}
-          </div>
+            Signed in as {{ auth.user.displayName }}@if (auth.user.displayName !== auth.user.username) {
+            <span> ({{ auth.user.username }})</span>
+          }
+          · {{ auth.roleLabel ?? 'No QTT role' }}
         </div>
-
-        <section class="panel">
-          <h3 class="panel-title">Identity provider</h3>
-          <dl class="kv">
-            <div><dt>Issuer</dt><dd class="mono">{{ ssoInfo?.issuer ?? 'Not set' }}</dd></div>
-            <div><dt>Client ID</dt><dd class="mono">{{ ssoInfo?.clientId }}</dd></div>
-            <div><dt>Client secret</dt><dd>{{ ssoInfo?.clientSecretConfigured ? 'Configured' : 'Not set' }}</dd></div>
-            <div>
-              <dt>Accepted audience</dt>
-              <dd>
-                <span class="tokens" *ngIf="ssoInfo?.audience?.length; else anyAudience">
-                  <code *ngFor="let a of ssoInfo?.audience">{{ a }}</code>
+      </div>
+      <section class="panel">
+        <h3 class="panel-title">Identity provider</h3>
+        <dl class="kv">
+          <div><dt>Issuer</dt><dd class="mono">{{ ssoInfo?.issuer ?? 'Not set' }}</dd></div>
+          <div><dt>Client ID</dt><dd class="mono">{{ ssoInfo?.clientId }}</dd></div>
+          <div><dt>Client secret</dt><dd>{{ ssoInfo?.clientSecretConfigured ? 'Configured' : 'Not set' }}</dd></div>
+          <div>
+            <dt>Accepted audience</dt>
+            <dd>
+              @if (ssoInfo?.audience?.length) {
+                <span class="tokens">
+                  @for (a of ssoInfo?.audience; track a) {
+                    <code>{{ a }}</code>
+                  }
                 </span>
-                <ng-template #anyAudience>Any</ng-template>
-              </dd>
-            </div>
-            <div><dt>Private CA trust store</dt><dd>{{ ssoInfo?.privateCaTrustStore ? 'Configured' : 'No (JVM default)' }}</dd></div>
-          </dl>
-        </section>
-
-        <section class="panel">
-          <h3 class="panel-title">Users and roles</h3>
-          <dl class="kv">
-            <div><dt>Username claim</dt><dd class="mono">{{ ssoInfo?.usernameClaim }}</dd></div>
+              } @else {
+                Any
+              }
+            </dd>
+          </div>
+          <div><dt>Private CA trust store</dt><dd>{{ ssoInfo?.privateCaTrustStore ? 'Configured' : 'No (JVM default)' }}</dd></div>
+        </dl>
+      </section>
+      <section class="panel">
+        <h3 class="panel-title">Users and roles</h3>
+        <dl class="kv">
+          <div><dt>Username claim</dt><dd class="mono">{{ ssoInfo?.usernameClaim }}</dd></div>
+          <div>
+            <dt>Roles claim</dt>
+            <dd><span class="mono">{{ ssoInfo?.rolesClaim ?? 'provider default' }}</span>
+            <span class="sub">{{ formatRolesSource(ssoInfo?.rolesSource) }}</span></dd>
+          </div>
+        </dl>
+        <h4 class="group-title">Groups that grant each role</h4>
+        <dl class="kv">
+          @for (r of [
+            { label: 'Viewer', groups: ssoInfo?.groupMappings?.viewer },
+            { label: 'Editor', groups: ssoInfo?.groupMappings?.editor },
+            { label: 'Admin', groups: ssoInfo?.groupMappings?.admin },
+            { label: 'Query (qtt-query)', groups: ssoInfo?.groupMappings?.query }]; track r.label) {
             <div>
-              <dt>Roles claim</dt>
-              <dd><span class="mono">{{ ssoInfo?.rolesClaim ?? 'provider default' }}</span>
-                <span class="sub">{{ formatRolesSource(ssoInfo?.rolesSource) }}</span></dd>
-            </div>
-          </dl>
-          <h4 class="group-title">Groups that grant each role</h4>
-          <dl class="kv">
-            <div *ngFor="let r of [
-                  { label: 'Viewer', groups: ssoInfo?.groupMappings?.viewer },
-                  { label: 'Editor', groups: ssoInfo?.groupMappings?.editor },
-                  { label: 'Admin', groups: ssoInfo?.groupMappings?.admin },
-                  { label: 'Query (qtt-query)', groups: ssoInfo?.groupMappings?.query }]">
               <dt>{{ r.label }}</dt>
               <dd>
-                <span class="tokens" *ngIf="r.groups?.length; else noGroups"><code *ngFor="let g of r.groups">{{ g }}</code></span>
-                <ng-template #noGroups><span class="muted">{{ formatGroups(r.groups) }}</span></ng-template>
+                @if (r.groups?.length) {
+                  <span class="tokens">@for (g of r.groups; track g) {
+                    <code>{{ g }}</code>
+                  }</span>
+                } @else {
+                  <span class="muted">{{ formatGroups(r.groups) }}</span>
+                }
               </dd>
             </div>
-          </dl>
-        </section>
-
-        <section class="panel">
-          <h3 class="panel-title">Browser session</h3>
-          <dl class="kv">
-            <div><dt>Flow</dt><dd>{{ ssoInfo?.applicationType === 'hybrid' ? 'Browser sign-in and bearer tokens' : ssoInfo?.applicationType }}</dd></div>
-            <div><dt>Cookie encryption key</dt><dd>{{ formatSessionKey(ssoInfo?.sessionKey) }}</dd></div>
-            <div><dt>Force HTTPS redirect</dt><dd>{{ ssoInfo?.forceHttpsRedirect ? 'Yes' : 'No' }}</dd></div>
-            <div><dt>Sign-out path</dt><dd class="mono">{{ ssoInfo?.logoutPath }}</dd></div>
-          </dl>
-        </section>
-      </ng-container>
-
-      <p class="footnote" *ngIf="ssoInfo">
+          }
+        </dl>
+      </section>
+      <section class="panel">
+        <h3 class="panel-title">Browser session</h3>
+        <dl class="kv">
+          <div><dt>Flow</dt><dd>{{ ssoInfo?.applicationType === 'hybrid' ? 'Browser sign-in and bearer tokens' : ssoInfo?.applicationType }}</dd></div>
+          <div><dt>Cookie encryption key</dt><dd>{{ formatSessionKey(ssoInfo?.sessionKey) }}</dd></div>
+          <div><dt>Force HTTPS redirect</dt><dd>{{ ssoInfo?.forceHttpsRedirect ? 'Yes' : 'No' }}</dd></div>
+          <div><dt>Sign-out path</dt><dd class="mono">{{ ssoInfo?.logoutPath }}</dd></div>
+        </dl>
+      </section>
+    }
+    @if (ssoInfo) {
+      <p class="footnote">
         Query routes follow their own access setting. See
         <a [routerLink]="[]" [queryParams]="sectionParams('access')" class="inline-link">Query access</a>.
       </p>
-    </ng-container>
+    }
+  }
 
-    <!-- ================================================================ Query access -->
-    <ng-container *ngIf="section === 'access'">
-      <header class="section-head">
-        <h2>Query access</h2>
-        <p>Who can call the query routes, and the API keys applications use to call them.</p>
-      </header>
-
-      <section class="panel">
-        <h3 class="panel-title">Access policy</h3>
-        <p class="muted" *ngIf="ssoLoadFailed">Could not load the access settings.</p>
-        <dl class="kv">
+  <!-- ================================================================ Query access -->
+  @if (section === 'access') {
+    <header class="section-head">
+      <h2>Query access</h2>
+      <p>Who can call the query routes, and the API keys applications use to call them.</p>
+    </header>
+    <section class="panel">
+      <h3 class="panel-title">Access policy</h3>
+      @if (ssoLoadFailed) {
+        <p class="muted">Could not load the access settings.</p>
+      }
+      <dl class="kv">
+        <div>
+          <dt>Routes left at “default”</dt>
+          <dd>{{ ssoInfo?.queryAuthDefault === 'authenticated' ? 'Require a token with qtt-query or an API key' : 'Open to anyone who can reach the server' }}
+            <span class="sub mono">QUERY_AUTH_DEFAULT={{ ssoInfo?.queryAuthDefault ?? 'open' }}</span>
+          </dd>
+        </div>
+        @if (ssoInfo?.queryRoutes !== undefined) {
           <div>
-            <dt>Routes left at “default”</dt>
-            <dd>{{ ssoInfo?.queryAuthDefault === 'authenticated' ? 'Require a token with qtt-query or an API key' : 'Open to anyone who can reach the server' }}
-              <span class="sub mono">QUERY_AUTH_DEFAULT={{ ssoInfo?.queryAuthDefault ?? 'open' }}</span>
-            </dd>
-          </div>
-          <div *ngIf="ssoInfo?.queryRoutes !== undefined">
             <dt>Open routes</dt>
             <dd>
               <span class="num">{{ ssoInfo?.openQueryRoutes }} of {{ ssoInfo?.queryRoutes }}</span>
-              <span class="sub warn-text" *ngIf="ssoInfo?.openQueryRoutes">
-                <mat-icon aria-hidden="true">warning</mat-icon>Anyone who can reach this server can call them
-              </span>
+              @if (ssoInfo?.openQueryRoutes) {
+                <span class="sub warn-text">
+                  <mat-icon aria-hidden="true">warning</mat-icon>Anyone who can reach this server can call them
+                </span>
+              }
             </dd>
           </div>
-          <div>
-            <dt>Endpoint</dt>
-            <dd><code>/query/&lt;routeId&gt;</code> on this server
-              <span class="sub">Authenticated routes need <code>Authorization: Bearer &lt;token or API key&gt;</code></span>
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      <app-api-keys *qttIfRole="'admin'"></app-api-keys>
-    </ng-container>
-
-    <!-- ================================================================ Caching -->
-    <ng-container *ngIf="section === 'caching'">
-      <header class="section-head">
-        <h2>Caching</h2>
-        <p>Ontology lookups are cached in memory. Query results can also be cached in Redis.</p>
-      </header>
-
-      <div class="panel-pair">
-        <section class="panel">
-          <h3 class="panel-title">Ontology cache</h3>
-          <dl class="kv kv-compact">
-            <div><dt>Entries</dt><dd class="num">{{ formatNumber(cacheStats?.size) }}</dd></div>
-            <div><dt>Hit rate</dt><dd class="num">{{ formatHitRate(cacheStats?.hitRate) }}</dd></div>
-            <div><dt>Hits</dt><dd class="num">{{ formatNumber(cacheStats?.hitCount) }}</dd></div>
-            <div><dt>Misses</dt><dd class="num">{{ formatNumber(cacheStats?.missCount) }}</dd></div>
-            <div><dt>Evictions</dt><dd class="num">{{ formatNumber(cacheStats?.evictionCount) }}</dd></div>
-            <div><dt>Total load time</dt><dd class="num">{{ formatLoadTime(cacheStats?.totalLoadTime) }}</dd></div>
-          </dl>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <h3 class="panel-title">Query cache</h3>
-            <span *ngIf="isCacheEnabled()" class="pill"
-                  [class.pill-ok]="redisCacheInfo?.connected" [class.pill-warn]="!redisCacheInfo?.connected">
-              {{ redisCacheInfo?.connected ? 'Connected' : 'Disconnected' }}
-            </span>
-          </div>
-
-          <p class="muted" *ngIf="!redisCacheChecked">Loading…</p>
-          <div class="empty" *ngIf="redisCacheChecked && !isCacheEnabled()">
-            <p><strong>Query caching is off.</strong></p>
-            <p class="muted">Set <code>REDIS_ENABLED=true</code> and point QTT at a Redis server to cache query results.</p>
-          </div>
-
-          <dl class="kv kv-compact" *ngIf="isCacheEnabled()">
-            <div><dt>Server</dt><dd><span class="mono">{{ redisCacheInfo?.host }}:{{ redisCacheInfo?.port }}</span><span class="muted"> · DB {{ redisCacheInfo?.database }}</span></dd></div>
-            <div><dt>Keys</dt><dd class="num">{{ formatNumber(redisCacheStats?.keyCount) }}</dd></div>
-            <div><dt>Memory</dt><dd class="num">{{ formatBytes(redisCacheStats?.memoryUsageBytes) }}</dd></div>
-            <div><dt>Hit rate</dt><dd class="num">{{ formatCacheHitRate(redisCacheStats) }}</dd></div>
-            <div><dt>Hits</dt><dd class="num">{{ formatNumber(redisCacheStats?.hits) }}</dd></div>
-            <div><dt>Misses</dt><dd class="num">{{ formatNumber(redisCacheStats?.misses) }}</dd></div>
-            <div><dt>Evictions</dt><dd class="num">{{ formatNumber(redisCacheStats?.evictions) }}</dd></div>
-            <div><dt>Default TTL</dt><dd>{{ formatTtl(redisCacheInfo?.defaultTtlSeconds) }}</dd></div>
-            <div><dt>Compression</dt><dd>{{ redisCacheInfo?.compressionEnabled ? 'On' : 'Off' }}</dd></div>
-          </dl>
-        </section>
-      </div>
-    </ng-container>
-
-    <!-- ================================================================ SPARQi -->
-    <ng-container *ngIf="section === 'sparqi'">
-      <header class="section-head section-head-logo">
-        <img src="assets/img/sparqi.png" alt="" class="sparqi-logo">
+        }
         <div>
-          <h2>SPARQi</h2>
-          <p>Usage and estimated cost of the AI assistant that helps write query templates.</p>
-        </div>
-      </header>
+          <dt>Endpoint</dt>
+          <dd><code>/query/&lt;routeId&gt;</code> on this server
+          <span class="sub">Authenticated routes need <code>Authorization: Bearer &lt;token or API key&gt;</code></span>
+        </dd>
+      </div>
+    </dl>
+  </section>
+  <app-api-keys *qttIfRole="'admin'"></app-api-keys>
+}
 
-      <section class="panel" *ngIf="!sparqiHealthChecked">
-        <div class="loading-line"><mat-spinner diameter="20"></mat-spinner><span>Checking SPARQi…</span></div>
-      </section>
-
-      <section class="panel" *ngIf="sparqiHealthChecked && !sparqiEnabled">
+<!-- ================================================================ Caching -->
+@if (section === 'caching') {
+  <header class="section-head">
+    <h2>Caching</h2>
+    <p>Ontology lookups are cached in memory. Query results can also be cached in Redis.</p>
+  </header>
+  <div class="panel-pair">
+    <section class="panel">
+      <h3 class="panel-title">Ontology cache</h3>
+      <dl class="kv kv-compact">
+        <div><dt>Entries</dt><dd class="num">{{ formatNumber(cacheStats?.size) }}</dd></div>
+        <div><dt>Hit rate</dt><dd class="num">{{ formatHitRate(cacheStats?.hitRate) }}</dd></div>
+        <div><dt>Hits</dt><dd class="num">{{ formatNumber(cacheStats?.hitCount) }}</dd></div>
+        <div><dt>Misses</dt><dd class="num">{{ formatNumber(cacheStats?.missCount) }}</dd></div>
+        <div><dt>Evictions</dt><dd class="num">{{ formatNumber(cacheStats?.evictionCount) }}</dd></div>
+        <div><dt>Total load time</dt><dd class="num">{{ formatLoadTime(cacheStats?.totalLoadTime) }}</dd></div>
+      </dl>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h3 class="panel-title">Query cache</h3>
+        @if (isCacheEnabled()) {
+          <span class="pill"
+            [class.pill-ok]="redisCacheInfo?.connected" [class.pill-warn]="!redisCacheInfo?.connected">
+            {{ redisCacheInfo?.connected ? 'Connected' : 'Disconnected' }}
+          </span>
+        }
+      </div>
+      @if (!redisCacheChecked) {
+        <p class="muted">Loading…</p>
+      }
+      @if (redisCacheChecked && !isCacheEnabled()) {
         <div class="empty">
-          <p><strong>SPARQi is off.</strong></p>
-          <p class="muted">Set <code>SPARQI_ENABLED=true</code> and configure a model provider to turn on the assistant.</p>
+          <p><strong>Query caching is off.</strong></p>
+          <p class="muted">Set <code>REDIS_ENABLED=true</code> and point QTT at a Redis server to cache query results.</p>
         </div>
-      </section>
+      }
+      @if (isCacheEnabled()) {
+        <dl class="kv kv-compact">
+          <div><dt>Server</dt><dd><span class="mono">{{ redisCacheInfo?.host }}:{{ redisCacheInfo?.port }}</span><span class="muted"> · DB {{ redisCacheInfo?.database }}</span></dd></div>
+          <div><dt>Keys</dt><dd class="num">{{ formatNumber(redisCacheStats?.keyCount) }}</dd></div>
+          <div><dt>Memory</dt><dd class="num">{{ formatBytes(redisCacheStats?.memoryUsageBytes) }}</dd></div>
+          <div><dt>Hit rate</dt><dd class="num">{{ formatCacheHitRate(redisCacheStats) }}</dd></div>
+          <div><dt>Hits</dt><dd class="num">{{ formatNumber(redisCacheStats?.hits) }}</dd></div>
+          <div><dt>Misses</dt><dd class="num">{{ formatNumber(redisCacheStats?.misses) }}</dd></div>
+          <div><dt>Evictions</dt><dd class="num">{{ formatNumber(redisCacheStats?.evictions) }}</dd></div>
+          <div><dt>Default TTL</dt><dd>{{ formatTtl(redisCacheInfo?.defaultTtlSeconds) }}</dd></div>
+          <div><dt>Compression</dt><dd>{{ redisCacheInfo?.compressionEnabled ? 'On' : 'Off' }}</dd></div>
+        </dl>
+      }
+    </section>
+  </div>
+}
 
-      <section class="panel" *ngIf="sparqiHealthChecked && sparqiEnabled && !sparqiMetricsSummary">
-        <div class="empty">
-          <p><strong>No usage yet.</strong></p>
-          <p class="muted">Start using SPARQi to see usage metrics here.</p>
-        </div>
-      </section>
-
-      <ng-container *ngIf="sparqiHealthChecked && sparqiEnabled && sparqiMetricsSummary as m">
-        <section class="panel">
-          <div class="panel-head">
-            <h3 class="panel-title">Usage</h3>
-            <span class="muted period" *ngIf="m.periodStart && m.periodEnd">
-              {{ m.periodStart | date:'mediumDate' }} – {{ m.periodEnd | date:'mediumDate' }}
-            </span>
-          </div>
-          <dl class="kv kv-compact">
-            <div><dt>Messages</dt><dd class="num">{{ formatNumber(m.totalMessages) }}</dd></div>
-            <div><dt>Sessions</dt><dd class="num">{{ formatNumber(m.totalSessions) }}</dd></div>
-            <div><dt>Input tokens</dt><dd class="num">{{ formatNumber(m.totalInputTokens) }}</dd></div>
-            <div><dt>Output tokens</dt><dd class="num">{{ formatNumber(m.totalOutputTokens) }}</dd></div>
-            <div><dt>Total tokens</dt><dd class="num">{{ formatNumber(m.totalTokens) }}</dd></div>
-            <div><dt>Average tokens per message</dt><dd class="num">{{ formatNumber(m.avgTokensPerMessage, 1) }}</dd></div>
-          </dl>
-          <h4 class="group-title">Estimated cost</h4>
-          <dl class="kv kv-compact">
-            <div><dt>Total</dt><dd class="num">{{ formatCurrency(m.totalEstimatedCost) }}</dd></div>
-            <div><dt>Average per message</dt><dd class="num">{{ formatCurrency(m.avgCostPerMessage) }}</dd></div>
-          </dl>
-          <div class="panel-actions">
-            <button mat-stroked-button color="primary" type="button" (click)="openMetricsCharts()">
-              <mat-icon>analytics</mat-icon>
-              View detailed analytics
-            </button>
-          </div>
-        </section>
-      </ng-container>
-    </ng-container>
-  </main>
+<!-- ================================================================ SPARQi -->
+@if (section === 'sparqi') {
+  <header class="section-head section-head-logo">
+    <img src="assets/img/sparqi.png" alt="" class="sparqi-logo">
+    <div>
+      <h2>SPARQi</h2>
+      <p>Usage and estimated cost of the AI assistant that helps write query templates.</p>
+    </div>
+  </header>
+  @if (!sparqiHealthChecked) {
+    <section class="panel">
+      <div class="loading-line"><mat-spinner diameter="20"></mat-spinner><span>Checking SPARQi…</span></div>
+    </section>
+  }
+  @if (sparqiHealthChecked && !sparqiEnabled) {
+    <section class="panel">
+      <div class="empty">
+        <p><strong>SPARQi is off.</strong></p>
+        <p class="muted">Set <code>SPARQI_ENABLED=true</code> and configure a model provider to turn on the assistant.</p>
+      </div>
+    </section>
+  }
+  @if (sparqiHealthChecked && sparqiEnabled && !sparqiMetricsSummary) {
+    <section class="panel">
+      <div class="empty">
+        <p><strong>No usage yet.</strong></p>
+        <p class="muted">Start using SPARQi to see usage metrics here.</p>
+      </div>
+    </section>
+  }
+  @if (sparqiHealthChecked && sparqiEnabled && sparqiMetricsSummary; as m) {
+    <section class="panel">
+      <div class="panel-head">
+        <h3 class="panel-title">Usage</h3>
+        @if (m.periodStart && m.periodEnd) {
+          <span class="muted period">
+            {{ m.periodStart | date:'mediumDate' }} – {{ m.periodEnd | date:'mediumDate' }}
+          </span>
+        }
+      </div>
+      <dl class="kv kv-compact">
+        <div><dt>Messages</dt><dd class="num">{{ formatNumber(m.totalMessages) }}</dd></div>
+        <div><dt>Sessions</dt><dd class="num">{{ formatNumber(m.totalSessions) }}</dd></div>
+        <div><dt>Input tokens</dt><dd class="num">{{ formatNumber(m.totalInputTokens) }}</dd></div>
+        <div><dt>Output tokens</dt><dd class="num">{{ formatNumber(m.totalOutputTokens) }}</dd></div>
+        <div><dt>Total tokens</dt><dd class="num">{{ formatNumber(m.totalTokens) }}</dd></div>
+        <div><dt>Average tokens per message</dt><dd class="num">{{ formatNumber(m.avgTokensPerMessage, 1) }}</dd></div>
+      </dl>
+      <h4 class="group-title">Estimated cost</h4>
+      <dl class="kv kv-compact">
+        <div><dt>Total</dt><dd class="num">{{ formatCurrency(m.totalEstimatedCost) }}</dd></div>
+        <div><dt>Average per message</dt><dd class="num">{{ formatCurrency(m.avgCostPerMessage) }}</dd></div>
+      </dl>
+      <div class="panel-actions">
+        <button mat-stroked-button color="primary" type="button" (click)="openMetricsCharts()">
+          <mat-icon>analytics</mat-icon>
+          View detailed analytics
+        </button>
+      </div>
+    </section>
+  }
+}
+</main>
 </div>

@@ -5,13 +5,15 @@
       <div id="example-spacer"></div>
 
       <!-- Health Checks Disabled Info Banner -->
-      <div class="health-info-banner" *ngIf="!healthCheckEnabled">
-        <mat-icon>info</mat-icon>
-        <div class="banner-content">
-          <strong>Automated health checks are currently disabled.</strong>
-          <span>New datasources will not be automatically monitored for health status.</span>
+      @if (!healthCheckEnabled) {
+        <div class="health-info-banner">
+          <mat-icon>info</mat-icon>
+          <div class="banner-content">
+            <strong>Automated health checks are currently disabled.</strong>
+            <span>New datasources will not be automatically monitored for health status.</span>
+          </div>
         </div>
-      </div>
+      }
 
       <form [formGroup]="createDatasource">
         <div>
@@ -19,8 +21,10 @@
             <mat-label>Datasource ID</mat-label>
             <input matInput placeholder="Datasource ID" formControlName="dataSourceId">
             <mat-icon matSuffix>dns</mat-icon>
-            <mat-error *ngIf="dataSourceId && dataSourceId.invalid && dataSourceId.touched">Require a Datasource ID
-            </mat-error>
+            @if (dataSourceId && dataSourceId.invalid && dataSourceId.touched) {
+              <mat-error>Require a Datasource ID
+              </mat-error>
+            }
           </mat-form-field>
         </div>
         <div>
@@ -28,7 +32,9 @@
             <mat-label>URL</mat-label>
             <input matInput placeholder="URL" formControlName="url">
             <mat-icon matSuffix>link</mat-icon>
-            <mat-error *ngIf="url && url.invalid && url.touched">Require a URL</mat-error>
+            @if (url && url.invalid && url.touched) {
+              <mat-error>Require a URL</mat-error>
+            }
           </mat-form-field>
         </div>
         <div>
@@ -36,9 +42,11 @@
             <mat-label>Time Out Seconds</mat-label>
             <input height="50rem" matInput placeholder="Time Out Seconds" formControlName="timeOutSeconds">
             <mat-icon matSuffix>timelapse</mat-icon>
-            <mat-error *ngIf="timeOutSeconds && timeOutSeconds.invalid && timeOutSeconds.touched">Require a
-              TimeOutSeconds number
-            </mat-error>
+            @if (timeOutSeconds && timeOutSeconds.invalid && timeOutSeconds.touched) {
+              <mat-error>Require a
+                TimeOutSeconds number
+              </mat-error>
+            }
           </mat-form-field>
         </div>
         <div>
@@ -46,9 +54,11 @@
             <mat-label>Max Query Header Length</mat-label>
             <input matInput placeholder="Max Query Header Length" formControlName="maxQueryHeaderLength">
             <mat-icon matSuffix>settings_ethernet</mat-icon>
-            <mat-error *ngIf="maxQueryHeaderLength && maxQueryHeaderLength.invalid && maxQueryHeaderLength.touched">
-              Require a Max Query Header Length
-            </mat-error>
+            @if (maxQueryHeaderLength && maxQueryHeaderLength.invalid && maxQueryHeaderLength.touched) {
+              <mat-error>
+                Require a Max Query Header Length
+              </mat-error>
+            }
           </mat-form-field>
         </div>
         <div>
@@ -56,7 +66,9 @@
             <mat-label>Username</mat-label>
             <input matInput placeholder="Username" formControlName="username">
             <mat-icon matSuffix>account_circle</mat-icon>
-            <mat-error *ngIf="username && username.invalid && username.touched">Require a Username</mat-error>
+            @if (username && username.invalid && username.touched) {
+              <mat-error>Require a Username</mat-error>
+            }
           </mat-form-field>
         </div>
         <div>
@@ -64,7 +76,9 @@
             <mat-label>Password</mat-label>
             <input matInput placeholder="Password" [type]="hide ? 'password' : 'text'" formControlName="password">
             <mat-icon matSuffix (click)="hide = !hide">{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
-            <mat-error *ngIf="password && password.invalid && password.touched">Require a Password</mat-error>
+            @if (password && password.invalid && password.touched) {
+              <mat-error>Require a Password</mat-error>
+            }
           </mat-form-field>
         </div>
         <div>
@@ -85,25 +99,35 @@
       </form>
       <div>
         <button type="submit" [disabled]="!createDatasource.valid" mat-raised-button color="primary" id="submit-button"
-                (click)="add(); "><mat-icon>check</mat-icon>Submit
+          (click)="add(); "><mat-icon>check</mat-icon>Submit
         </button>
         <button type="button" [disabled]="!createDatasource.valid" mat-raised-button color="accent" id="test-button"
-                (click)="test()"><mat-icon>network_check</mat-icon>Test
+          (click)="test()"><mat-icon>network_check</mat-icon>Test
         </button>
       </div>
-      <div *ngIf="testResponseStatus" class="test-response" [ngClass]="{
+      @if (testResponseStatus) {
+<div class="test-response" [ngClass]="{
           'success': testResponseStatus === 'success',
           'error': testResponseStatus === 'error'
         }">
-        <div *ngIf="testResponseStatus === 'success'">
-          Connection successful!
-          <pre *ngIf="testResponse">{{ testResponse | json }}</pre>
+          @if (testResponseStatus === 'success') {
+            <div>
+              Connection successful!
+              @if (testResponse) {
+                <pre>{{ testResponse | json }}</pre>
+              }
+            </div>
+          }
+          @if (testResponseStatus === 'error') {
+            <div>
+              Connection failed!
+              @if (testResponse) {
+                <pre>{{ testResponse | json }}</pre>
+              }
+            </div>
+          }
         </div>
-        <div *ngIf="testResponseStatus === 'error'">
-          Connection failed!
-          <pre *ngIf="testResponse">{{ testResponse | json }}</pre>
-        </div>
-      </div>
+      }
     </mat-tab>
   </mat-tab-group>
   <div></div>

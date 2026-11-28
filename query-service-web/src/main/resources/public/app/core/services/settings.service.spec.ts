@@ -42,12 +42,9 @@ describe('SettingsService', () => {
     });
 
     it('should handle errors when getting database info', () => {
-      service.getDatabaseInfo().subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getDatabaseInfo().subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne('/queryrest/api/settings/sysinfo');
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });
@@ -73,12 +70,9 @@ describe('SettingsService', () => {
     });
 
     it('should handle errors when getting stats', () => {
-      service.getStats().subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getStats().subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne('/queryrest/api/settings/stats');
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });
@@ -108,12 +102,9 @@ describe('SettingsService', () => {
     });
 
     it('should handle errors when getting cache statistics', () => {
-      service.getCacheStatistics().subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getCacheStatistics().subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne('/queryrest/api/ontology/cache/statistics');
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });

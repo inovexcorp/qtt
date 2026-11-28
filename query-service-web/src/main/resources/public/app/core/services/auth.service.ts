@@ -78,7 +78,7 @@ export class AuthService {
       this.userSubject.next(await firstValueFrom(this.http.get<CurrentUser>(this.meUrl)));
       this.restoreLocation();
     } catch {
-      // 499 (session expired) is handled by AuthInterceptor, which reloads the page to sign in again.
+      // 499 (session expired) is handled by authInterceptor, which reloads the page to sign in again.
     }
   }
 

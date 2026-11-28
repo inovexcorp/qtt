@@ -1,13 +1,20 @@
-import { Component, Inject, OnInit } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { Component, Inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef, MatDialogTitle, MatDialogContent, MatDialogActions } from '@angular/material/dialog';
 import { SparqiService } from '../../../core/services/sparqi.service';
 import { SparqiMetricRecord } from '../../../core/models/sparqi.models';
-import { ScaleType } from '@swimlane/ngx-charts';
+import { ScaleType, LineChartModule, PieChartModule } from '@swimlane/ngx-charts';
+import { MatIcon } from '@angular/material/icon';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
+import { CdkScrollable } from '@angular/cdk/scrolling';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 @Component({
-  selector: 'app-sparqi-metrics-modal',
-  templateUrl: './sparqi-metrics-modal.component.html',
-  styleUrls: ['./sparqi-metrics-modal.component.scss']
+    selector: 'app-sparqi-metrics-modal',
+    templateUrl: './sparqi-metrics-modal.component.html',
+    styleUrls: ['./sparqi-metrics-modal.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MatDialogTitle, MatIcon, MatIconButton, MatTooltip, CdkScrollable, MatDialogContent, MatProgressSpinner, LineChartModule, PieChartModule, MatDialogActions, MatButton]
 })
 export class SparqiMetricsModalComponent implements OnInit {
 

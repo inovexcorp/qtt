@@ -22,12 +22,11 @@ describe('SettingsComponent', () => {
   beforeEach(async () => {
     queryParams = new BehaviorSubject(convertToParamMap({}));
     await TestBed.configureTestingModule({
-      declarations: [SettingsComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, SettingsComponent],
       providers: [{ provide: ActivatedRoute, useValue: { queryParamMap: queryParams } }],
       schemas: [NO_ERRORS_SCHEMA]
     })
-    .compileComponents();
+      .compileComponents();
 
     fixture = TestBed.createComponent(SettingsComponent);
     component = fixture.componentInstance;
@@ -52,13 +51,13 @@ describe('SettingsComponent', () => {
     expect(component.signInStatus.tone).toBe('pending');
     component.ssoInfo = sso({ enabled: false });
     expect(component.signInStatus.tone).toBe('warn');
-    expect(component.needsAttention('sign-in')).toBeTrue();
+    expect(component.needsAttention('sign-in')).toBe(true);
 
     component.ssoInfo = sso({ queryRoutes: 48, openQueryRoutes: 3 });
-    expect(component.signInStatus).toEqual(jasmine.objectContaining({ tone: 'ok', text: 'On · sso.example.com' }));
-    expect(component.queryAccessStatus).toEqual(jasmine.objectContaining({ tone: 'warn', text: '3 of 48 routes are open to anyone' }));
-    expect(component.needsAttention('access')).toBeTrue();
-    expect(component.needsAttention('sign-in')).toBeFalse();
+    expect(component.signInStatus).toEqual(expect.objectContaining({ tone: 'ok', text: 'On · sso.example.com' }));
+    expect(component.queryAccessStatus).toEqual(expect.objectContaining({ tone: 'warn', text: '3 of 48 routes are open to anyone' }));
+    expect(component.needsAttention('access')).toBe(true);
+    expect(component.needsAttention('sign-in')).toBe(false);
 
     component.ssoInfo = sso({ queryRoutes: 48, openQueryRoutes: 0 });
     expect(component.queryAccessStatus.tone).toBe('ok');

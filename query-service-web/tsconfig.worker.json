@@ -1,0 +1,16 @@
+/* Web workers (Monaco's editor and JSON workers). To learn more about this file see: https://angular.dev/guide/web-worker */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/worker",
+    "lib": [
+      "ES2023",
+      "webworker"
+    ],
+    "types": []
+  },
+  "include": [
+    "src/main/resources/public/**/*.worker.ts",
+    "src/main/resources/public/**/monaco-workers.d.ts"
+  ]
+}

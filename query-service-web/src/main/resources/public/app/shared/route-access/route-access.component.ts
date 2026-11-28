@@ -1,15 +1,19 @@
-import { Component, Input, OnInit } from '@angular/core';
-import { FormGroup } from '@angular/forms';
+import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SettingsService } from '../../core/services/settings.service';
 import { effectiveAccess } from '../query-endpoint';
+import { MatFormField, MatLabel, MatSuffix, MatHint } from '@angular/material/form-field';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { MatIcon } from '@angular/material/icon';
+import { MatInput } from '@angular/material/input';
 
 /**
  * The "Access" fields of a route form: who may call the route at /query/<routeId>, and the roles an authenticated
  * caller must also hold. Binds to the parent form's "accessPolicy" and "requiredRoles" controls.
  */
 @Component({
-  selector: 'app-route-access',
-  template: `
+    selector: 'app-route-access',
+    template: `
     <div class="route-access" [formGroup]="group">
       <h3>Access</h3>
       <mat-form-field appearance="outline" class="access-select">
@@ -21,21 +25,27 @@ import { effectiveAccess } from '../query-endpoint';
         </mat-select>
         <mat-icon matSuffix>{{ effective === 'open' ? 'public' : 'lock' }}</mat-icon>
       </mat-form-field>
-      <mat-form-field appearance="outline" class="roles-input" *ngIf="effective === 'authenticated'">
-        <mat-label>Required roles (optional)</mat-label>
-        <input matInput formControlName="requiredRoles" placeholder="e.g. finance-apps">
-        <mat-hint>Comma-separated identity-provider roles or groups that callers must also hold. API keys must name this route.</mat-hint>
-      </mat-form-field>
-      <p class="access-note" *ngIf="effective === 'open'">
-        <mat-icon>warning_amber</mat-icon> Anyone who can reach this server can run this query.
-      </p>
+      @if (effective === 'authenticated') {
+        <mat-form-field appearance="outline" class="roles-input">
+          <mat-label>Required roles (optional)</mat-label>
+          <input matInput formControlName="requiredRoles" placeholder="e.g. finance-apps">
+          <mat-hint>Comma-separated identity-provider roles or groups that callers must also hold. API keys must name this route.</mat-hint>
+        </mat-form-field>
+      }
+      @if (effective === 'open') {
+        <p class="access-note">
+          <mat-icon>warning_amber</mat-icon> Anyone who can reach this server can run this query.
+        </p>
+      }
     </div>`,
-  styles: [`
+    styles: [`
     .route-access { margin: 8px 0 16px; }
     .access-select, .roles-input { width: 100%; max-width: 640px; display: block; }
     .access-note { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8a6d00; margin: 0; }
     .access-note mat-icon { font-size: 18px; width: 18px; height: 18px; }
-  `]
+  `],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatSelect, MatOption, MatIcon, MatSuffix, MatInput, MatHint]
 })
 export class RouteAccessComponent implements OnInit {
   @Input() group!: FormGroup;

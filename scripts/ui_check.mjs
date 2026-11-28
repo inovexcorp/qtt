@@ -86,6 +86,24 @@ const pages = [
   ['settings', '#/settings', null],
 ];
 
+// DOM checks that screenshots can't make: third-party components render real content. [page] -> fn returning problems
+const domChecks = {
+  metrics: () => {
+    const errs = [];
+    if (!document.querySelector('ngx-charts-number-card svg g.cell')) errs.push('number cards did not render');
+    if (!document.querySelector('ngx-charts-linear-gauge svg')) errs.push('gauge did not render');
+    return errs;
+  },
+  'config-datasource': () => {
+    const crumbs = [...document.querySelectorAll('.xng-breadcrumb-item')].map(c => c.innerText.trim());
+    return crumbs.join(' / ') === 'DataSources / Config-Datasource' ? [] : [`breadcrumbs: ${crumbs.join(' / ')}`];
+  },
+  'config-route': () => {
+    const crumbs = [...document.querySelectorAll('.xng-breadcrumb-item')].map(c => c.innerText.trim());
+    return crumbs.join(' / ') === 'Routes / Config-Route' ? [] : [`breadcrumbs: ${crumbs.join(' / ')}`];
+  },
+};
+
 const problems = [];
 await setup();
 const browser = await puppeteer.launch({ executablePath: chrome, headless: true,
@@ -108,6 +126,7 @@ try {
     await new Promise(r => setTimeout(r, 1500));
     const text = await page.evaluate(() => document.body.innerText);
     if (expectText && !text.includes(expectText)) errs.push(`expected text not found: ${expectText}`);
+    if (domChecks[name]) errs.push(...await page.evaluate(domChecks[name]));
     if (shots) {
       fs.mkdirSync(shots, { recursive: true });
       await page.screenshot({ path: `${shots}/${name}.png`, fullPage: true });
@@ -118,7 +137,7 @@ try {
   }
 
   // Template editors: a syntax error is marked while typing (before saving), and the mark clears once fixed.
-  // add-route uses ngx-monaco-editor's own Monaco instance, config-route the bundled one; check both.
+  // add-route uses app-code-editor, config-route creates its editor itself; check both.
   // [name, page, buttons/tabs to click (in order) to reveal the editor]
   const editors = [
     ['config-route editor', `#/routes/config-route/${route}`, ['tab:Template Editor']],
@@ -130,6 +149,8 @@ try {
     await page.setViewport({ width: 1440, height: 900 });
     const errs = [];
     page.on('pageerror', e => errs.push(`pageerror: ${e.message}`));
+    // Monaco warns, and runs worker code on the UI thread, when it can't start its web workers.
+    page.on('console', m => { if (/web worker|MonacoEnvironment/i.test(m.text())) errs.push(`console ${m.type()}: ${m.text()}`); });
     try {
       await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle0', timeout: 60000 });
       for (const step of openSteps) {
@@ -162,6 +183,27 @@ try {
       await replaceText('SELECT * WHERE { ?s ?p ?o }');
       await page.waitForSelector('.template-syntax-error', { hidden: true, timeout: 10000 });
       await page.waitForSelector('.monaco-editor .squiggly-error', { hidden: true, timeout: 10000 });
+      // Suggestions: words from the text are offered, with codicon kind icons drawn from the codicon font.
+      await page.keyboard.type('\nSEL', { delay: 5 });
+      await page.keyboard.down('Control');
+      await page.keyboard.press('Space');
+      await page.keyboard.up('Control');
+      await page.waitForSelector('.monaco-editor .suggest-widget.visible .monaco-list-row', { visible: true, timeout: 10000 });
+      const suggest = await page.evaluate(async () => {
+        await document.fonts.ready;
+        const rows = [...document.querySelectorAll('.suggest-widget.visible .monaco-list-row')];
+        const icon = document.querySelector('.suggest-widget.visible .monaco-list-row .codicon');
+        return {
+          labels: rows.map(r => r.innerText.trim().split('\n')[0]),
+          iconWidth: icon ? icon.getBoundingClientRect().width : 0,
+          iconGlyph: icon ? getComputedStyle(icon, '::before').content : 'none',
+          codiconFont: [...document.fonts].some(f => f.family.replace(/["']/g, '') === 'codicon' && f.status === 'loaded'),
+        };
+      });
+      if (!suggest.labels.includes('SELECT')) errs.push(`suggestions do not offer SELECT: ${suggest.labels.join(', ')}`);
+      if (!suggest.iconWidth || !suggest.iconGlyph || suggest.iconGlyph === 'none') errs.push('suggestion has no kind icon');
+      if (!suggest.codiconFont) errs.push('codicon font not loaded');
+      await page.keyboard.press('Escape');
     } catch (e) {
       errs.push(`editor check: ${e.message}`);
       if (shots) await page.screenshot({ path: `${shots}/${name.replace(/[^a-z0-9]+/gi, '-')}-failed.png` }).catch(() => {});

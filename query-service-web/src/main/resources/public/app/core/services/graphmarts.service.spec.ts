@@ -56,12 +56,9 @@ describe('GraphmartsService', () => {
     it('should handle errors when getting graphmarts', () => {
       const dataSourceId = 'datasource-789';
 
-      service.getGraphMarts(dataSourceId).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getGraphMarts(dataSourceId).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne('/queryrest/api/anzo/graphmarts/datasource-789');
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });

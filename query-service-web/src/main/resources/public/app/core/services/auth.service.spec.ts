@@ -22,9 +22,9 @@ describe('AuthService', () => {
   afterEach(() => http.verify());
 
   it('allows everything until the user is known', () => {
-    expect(service.hasRole('admin')).toBeTrue();
-    expect(service.noAccess).toBeFalse();
-    expect(service.user.authEnabled).toBeFalse();
+    expect(service.hasRole('admin')).toBe(true);
+    expect(service.noAccess).toBe(false);
+    expect(service.user.authEnabled).toBe(false);
   });
 
   it('loads the signed-in user and their roles', async () => {
@@ -33,11 +33,11 @@ describe('AuthService', () => {
     await loading;
 
     expect(service.user.displayName).toBe('Eddie Editor');
-    expect(service.hasRole('viewer')).toBeTrue();
-    expect(service.hasRole('editor')).toBeTrue();
-    expect(service.hasRole('admin')).toBeFalse();
+    expect(service.hasRole('viewer')).toBe(true);
+    expect(service.hasRole('editor')).toBe(true);
+    expect(service.hasRole('admin')).toBe(false);
     expect(service.roleLabel).toBe('Editor');
-    expect(service.noAccess).toBeFalse();
+    expect(service.noAccess).toBe(false);
   });
 
   it('reports no access for a signed-in user without roles', async () => {
@@ -45,7 +45,7 @@ describe('AuthService', () => {
     http.expectOne('/queryrest/api/me').flush({ ...editor, roles: [] });
     await loading;
 
-    expect(service.noAccess).toBeTrue();
+    expect(service.noAccess).toBe(true);
     expect(service.roleLabel).toBeNull();
   });
 
@@ -54,7 +54,7 @@ describe('AuthService', () => {
     http.expectOne('/queryrest/api/me').flush({ ...editor, roles: ['qtt-query'] });
     await loading;
 
-    expect(service.noAccess).toBeTrue();
+    expect(service.noAccess).toBe(true);
   });
 
   it('keeps allowing everything when /me fails', async () => {
@@ -62,8 +62,8 @@ describe('AuthService', () => {
     http.expectOne('/queryrest/api/me').flush('boom', { status: 500, statusText: 'Server Error' });
     await loading;
 
-    expect(service.hasRole('admin')).toBeTrue();
-    expect(service.noAccess).toBeFalse();
+    expect(service.hasRole('admin')).toBe(true);
+    expect(service.noAccess).toBe(false);
   });
 
   it('clears the sign-in reload marker once signed in', async () => {

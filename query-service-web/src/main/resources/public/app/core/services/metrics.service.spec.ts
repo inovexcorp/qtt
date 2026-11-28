@@ -55,12 +55,9 @@ describe('MetricsService', () => {
     });
 
     it('should handle errors when getting route metrics', () => {
-      service.getRouteMetrics().subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getRouteMetrics().subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne('/queryrest/api/metrics/routes/');
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });
@@ -98,12 +95,9 @@ describe('MetricsService', () => {
     });
 
     it('should handle errors when getting persisted metrics', () => {
-      service.getPersistedMetrics().subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getPersistedMetrics().subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne('/queryrest/api/metrics/route/persisted');
       req.error(new ProgressEvent('error'), { status: 404, statusText: 'Not Found' });
@@ -144,12 +138,9 @@ describe('MetricsService', () => {
     it('should handle errors when getting datasource metrics', () => {
       const dataSource = 'datasource-123';
 
-      service.getDatasourceRouteMetrics(dataSource).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getDatasourceRouteMetrics(dataSource).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne('/queryrest/api/metrics/routes/datasource-123');
       req.error(new ProgressEvent('error'), { status: 404, statusText: 'Not Found' });

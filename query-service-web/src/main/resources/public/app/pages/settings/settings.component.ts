@@ -1,5 +1,5 @@
-import { Component, ElementRef, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { Component, ElementRef, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { Subscription } from 'rxjs';
 import { SettingsService, SsoInfo } from '../../core/services/settings.service';
@@ -10,6 +10,12 @@ import { CacheStatistics } from '../../core/models/ontology/cache-statistics';
 import { CacheInfo, CacheStats } from '../../core/models/cache-info';
 import { SparqiMetricsSummary } from '../../core/models/sparqi.models';
 import { SparqiMetricsModalComponent } from './sparqi-metrics-modal/sparqi-metrics-modal.component';
+import { MatIcon } from '@angular/material/icon';
+import { IfRoleDirective } from '../../shared/if-role.directive';
+import { ApiKeysComponent } from './api-keys/api-keys.component';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatButton } from '@angular/material/button';
+import { DatePipe } from '@angular/common';
 
 /** The sections of the Settings page; the current one is in the URL (?section=…). */
 export type SettingsSection = 'overview' | 'sign-in' | 'access' | 'caching' | 'sparqi';
@@ -33,9 +39,11 @@ const SECTIONS: { id: SettingsSection; label: string; icon: string }[] = [
 ];
 
 @Component({
-  selector: 'app-settings',
-  templateUrl: './settings.component.html',
-  styleUrls: ['./settings.component.scss']
+    selector: 'app-settings',
+    templateUrl: './settings.component.html',
+    styleUrls: ['./settings.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [RouterLink, MatIcon, IfRoleDirective, ApiKeysComponent, MatProgressSpinner, MatButton, DatePipe]
 })
 export class SettingsComponent implements OnInit, OnDestroy {
 

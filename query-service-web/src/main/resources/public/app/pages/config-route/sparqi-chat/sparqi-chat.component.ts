@@ -1,13 +1,26 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewChecked, ChangeDetectionStrategy } from '@angular/core';
 import { SparqiService } from '../../../core/services/sparqi.service';
 import { SparqiMessage, SparqiContext, SparqiSession } from '../../../core/models/sparqi.models';
 import { MatDialog } from '@angular/material/dialog';
 import { OntologyVisualizationDialogComponent } from './ontology-visualization-dialog/ontology-visualization-dialog.component';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatIconButton, MatButton, MatFabButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatList, MatListItem, MatListItemIcon, MatListItemTitle, MatListItemLine } from '@angular/material/list';
+import { NgClass, TitleCasePipe, DatePipe } from '@angular/common';
+import { MarkdownComponent } from 'ngx-markdown';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { CdkTextareaAutosize } from '@angular/cdk/text-field';
+import { FormsModule } from '@angular/forms';
 
 @Component({
-  selector: 'app-sparqi-chat',
-  templateUrl: './sparqi-chat.component.html',
-  styleUrls: ['./sparqi-chat.component.scss']
+    selector: 'app-sparqi-chat',
+    templateUrl: './sparqi-chat.component.html',
+    styleUrls: ['./sparqi-chat.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MatTooltip, MatIconButton, MatIcon, MatList, MatListItem, MatListItemIcon, MatListItemTitle, MatListItemLine, NgClass, MarkdownComponent, MatProgressSpinner, MatButton, MatFormField, MatLabel, MatInput, CdkTextareaAutosize, FormsModule, MatFabButton, TitleCasePipe, DatePipe]
 })
 export class SparqiChatComponent implements OnInit, OnChanges, AfterViewChecked {
   @Input() routeId!: string;
