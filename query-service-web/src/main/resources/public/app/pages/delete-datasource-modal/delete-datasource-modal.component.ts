@@ -1,15 +1,18 @@
-import { Inject, ViewEncapsulation } from '@angular/core';
+import { Inject, ViewEncapsulation, ChangeDetectionStrategy } from '@angular/core';
 import { Component, OnInit } from '@angular/core';
 import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { DatasourceService } from '../../core/services/datasource.service';
+import { MatButton } from '@angular/material/button';
 
 
 @Component({
-  selector: 'app-confirm-dialog',
-  templateUrl: './delete-datasource-modal.component.html',
-  styleUrls: ['./delete-datasource-modal.component.scss'],
-  encapsulation: ViewEncapsulation.None
+    selector: 'app-confirm-dialog',
+    templateUrl: './delete-datasource-modal.component.html',
+    styleUrls: ['./delete-datasource-modal.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MatButton]
 })
 export class DeleteDatasourceModalComponent implements OnInit {
  

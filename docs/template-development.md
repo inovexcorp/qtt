@@ -66,6 +66,20 @@ ${name?url}           # URL encode
 ${limit!'10'}         # Use '10' if limit not provided
 ```
 
+### What Templates Cannot Do
+
+Anyone who can reach the management API can save a template, so templates can only work with the request they are
+rendering. These FreeMarker features are switched off, and a template that uses them fails at query time with a
+`TEMPLATE_ERROR` naming the reason:
+
+- `?new` (creating Java objects, which could run operating-system commands) and `?api`
+- `<#include>` and `<#import>` (reading other files on the server)
+- Calling Java methods or reading properties of objects in the request, such as
+  `${headers.CamelNettyChannelHandlerContext.channel()}`. Such values still print as text with `${...}`.
+
+Request values (query parameters, headers and the JSON body via `body?eval_json`) and all FreeMarker built-ins
+other than `?new` and `?api` work as before. The same rules apply when testing a template in the editor.
+
 ## Common Template Patterns
 
 ### Pattern 1: Simple Search with Optional Filter
@@ -373,11 +387,14 @@ OPTIONAL { ?person foaf:mbox ?email . }  # Only if truly optional
 
 **Check Generated SPARQL:**
 
-Enable Karaf logging to see the generated SPARQL queries:
+Enable DEBUG logging for `com.inovexcorp.queryservice` to see the generated SPARQL queries. Log levels are set at
+startup (see [Troubleshooting](troubleshooting.md#log-levels)):
 
 ```bash
-# In Karaf console
-log:set DEBUG com.inovexcorp.queryservice
+# Start QTT with DEBUG logging for QTT's own classes
+docker run -d --name qtt \
+  -e QUARKUS_LOG_CATEGORY__COM_INOVEXCORP_QUERYSERVICE__LEVEL=DEBUG \
+  ...
 
 # View logs
 docker logs -f qtt

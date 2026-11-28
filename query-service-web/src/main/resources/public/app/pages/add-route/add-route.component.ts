@@ -1,13 +1,12 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { ViewEncapsulation } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { trigger, state, style, transition, animate } from '@angular/animations';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { Datasources } from '../../core/models/datasources';
 import { AddRouteService } from './add-route.service';
 import { Router } from '@angular/router';
-import { FormGroup, FormControl, Validators } from '@angular/forms';
-import { MatIconRegistry } from '@angular/material/icon';
+import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatIconRegistry, MatIcon } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { GraphmartsService } from '../../core/services/graphmarts.service';
 import { Graphmarts } from '../../core/models/graphmarts';
@@ -15,35 +14,37 @@ import { map, Observable, startWith } from 'rxjs';
 import { GraphmartLayers } from '../../core/models/graphmart-layers';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { LayersService } from '../../core/services/layers.service';
-import { MatChipInputEvent } from '@angular/material/chips';
-import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import { MatChipInputEvent, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput } from '@angular/material/chips';
+import { MatAutocompleteSelectedEvent, MatAutocompleteTrigger, MatAutocomplete } from '@angular/material/autocomplete';
 import { NewRoute } from '../../core/models/routes-interfaces/new-route';
 import { OntologyService } from '../../core/services/ontology/ontology.service';
 import { registerOntologyAutocomplete, OntologyAutocompleteProvider } from '../../core/services/ontology/ontology-autocomplete.provider';
 import * as monaco from 'monaco-editor';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
 import { CacheService } from '../../core/services/cache.service';
 import { CacheInfo } from '../../core/models/cache-info';
+import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { RouteAccessComponent } from '../../shared/route-access/route-access.component';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatButton, MatMiniFabButton } from '@angular/material/button';
+import { CodeEditorComponent } from '../../shared/code-editor/code-editor.component';
+import { AsyncPipe } from '@angular/common';
 
 
 
 @Component({
-  selector: 'app-add-route',
-  templateUrl: './add-route.component.html',
-  styleUrls: ['./add-route.component.scss'],
-  encapsulation: ViewEncapsulation.None,
-  animations: [
-    trigger('slideDown', [
-      transition(':enter', [
-        style({ height: 0, opacity: 0, overflow: 'hidden' }),
-        animate('300ms ease-out', style({ height: '*', opacity: 1 }))
-      ]),
-      transition(':leave', [
-        animate('300ms ease-in', style({ height: 0, opacity: 0, overflow: 'hidden' }))
-      ])
-    ])
-  ]
+    selector: 'app-add-route',
+    templateUrl: './add-route.component.html',
+    styleUrls: ['./add-route.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatIcon, MatSuffix, MatSelect, MatOption, MatAutocompleteTrigger, MatAutocomplete, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput, RouteAccessComponent, MatSlideToggle, MatTooltip, MatButton, MatMiniFabButton, CodeEditorComponent, AsyncPipe]
 })
-export class AddRouteComponent implements OnInit {
+export class AddRouteComponent implements OnInit, OnDestroy {
 
   filteredGraphmarts!: Observable<Graphmarts[]> | undefined;
   datasourceIcon: string = 'assets/icons/anzo.svg';
@@ -60,7 +61,7 @@ export class AddRouteComponent implements OnInit {
   allLayers: GraphmartLayers[] = [];
   separatorKeysCodes: number[] = [ENTER, COMMA];
   showTemplateEditor: boolean = false;
-  editorOptions = {
+  editorOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
     theme: 'vs-dark',
     language: 'freemarker2',
     automaticLayout: true,
@@ -83,6 +84,9 @@ export class AddRouteComponent implements OnInit {
   layerPlaceholder: string = "Keep blank to target all layers";
   private ontologyAutocompleteProvider?: OntologyAutocompleteProvider;
   private monacoEditor: any;
+  private templateValidation?: { dispose(): void };
+  /** The template's current syntax error, shown below the editor (null when it parses). */
+  templateSyntaxError: TemplateValidation | null = null;
 
   // Cache configuration
   cacheInfo?: CacheInfo;
@@ -102,7 +106,10 @@ export class AddRouteComponent implements OnInit {
     // Cache fields
     cacheEnabled: new FormControl(false),
     cacheTtlSeconds: new FormControl<number | null>(null),
-    cacheKeyStrategy: new FormControl('QUERY_HASH')
+    cacheKeyStrategy: new FormControl('QUERY_HASH'),
+    // Who may call it (see app-route-access)
+    accessPolicy: new FormControl('default'),
+    requiredRoles: new FormControl('')
   })
   get routeId() { return this.createRoute.get('routeId') }
   get routeParameters() { return this.createRoute.get('routeParameters'); }
@@ -118,7 +125,8 @@ export class AddRouteComponent implements OnInit {
 
 
 
-  constructor(private domSanitzer: DomSanitizer, public router: Router, public dialog: MatDialog, private datasourceService: DatasourceService, private routeService: AddRouteService, private graphMartService: GraphmartsService, private matIconRegistry: MatIconRegistry, private layersService: LayersService, private ontologyService: OntologyService, private cacheService: CacheService
+  constructor(private domSanitzer: DomSanitizer, public router: Router, public dialog: MatDialog, private datasourceService: DatasourceService, private routeService: AddRouteService, private graphMartService: GraphmartsService, private matIconRegistry: MatIconRegistry, private layersService: LayersService, private ontologyService: OntologyService, private cacheService: CacheService,
+    private templateValidationService: TemplateValidationService, private snackBar: MatSnackBar
   ) {
     this.matIconRegistry.addSvgIcon(
       'anzo-logo',
@@ -305,6 +313,11 @@ export class AddRouteComponent implements OnInit {
     // Store the editor instance
     this.monacoEditor = editor;
 
+    // Mark syntax errors as the user types (the server rejects saving a template that does not parse)
+    this.templateValidation?.dispose();
+    this.templateValidation = this.templateValidationService.attach(editor,
+      result => this.templateSyntaxError = result && !result.valid ? result : null);
+
     // Configure word pattern FIRST, before registering providers
     // This prevents Monaco from breaking URIs at dots, slashes, etc.
     monaco.languages.setLanguageConfiguration('freemarker2', {
@@ -321,6 +334,11 @@ export class AddRouteComponent implements OnInit {
       this.initializeOntologyAutocomplete(routeId);
       console.log('[Add Route] Provider registered. Try typing "<" or pressing Ctrl+Space');
     }, 100);
+  }
+
+  ngOnDestroy(): void {
+    this.templateValidation?.dispose();
+    this.templateValidation = undefined;
   }
 
   toggleEditor(): void {
@@ -351,6 +369,10 @@ export class AddRouteComponent implements OnInit {
     let cacheTtlSeconds = this.createRoute.value['cacheTtlSeconds'] as number | null;
     let cacheKeyStrategy = this.createRoute.value['cacheKeyStrategy'] as string;
 
+    // Access
+    let accessPolicy = (this.createRoute.value['accessPolicy'] as string) || 'default';
+    let requiredRoles = (this.createRoute.value['requiredRoles'] as string) || '';
+
     // Validate required fields (template is now optional)
     if (!routeId || !httpMethods || httpMethods.length === 0 || !routeDescription || !graphMartUri || !dataSourceId) { return; }
 
@@ -362,10 +384,15 @@ export class AddRouteComponent implements OnInit {
       this.ontologyAutocompleteProvider.setRouteId(routeId);
     }
 
-    this.routeService.postRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, status, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy } as NewRoute)
-      .subscribe(() => {
-        this.router.navigate(['../../routes']);
-        location.reload();
+    this.routeService.postRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, status, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, accessPolicy, requiredRoles } as NewRoute)
+      .subscribe({
+        next: () => {
+          this.router.navigate(['../../routes']);
+          location.reload();
+        },
+        // Stay on the page (keeping the input) and say why, e.g. a template syntax error
+        error: (error) => this.snackBar.open(`Route not created: ${saveErrorMessage(error)}`, 'Close',
+          { duration: 10000, panelClass: ['error-snackbar'] })
       });
 
   }

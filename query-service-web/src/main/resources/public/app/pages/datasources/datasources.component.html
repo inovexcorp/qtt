@@ -1,74 +1,76 @@
-<ng-container *ngIf="router.isActive('/datasources', true)">
+@if (router.isActive('/datasources', true)) {
   <div class="container-fluid">
     <!-- Global Health Checks Disabled Banner -->
-    <div class="global-health-disabled-banner" *ngIf="!healthCheckEnabled">
-      <mat-icon>warning</mat-icon>
-      <div class="banner-content">
-        <strong>Automated health checks are disabled.</strong>
-        <span>Datasource health statuses are not being monitored automatically.</span>
+    @if (!healthCheckEnabled) {
+      <div class="global-health-disabled-banner">
+        <mat-icon>warning</mat-icon>
+        <div class="banner-content">
+          <strong>Automated health checks are disabled.</strong>
+          <span>Datasource health statuses are not being monitored automatically.</span>
+        </div>
       </div>
-    </div>
-
+    }
     <mat-toolbar class="datasource-toolbar">
       <h2>QtT DataSources</h2>
       <span class="flexExpand"></span>
-      <button mat-raised-button color="primary" class="add-button" [routerLink]="['add-datasource']">Add
-        DataSource</button>
+      <button *qttIfRole="'admin'" mat-raised-button color="primary" class="add-button" [routerLink]="['add-datasource']">Add
+      DataSource</button>
     </mat-toolbar>
-    <mat-card appearance="outlined" *ngFor="let datasource of datasources" class="example-card">
-      <mat-card-header class="card-header">
-
-        <mat-card-title>{{datasource.dataSourceId}}</mat-card-title>
-        <mat-card-subtitle class="card-subtitle">
-          <mat-icon class="ds-icon" svgIcon="anzo-logo"></mat-icon>GraphStudio
-        </mat-card-subtitle>
-        <span class="status-badge"
-              [class]="getStatusClass(datasource.status)"
-              [matTooltip]="getStatusTooltip(datasource)"
-              matTooltipPosition="right">
-          <mat-icon>{{getStatusIcon(datasource.status)}}</mat-icon>
-        </span>
-        <button mat-icon-button class="datasource-menu-icon"
-          [routerLink]="['config-datasource', datasource.dataSourceId]">
-          <mat-icon>menu</mat-icon>
-        </button>
-      </mat-card-header>
-      <mat-card-content>
-        <div class="ds-info-row">
-          <strong>URL:</strong>
-          <a target="_blank" class="ds-url" href="{{datasource.url}}">{{datasource.url}}</a>
-        </div>
-
-        <div class="ds-info-row">
-          <strong>Timeout:</strong>
-          <span>{{datasource.timeOutSeconds}}s</span>
-        </div>
-
-        <div class="ds-info-row">
-          <strong>Max Query Header Length:</strong>
-          <span>{{datasource.maxQueryHeaderLength}}</span>
-        </div>
-
-        <div class="ds-info-row" *ngIf="datasource.lastHealthCheck">
-          <strong>Last Health Check:</strong>
-          <span>{{datasource.lastHealthCheck | date:'short'}}</span>
-        </div>
-
-        <mat-divider></mat-divider>
-
-        <div class="health-warning" *ngIf="datasource.consecutiveFailures && datasource.consecutiveFailures > 0">
-          <mat-icon>warning</mat-icon>
-          <span>{{datasource.consecutiveFailures}} consecutive health check failure{{datasource.consecutiveFailures > 1 ? 's' : ''}}</span>
-        </div>
-
-        <div class="health-error" *ngIf="datasource.status === 'DOWN' && datasource.lastHealthError">
-          <mat-icon>error_outline</mat-icon>
-          <span>{{datasource.lastHealthError}}</span>
-        </div>
-      </mat-card-content>
-      <mat-card-footer>
-      </mat-card-footer>
-    </mat-card>
+    @for (datasource of datasources; track datasource) {
+      <mat-card appearance="outlined" class="example-card">
+        <mat-card-header class="card-header">
+          <mat-card-title>{{datasource.dataSourceId}}</mat-card-title>
+          <mat-card-subtitle class="card-subtitle">
+            <mat-icon class="ds-icon" svgIcon="anzo-logo"></mat-icon>GraphStudio
+          </mat-card-subtitle>
+          <span class="status-badge"
+            [class]="getStatusClass(datasource.status)"
+            [matTooltip]="getStatusTooltip(datasource)"
+            matTooltipPosition="right">
+            <mat-icon>{{getStatusIcon(datasource.status)}}</mat-icon>
+          </span>
+          <button mat-icon-button class="datasource-menu-icon"
+            [routerLink]="['config-datasource', datasource.dataSourceId]">
+            <mat-icon>menu</mat-icon>
+          </button>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="ds-info-row">
+            <strong>URL:</strong>
+            <a target="_blank" class="ds-url" href="{{datasource.url}}">{{datasource.url}}</a>
+          </div>
+          <div class="ds-info-row">
+            <strong>Timeout:</strong>
+            <span>{{datasource.timeOutSeconds}}s</span>
+          </div>
+          <div class="ds-info-row">
+            <strong>Max Query Header Length:</strong>
+            <span>{{datasource.maxQueryHeaderLength}}</span>
+          </div>
+          @if (datasource.lastHealthCheck) {
+            <div class="ds-info-row">
+              <strong>Last Health Check:</strong>
+              <span>{{datasource.lastHealthCheck | date:'short'}}</span>
+            </div>
+          }
+          <mat-divider></mat-divider>
+          @if (datasource.consecutiveFailures && datasource.consecutiveFailures > 0) {
+            <div class="health-warning">
+              <mat-icon>warning</mat-icon>
+              <span>{{datasource.consecutiveFailures}} consecutive health check failure{{datasource.consecutiveFailures > 1 ? 's' : ''}}</span>
+            </div>
+          }
+          @if (datasource.status === 'DOWN' && datasource.lastHealthError) {
+            <div class="health-error">
+              <mat-icon>error_outline</mat-icon>
+              <span>{{datasource.lastHealthError}}</span>
+            </div>
+          }
+        </mat-card-content>
+        <mat-card-footer>
+        </mat-card-footer>
+      </mat-card>
+    }
   </div>
-</ng-container>
+}
 <router-outlet></router-outlet>

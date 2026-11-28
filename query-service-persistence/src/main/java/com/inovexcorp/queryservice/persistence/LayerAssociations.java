@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Data
 @Entity
@@ -16,7 +16,7 @@ public class LayerAssociations {
     private LayerAssociationsKey id;
 
     @JsonIgnore
-    @ManyToOne(cascade = {javax.persistence.CascadeType.MERGE})
+    @ManyToOne(cascade = {jakarta.persistence.CascadeType.MERGE})
     @MapsId("routeId")
     @JoinColumn(name = "route_id")
     private CamelRouteTemplate route;

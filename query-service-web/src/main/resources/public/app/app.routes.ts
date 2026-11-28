@@ -1,38 +1,37 @@
 import { Routes } from '@angular/router';
+import { DatasourcesComponent } from './pages/datasources/datasources.component';
+import { ConfigDatasourceComponent } from './pages/config-datasource/config-datasource.component';
+import { AddDatasourceComponent } from './pages/add-datasource/add-datasource.component';
+import { RoutesComponent } from './pages/routes/routes.component';
+import { MetricsComponent } from './pages/metrics/metrics.component';
+import { SettingsComponent } from './pages/settings/settings.component';
 
+/** The app's pages; `data.breadcrumb` labels each level of the toolbar breadcrumb. */
 export const routes: Routes = [
   { path: '', redirectTo: 'metrics', pathMatch: 'full' },
   {
-    path: 'datasources',
-    loadComponent: () => import('./pages/datasources/datasources.component').then(m => m.DatasourcesComponent),
-    data: { breadcrumb: 'DataSources' },
+    path: 'datasources', component: DatasourcesComponent, data: { breadcrumb: 'DataSources' },
     children: [
       { path: '', redirectTo: 'datasources', pathMatch: 'full' },
       {
         path: 'config-datasource/:dataSourceId',
-        loadComponent: () => import('./pages/config-datasource/config-datasource.component').then(m => m.ConfigDatasourceComponent),
+        component: ConfigDatasourceComponent,
         data: { breadcrumb: 'Config-Datasource' }
       },
-      {
-        path: 'add-datasource',
-        loadComponent: () => import('./pages/add-datasource/add-datasource.component').then(m => m.AddDatasourceComponent),
-        data: { breadcrumb: 'Add DataSource' }
-      }
+      { path: 'add-datasource', component: AddDatasourceComponent, data: { breadcrumb: 'Add DataSource' } }
     ]
   },
   {
-    path: 'routes',
-    loadComponent: () => import('./pages/routes/routes.component').then(m => m.RoutesComponent),
-    data: { breadcrumb: 'Routes' }
+    path: 'routes', component: RoutesComponent, data: { breadcrumb: 'Routes' },
+    children: [
+      {
+        path: 'config-route/:routeId',
+        // Lazy: the route page brings in the Monaco editor, which is most of the app's code.
+        loadComponent: () => import('./pages/config-route/config-route.component').then(m => m.ConfigRouteComponent),
+        data: { breadcrumb: 'Config-Route' }
+      }
+    ]
   },
-  {
-    path: 'metrics',
-    loadComponent: () => import('./pages/metrics/metrics.component').then(m => m.MetricsComponent),
-    data: { breadcrumb: 'Metrics' }
-  },
-  {
-    path: 'settings',
-    loadComponent: () => import('./pages/settings/settings.component').then(m => m.SettingsComponent),
-    data: { breadcrumb: 'Settings' }
-  }
+  { path: 'metrics', component: MetricsComponent, data: { breadcrumb: 'Metrics' } },
+  { path: 'settings', component: SettingsComponent, data: { breadcrumb: 'Settings' } },
 ];

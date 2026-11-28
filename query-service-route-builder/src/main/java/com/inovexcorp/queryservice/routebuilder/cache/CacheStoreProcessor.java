@@ -78,7 +78,7 @@ public class CacheStoreProcessor implements Processor {
             long duration = System.currentTimeMillis() - startTime;
 
             if (stored) {
-                log.info("Cached result for route '{}' with TTL {}s ({}ms)",
+                log.debug("Cached result for route '{}' with TTL {}s ({}ms)",
                         routeTemplate.getRouteId(), ttlSeconds, duration);
             } else {
                 log.warn("Failed to cache result for route '{}' ({}ms)",

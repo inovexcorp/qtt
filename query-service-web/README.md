@@ -1,10 +1,11 @@
 # Query Service Web
 
-An Angular-based web interface for the Query Service, packaged as an OSGi bundle for deployment in Apache Karaf.
+An Angular-based web interface for the Query Service, packaged as a jar of static resources that the Quarkus
+application (`query-service-app`) serves.
 
 ## Overview
 
-Query Service Web is a single-page application (SPA) built with Angular that provides a user interface for managing query routes, datasources, and monitoring metrics. The application is uniquely packaged as an OSGi bundle, allowing it to be deployed directly into an Apache Karaf container alongside the backend services.
+Query Service Web is a single-page application (SPA) built with Angular that provides a user interface for managing query routes, datasources, and monitoring metrics. The build places the compiled application under `META-INF/resources` in the module's jar; `query-service-app` depends on the jar, and Quarkus serves those files at `/` alongside the REST API.
 
 **Key Features:**
 - Routes management with Freemarker template editing
@@ -16,27 +17,25 @@ Query Service Web is a single-page application (SPA) built with Angular that pro
 
 ## Architecture
 
-### OSGi HTTP Whiteboard Integration
+### Static Resources in Quarkus
 
-The Angular application is served through OSGi's HTTP Whiteboard pattern using two key components:
+The module contains no Java code. The Angular build output is written to `target/classes/META-INF/resources`, which
+Quarkus serves as static content from the classpath. `query-service-app` adds a small `SpaFallback` route that serves
+`index.html` for UI paths that are not files (anything outside `/queryrest` whose last path segment has no
+extension).
 
-1. **`WebResources.java`**: Registers the compiled Angular application (`/build` directory) as static web resources
-2. **`QueryServiceContextHelper.java`**: Custom servlet context that handles SPA routing by redirecting all non-file requests to `index.html`
-
-This architecture allows the Angular SPA to:
-- Be deployed as a native OSGi bundle
+This allows the Angular SPA to:
+- Ship inside the single QTT application, with no separate web server
 - Use hash-based routing (`/#/routes`, `/#/metrics`, etc.)
-- Coexist with JAX-RS REST endpoints in the same Karaf container
-- Be hot-reloaded when the bundle is updated
+- Share the HTTP server (ports 8443 HTTPS and 8080 HTTP) with the REST endpoints under `/queryrest`
 
 ### Application Flow
 
 ```
-User Request → Karaf HTTP Service → OSGi HTTP Whiteboard
+User Request → Quarkus HTTP server (8443 / 8080)
                                      ↓
-                          QueryServiceContextHelper
-                                     ↓
-                    WebResources (serves /build/*)
+                 Static resources (META-INF/resources/*)
+                 or SpaFallback → index.html
                                      ↓
                               Angular SPA
                                      ↓
@@ -48,24 +47,24 @@ User Request → Karaf HTTP Service → OSGi HTTP Whiteboard
 ## Technology Stack
 
 ### Frontend
-- **Angular**: 18.2.0 - Core framework
-- **Angular Material**: 18.2.0 - UI component library
-- **Bootstrap**: 5.3.0 - Additional styling
-- **Monaco Editor**: 0.50.0 - Code editor for Freemarker templates
-- **ngx-charts**: 20.5.0 - D3-based charting library
-- **ngx-markdown**: 18.0.0 - Markdown rendering
-- **RxJS**: 7.8.0 - Reactive programming
+- **Angular**: 22.3 - Core framework (standalone components, zone.js change detection)
+- **Angular Material / CDK**: 22.3 - UI components, Material 3 theme (`mat.theme`)
+- **Monaco Editor**: 0.58 (ESM build) - Code editor for Freemarker templates and JSON
+- **ngx-charts**: 25 - D3-based charting library
+- **ngx-markdown**: 22 (marked 18) - Markdown rendering in SPARQi chat
+- **xng-breadcrumb**: 15 - Toolbar breadcrumbs
+- **RxJS**: 7.8 - Reactive programming
 
 ### Build Tools
-- **Node.js**: 20.18.1 (managed by frontend-maven-plugin)
-- **npm**: 10.8.2
-- **Angular CLI**: 18.2.0
-- **TypeScript**: 5.5.0
+- **Node.js**: 26.13.1 (managed by frontend-maven-plugin; `.nvmrc` for local work)
+- **npm**: 11.20.0
+- **Angular CLI / @angular/build**: 22.3 (esbuild application builder, Vite dev server)
+- **TypeScript**: 6.0
+- **Vitest**: 5 (browser mode, Chrome via Playwright)
 
-### OSGi Integration
-- **OSGi Core**: Declarative Services
-- **Pax Web**: 8.0.11 - HTTP Whiteboard implementation
-- **Maven Bundle Plugin**: OSGi bundle packaging
+### Packaging
+- **frontend-maven-plugin**: Runs npm ci, tests and build during the Maven build
+- **Jar packaging**: Build output under `META-INF/resources`, served by `query-service-app`
 
 ## Project Structure
 
@@ -73,9 +72,6 @@ User Request → Karaf HTTP Service → OSGi HTTP Whiteboard
 query-service-web/
 ├── src/
 │   ├── main/
-│   │   ├── java/com/inovexcorp/queryservice/web/
-│   │   │   ├── WebResources.java           # OSGi HTTP Whiteboard resource registration
-│   │   │   └── QueryServiceContextHelper.java  # SPA routing handler
 │   │   └── resources/
 │   │       └── public/                      # Angular application root
 │   │           ├── app/
@@ -90,22 +86,24 @@ query-service-web/
 │   │           │   │   ├── config-route/    # Route editor with SPARQi chat
 │   │           │   │   ├── add-route/       # New route creation
 │   │           │   │   └── config-datasource/  # Datasource editor
-│   │           │   ├── shared/              # Shared components (breadcrumbs, etc.)
-│   │           │   ├── app.module.ts        # Main application module
-│   │           │   ├── app-routing.module.ts   # Route configuration
+│   │           │   ├── shared/              # Shared components (breadcrumbs, code editor, etc.)
+│   │           │   │   └── code-editor/     # app-code-editor (Monaco form control), workers, Monaco setup
+│   │           │   ├── app.config.ts        # Application providers
+│   │           │   ├── app.routes.ts        # Route configuration (the route editor page is lazy)
 │   │           │   └── app.component.ts     # Root component
 │   │           ├── environments/            # Environment configurations
 │   │           ├── index.html               # Application entry point
-│   │           ├── main.ts                  # Angular bootstrap
-│   │           └── styles.scss              # Global styles
-│   └── test/                                # Unit tests
+│   │           ├── main.ts                  # bootstrapApplication
+│   │           ├── test-providers.ts        # Providers for every TestBed
+│   │           └── styles.scss              # Global styles and Material theme
 ├── angular.json                             # Angular CLI configuration
 ├── package.json                             # npm dependencies
-├── tsconfig.json                            # TypeScript configuration
-├── webpack.config.js                        # Custom webpack config for Monaco Editor
+├── tsconfig.json                            # TypeScript configuration (+ .app, .spec, .worker)
+├── vitest-base.config.mts                   # Vitest settings (browser mode)
 ├── proxy.conf.js                            # Dev server proxy configuration
-├── karma.conf.js                            # Test runner configuration
 └── pom.xml                                  # Maven build configuration
+
+Unit tests (`*.spec.ts`) sit next to the code they test.
 ```
 
 ## Features
@@ -148,24 +146,29 @@ query-service-web/
 The `pom.xml` uses the `frontend-maven-plugin` to automate the Node.js/Angular build process within Maven:
 
 1. **Install Node & npm** (prepare-package phase)
-   - Downloads Node.js v20.18.1 and npm 10.8.2 to `target/`
+   - Downloads Node.js v26.13.1 and npm 11.20.0 to `target/`
    - Ensures consistent build environment across systems
 
-2. **npm install** (prepare-package phase)
-   - Installs dependencies from `package.json`
-   - Uses `--legacy-peer-deps` for compatibility
+2. **npm ci** (prepare-package phase)
+   - Installs exactly what `package-lock.json` lists
+   - Dependency install scripts are blocked (npm 11 default); the denials are recorded in `package.json` `allowScripts`
 
-3. **ng build** (prepare-package phase)
+3. **npm test** (prepare-package phase)
+   - Runs the Vitest unit tests in headless Chrome with code coverage; fails below the coverage floor in `angular.json`
+   - Writes a JUnit report to `target/test-reports/vitest-junit.xml`
+
+4. **ng build** (prepare-package phase)
    - Compiles Angular application with Angular CLI
-   - Outputs to `target/classes/build/`
+   - Outputs to `target/classes/META-INF/resources/`
 
-4. **Bundle Packaging** (package phase)
-   - Maven Bundle Plugin packages the build output into an OSGi bundle
-   - Includes both Angular assets and Java OSGi classes
+5. **Jar Packaging** (package phase)
+   - The build output is packaged into the module's jar
 
 ### Build Output
 
-The compiled application is placed in `target/classes/build/` which becomes part of the OSGi bundle's classpath. The `WebResources` component then exposes this directory at the root HTTP path (`/`).
+The compiled application is placed in `target/classes/META-INF/resources/`, so it ends up under
+`META-INF/resources` in the jar. Quarkus serves that classpath directory at the root HTTP path (`/`) of
+`query-service-app`.
 
 ## Development Setup
 
@@ -173,8 +176,8 @@ The compiled application is placed in `target/classes/build/` which becomes part
 
 - **Java**: 17 or higher
 - **Maven**: 3.6+ (for full project build)
-- **Node.js**: 14.20+ (for local Angular development)
-- **npm**: 6.14+
+- **Node.js**: 26.13.1 (for local Angular development: `nvm install && nvm use` reads `.nvmrc`)
+- **npm**: 11.20+ (ships with Node 26.13.1)
 
 ### Local Development (Angular Dev Server)
 
@@ -185,9 +188,10 @@ For rapid frontend development without full Maven builds:
    cd query-service-web
    ```
 
-2. **Install dependencies** (first time only):
+2. **Install dependencies** (first time, and after `package-lock.json` changes):
    ```bash
-   npm install --legacy-peer-deps
+   nvm install && nvm use   # Node 26.13.1 from .nvmrc
+   npm ci
    ```
 
 3. **Start the development server**:
@@ -206,20 +210,9 @@ For rapid frontend development without full Maven builds:
 
 ### Proxy Configuration
 
-The `proxy.conf.js` file routes API calls from the dev server to the backend:
-
-```javascript
-{
-  "/queryrest": {
-    "target": "http://localhost:8080",
-    "secure": false,
-    "changeOrigin": true,
-    "logLevel": "debug"
-  }
-}
-```
-
-This allows the Angular dev server to proxy requests to `/queryrest/api/*` to the running backend service.
+`proxy.conf.js` sends `/queryrest` (the management API) and `/query` (query routes) from the dev server to the backend
+on `http://localhost:8080`. Sign-in stays off with the dev server; to work on the sign-in flow, use the UI served by
+QTT on 8080.
 
 ## Build Commands
 
@@ -269,88 +262,67 @@ mvn -pl '!query-service-web' clean install
 
 ### Unit Tests
 
-Run Angular unit tests with Karma:
+Run the unit tests with Vitest:
 
 ```bash
 cd query-service-web
-npm test
+npm test                                   # watch mode
+npx ng test --watch=false --coverage      # once, with coverage (as the Maven build does)
+npx ng test --watch=false --include='**/settings/**'   # some files only
 ```
 
 Tests are located alongside components with `.spec.ts` extension.
 
 ### Test Configuration
 
-- **Test Framework**: Jasmine 5.1.0
-- **Test Runner**: Karma 6.4.0
-- **Browser**: Chrome (headless mode available)
-- **Coverage**: Istanbul code coverage reports
+- **Test runner**: Vitest 5 through `@angular/build:unit-test`
+- **Browser**: Vitest browser mode with Playwright, using the installed Google Chrome (no browser download)
+- **TestBed**: zone.js change detection, like the app (`test-providers.ts`)
+- **Coverage**: floor in `angular.json` (`coverageThresholds`); HTML report in `coverage/`
+
+The end-to-end UI check (`scripts/ui_check.mjs`, run by `scripts/gate.sh`) walks every page of a running stack.
 
 ## Deployment
 
-### As Part of Full Distribution
+### As Part of the QTT Application
 
-The web bundle is automatically included in the Karaf distribution:
+The web jar is a dependency of `query-service-app` and is included in the application and container image:
 
 ```bash
 # From project root
-mvn clean install
+make build
 
-# Run the distribution
-cd query-service-distribution/target/assembly
-bin/start
+# Run the application
+make run
 ```
 
 The web UI will be available at:
-- Production: http://localhost:8181/ (Karaf HTTP port)
-- The exact port depends on your Karaf HTTP configuration
+- https://localhost:8443/ (HTTPS)
+- http://localhost:8080/ (plain HTTP)
 
-### Manual Bundle Deployment
-
-Deploy the web bundle to a running Karaf instance:
-
-```bash
-# Copy the bundle
-cp query-service-web/target/query-service-web-*.jar \
-   $KARAF_HOME/deploy/
-
-# Or install via Karaf console
-karaf@root()> bundle:install -s mvn:com.inovexcorp.queryservice/query-service-web/1.0.39-SNAPSHOT
-```
-
-### Verify Deployment
-
-Check bundle status in Karaf console:
-
-```bash
-karaf@root()> bundle:list | grep web
-```
-
-You should see the bundle in "Active" state.
+There is no separate deployment of the web module; rebuild `query-service-app` (or the image) to pick up UI changes.
 
 ## Configuration
 
 ### Build Configuration
 
 **angular.json**: Angular CLI build configuration
-- Output path: `target/classes/build`
+- Builder: `@angular/build:application` (esbuild)
+- Output path: `target/classes/META-INF/resources` (`outputPath.browser` is empty, so no `browser/` subfolder)
 - Source root: `src/main/resources/public`
-- Custom webpack config for Monaco Editor
+- Budgets: the initial bundle warns at 2 MB (Monaco must stay out of it), component styles at 20 kB
 
 **tsconfig.json**: TypeScript compiler options
 - Target: ES2022
-- Module: ES2020
-- Strict mode enabled
-
-**webpack.config.js**: Custom webpack rules
-- Monaco Editor CSS/font handling
-- Asset bundling configuration
+- Strict mode and strict templates enabled
+- `tsconfig.worker.json` compiles the Monaco web workers
 
 ### Runtime Configuration
 
 The Angular application adapts to the backend environment:
 
 - **API Base URL**: Determined by backend configuration (`/queryrest/api/`)
-- **Hash Routing**: Enabled for OSGi compatibility
+- **Hash Routing**: Enabled (`withHashLocation()` in `app.config.ts`)
 - **Environment Files**: `environment.ts` (dev) and `environment.prod.ts` (prod)
 
 ## Development Notes
@@ -358,23 +330,26 @@ The Angular application adapts to the backend environment:
 ### Why Hash Routing?
 
 The application uses hash-based routing (`/#/routes`) instead of HTML5 push-state routing because:
-1. OSGi HTTP Whiteboard serves static resources
+1. Quarkus serves the UI as static resources
 2. Hash routing doesn't require server-side URL rewriting
-3. The `QueryServiceContextHelper` handles SPA routing by serving `index.html` for non-file requests
+3. As a fallback, `SpaFallback` in `query-service-app` serves `index.html` for non-file UI paths
 
 ### Monaco Editor Integration
 
-Monaco Editor (VS Code's editor) requires special webpack configuration:
-- CSS files must be loaded from node_modules
-- Fonts and assets are copied to `assets/monaco/`
-- Custom webpack config in `webpack.config.js` handles this
+The app uses Monaco's ESM build (one copy), bundled into lazy chunks: only the route editor page and the add-route
+dialog load it.
+- `shared/code-editor/code-editor.component.ts`: `app-code-editor`, a form control around `monaco.editor.create`
+- `shared/code-editor/monaco-environment.ts`: starts the editor and JSON web workers (bundled from
+  `new Worker(new URL(...))`), and links Monaco's stylesheet when an editor is created
+- Monaco's stylesheet is built as a separate file, `monaco-editor.css` (`angular.json` styles: `inject: false`).
+  CSS that Monaco's JavaScript imports is dropped (`loader: { ".css": "empty" }`), because esbuild would write it to a
+  file nothing links.
 
-### Legacy Peer Dependencies
+### Animations
 
-The `--legacy-peer-deps` flag is required due to peer dependency conflicts between:
-- Angular 18 packages
-- Monaco Editor wrapper (ngx-monaco-editor-v2)
-- ngx-charts and D3 dependencies
+`@angular/animations` is deprecated (Angular plans to remove it in v23). The app's own transitions use
+`animate.enter` / `animate.leave` with CSS; the package and `provideAnimationsAsync()` remain only for ngx-charts,
+which still depends on it.
 
 ### Build Performance
 
@@ -382,42 +357,36 @@ The `--legacy-peer-deps` flag is required due to peer dependency conflicts betwe
 - Use `npm start` for frontend development (live reload)
 - Backend changes don't require Angular rebuild
 
-**Slow Maven Build**:
-- First build: ~5-10 minutes (downloads Node.js + npm packages)
-- Subsequent builds: ~2-3 minutes
+**Maven Build**:
+- First build downloads Node.js and the npm packages
+- After that the web module builds in about 30 seconds (production build ~10 s, unit tests ~10 s)
 - Skip with `-pl '!query-service-web'` when not needed
 
 ## Troubleshooting
 
-### Build Fails with "npm install" Error
+### Build Fails with "npm ci" Error
 
 **Problem**: `frontend-maven-plugin` fails to install dependencies
 
 **Solution**:
-```bash
-cd query-service-web
-rm -rf node_modules target
-npm install --legacy-peer-deps
-mvn clean install
-```
-
-### Bundle Not Active in Karaf
-
-**Problem**: Web bundle shows "Installed" but not "Active"
-
-**Solution**:
-1. Check Karaf logs: `log:tail`
-2. Verify Pax Web is installed: `bundle:list | grep pax-web`
-3. Check for missing dependencies: `bundle:diag <bundle-id>`
+1. `npm ci` requires `package.json` and `package-lock.json` to agree: after changing dependencies, run `npm install`
+   and commit the updated lockfile
+2. Then:
+   ```bash
+   cd query-service-web
+   rm -rf node_modules target
+   npm ci
+   mvn clean install
+   ```
 
 ### Cannot Access Web UI
 
-**Problem**: http://localhost:8181 shows 404
+**Problem**: https://localhost:8443 shows 404
 
 **Solution**:
-1. Verify web bundle is active: `bundle:list | grep web`
-2. Check HTTP service port: `config:property-get org.osgi.service.http.port`
-3. Check Pax Web configuration: `config:list | grep pax.web`
+1. Check that the web jar contains the build: `unzip -l query-service-web/target/query-service-web-*.jar | grep META-INF/resources/index.html`
+2. Rebuild `query-service-app` after rebuilding the web module (or use `make build`)
+3. Check the QTT console log for startup errors
 
 ### Dev Server Proxy Errors
 
@@ -433,9 +402,10 @@ mvn clean install
 **Problem**: Template editor shows blank or errors in console
 
 **Solution**:
-1. Clear Angular cache: `rm -rf .angular/cache`
-2. Reinstall Monaco assets: `npm install --legacy-peer-deps`
-3. Check `angular.json` assets configuration includes Monaco
+1. Check the browser console: "could not create web worker" points at `monaco-environment.ts` and
+   `tsconfig.worker.json`; an unstyled editor means `monaco-editor.css` didn't load
+2. Clear the Angular cache: `rm -rf .angular/cache`
+3. Reinstall: `npm ci`
 
 ## Related Modules
 
@@ -443,7 +413,7 @@ mvn clean install
 - **query-service-persistence**: JPA entities for routes/datasources
 - **query-service-metrics**: JMX metrics collection
 - **query-service-cache**: Redis caching layer
-- **query-service-distribution**: Karaf assembly including this web bundle
+- **query-service-app**: Quarkus application that serves this UI
 
 ## Contributing
 
@@ -453,4 +423,4 @@ When making changes to the web module:
 2. **Run tests**: `npm test` before committing
 3. **Update models**: Keep TypeScript interfaces in sync with backend DTOs
 4. **Build verification**: Run full Maven build before creating PR
-5. **Bundle test**: Deploy to Karaf and verify bundle activation
+5. **Application test**: Run `make run` and check the UI at https://localhost:8443

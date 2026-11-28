@@ -19,7 +19,7 @@ Core API providing health checking operations:
 
 **SimpleHealthChecker Implementation** (`com.inovexcorp.queryservice.health.impl.SimpleHealthChecker`)
 
-OSGi service implementation that:
+CDI bean (`@ApplicationScoped`, dependencies injected with `@Inject`) that:
 - Performs lightweight health checks by calling `getGraphmarts()` on Anzo datasources
 - Uses 5-second timeout for responsiveness
 - Persists health status and response times
@@ -78,58 +78,62 @@ When `consecutiveFailureThreshold` is configured and exceeded:
 ### Integration with Scheduler
 
 The module integrates with `query-service-scheduler` via the `DatasourceHealthCheck` scheduled job:
-- Executes health checks on cron schedule (default: every 30 seconds)
-- Configured via `com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.cfg`
-- Non-concurrent execution prevents overlapping checks
+- Executes health checks on a cron schedule via Quarkus `@Scheduled` (default: `0 0/2 * * * ?`, every 2 minutes)
+- Configured via the `com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.*` properties
+- Overlapping runs are skipped (`concurrentExecution = SKIP`)
 
 ## Configuration
 
 ### Scheduler Configuration
 
-File: `query-service-distribution/src/main/resources/etc/com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.cfg`
+Properties in `query-service-app/src/main/resources/application.properties` (read via `OsgiConfig`; the cron
+expression is read by the `@Scheduled` trigger). Override them with the environment variables shown and restart.
 
 ```properties
+# Enable/disable health checks globally
+com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.enabled=${HEALTH_CHECK_ENABLED:true}
+
 # Cron expression for health check frequency
 # Format: second minute hour day month weekday
-# Default: every 30 seconds
-scheduler.expression=0/30 * * * * ?
+# Default: every 2 minutes
+com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.scheduler.expression=${HEALTH_CHECK_INTERVAL_CRON:0 0/2 * * * ?}
 
 # Consecutive failure threshold
 # -1: Disabled (routes not auto-stopped)
 #  0: Disabled (routes not auto-stopped)
 # >0: Number of consecutive failures before stopping routes
-consecutiveFailureThreshold=-1
+com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.consecutiveFailureThreshold=${HEALTH_CHECK_FAILURE_THRESHOLD:-1}
 ```
 
 ### Example Configurations
 
 **Check every 60 seconds, auto-stop after 5 failures:**
-```properties
-scheduler.expression=0/60 * * * * ?
-consecutiveFailureThreshold=5
+```bash
+HEALTH_CHECK_INTERVAL_CRON="0 * * * * ?"
+HEALTH_CHECK_FAILURE_THRESHOLD=5
 ```
 
 **Check every 5 minutes, auto-stop after 3 failures:**
-```properties
-scheduler.expression=0 0/5 * * * ?
-consecutiveFailureThreshold=3
+```bash
+HEALTH_CHECK_INTERVAL_CRON="0 0/5 * * * ?"
+HEALTH_CHECK_FAILURE_THRESHOLD=3
 ```
 
 **Check every 30 seconds, never auto-stop:**
-```properties
-scheduler.expression=0/30 * * * * ?
-consecutiveFailureThreshold=-1
+```bash
+HEALTH_CHECK_INTERVAL_CRON="0/30 * * * * ?"
+HEALTH_CHECK_FAILURE_THRESHOLD=-1
 ```
 
 ## Usage
 
 ### Programmatic Usage
 
-The `HealthChecker` service is available as an OSGi service and can be injected:
+The `HealthChecker` is a CDI bean and can be injected:
 
 ```java
-@Reference
-private HealthChecker healthChecker;
+@Inject
+HealthChecker healthChecker;
 
 // Check specific datasource
 healthChecker.checkDatasourceHealth("my-datasource-id");
@@ -168,8 +172,8 @@ curl -X POST https://localhost:8443/queryrest/api/datasources/health/check-all
 - `camel-core`: Apache Camel integration
 
 ### External Dependencies
-- Apache Camel 3.20.5
-- OSGi Declarative Services
+- Apache Camel 4 (Camel Quarkus)
+- CDI (Quarkus ArC)
 - Lombok (compile-time annotations)
 
 ## Integration Points
@@ -215,17 +219,14 @@ Run tests:
 mvn test -pl query-service-health
 ```
 
-## OSGi Bundle Information
+## Packaging and CDI Beans
 
-**Bundle Symbolic Name**: `com.inovexcorp.queryservice.query-service-health`
+The module is a plain jar with a Jandex index, so Quarkus discovers its beans when `query-service-app` is built.
 
-**Exported Packages**:
-- `com.inovexcorp.queryservice.health`
+**Provided Beans**:
+- `com.inovexcorp.queryservice.health.HealthChecker` (implemented by `SimpleHealthChecker`)
 
-**Provided Services**:
-- `com.inovexcorp.queryservice.health.HealthChecker`
-
-**Required Services**:
+**Injected Beans**:
 - `com.inovexcorp.queryservice.persistence.DataSourceService`
 - `com.inovexcorp.queryservice.persistence.DatasourceHealthService`
 - `com.inovexcorp.queryservice.persistence.RouteService`
@@ -252,12 +253,12 @@ mvn test -pl query-service-health
 ## Troubleshooting
 
 ### Health checks not running
-- Verify scheduler configuration exists: `com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.cfg`
-- Check Karaf logs for scheduler activation messages
-- Verify `HealthChecker` OSGi service is registered: `bundle:services | grep HealthChecker`
+- Verify `HEALTH_CHECK_ENABLED` is not `false` and `HEALTH_CHECK_INTERVAL_CRON` is a valid cron expression
+- Check the QTT log for the startup message `DatasourceHealthCheck enabled (consecutiveFailureThreshold: ...)`
+- Enable DEBUG logging (`QUARKUS_LOG_CATEGORY__COM_INOVEXCORP_QUERYSERVICE__LEVEL=DEBUG`) to see each run
 
 ### Routes auto-stopping unexpectedly
-- Check `consecutiveFailureThreshold` in scheduler config
+- Check `HEALTH_CHECK_FAILURE_THRESHOLD`
 - Review datasource health history for failure patterns
 - Verify datasource connectivity (network, credentials, firewall)
 

@@ -1,10 +1,10 @@
 # Query Service Scheduler
 
-OSGi bundle providing scheduled background jobs for the Query Service application. Manages automated tasks including metrics collection, data cleanup, and datasource health monitoring.
+Library module (plain jar with a Jandex index) providing scheduled background jobs for the Query Service application. Manages automated tasks including metrics collection, data cleanup, and datasource health monitoring.
 
 ## Overview
 
-The scheduler module uses Apache Karaf's scheduling service to run periodic maintenance and monitoring tasks. All schedulers use cron expressions for flexible scheduling and are configured via `.cfg` files in the distribution.
+The scheduler module uses the Quarkus scheduler (`@Scheduled`) to run periodic maintenance and monitoring tasks. All schedulers use cron expressions for flexible scheduling and are configured in `query-service-app/src/main/resources/application.properties`, with the same property names (prefixed with the former OSGi PID) as the old `.cfg` files.
 
 ## Components
 
@@ -25,11 +25,11 @@ Collects performance and query metrics for all Camel routes in the system.
 - Calls `metricsScraper.persistRouteMetricData(routeId)` for each route
 - Fails fast on exceptions (throws `IllegalStateException`)
 
-**Configuration File:** `com.inovexcorp.queryservice.scheduler.QueryMetrics.cfg`
+**Configuration (prefix `com.inovexcorp.queryservice.scheduler.QueryMetrics.`):**
 
 ```properties
 # Cron expression: Every minute
-scheduler.expression=0 0/1 * * * ?
+com.inovexcorp.queryservice.scheduler.QueryMetrics.scheduler.expression=0 0/1 * * * ?
 ```
 
 ### 2. CleanMetrics
@@ -43,14 +43,14 @@ Removes old route performance metrics from the database based on a configurable 
 **Dependencies:**
 - `MetricService` - Handles metric data deletion
 
-**Configuration File:** `com.inovexcorp.queryservice.scheduler.CleanMetrics.cfg`
+**Configuration (prefix `com.inovexcorp.queryservice.scheduler.CleanMetrics.`):**
 
 ```properties
 # Cron expression: Every minute
-scheduler.expression=0 0/1 * * * ?
+com.inovexcorp.queryservice.scheduler.CleanMetrics.scheduler.expression=0 0/1 * * * ?
 
 # Retention period in minutes (default: 30 minutes)
-minutesToLive=30
+com.inovexcorp.queryservice.scheduler.CleanMetrics.minutesToLive=30
 ```
 
 ### 3. DatasourceHealthCheck
@@ -70,16 +70,19 @@ Monitors the health of all configured Anzo datasources by executing periodic hea
 - Can automatically stop routes after consecutive failures
 - Configurable failure threshold for automatic route stopping
 
-**Configuration File:** `com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.cfg`
+**Configuration (prefix `com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.`):**
 
 ```properties
-# Cron expression: Every 30 seconds
-scheduler.expression=0/30 * * * * ?
+# Enable/disable health checks (default: true)
+com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.enabled=${HEALTH_CHECK_ENABLED:true}
+
+# Cron expression: Every 2 minutes (default)
+com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.scheduler.expression=${HEALTH_CHECK_INTERVAL_CRON:0 0/2 * * * ?}
 
 # Consecutive failure threshold before stopping routes
 # Set to 0 to disable automatic route stopping
 # Set to -1 to never automatically stop routes (default)
-consecutiveFailureThreshold=-1
+com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.consecutiveFailureThreshold=${HEALTH_CHECK_FAILURE_THRESHOLD:-1}
 ```
 
 ### 4. CleanHealthRecords
@@ -93,14 +96,14 @@ Removes old datasource health check records from the database.
 **Dependencies:**
 - `DatasourceHealthService` - Handles health record deletion
 
-**Configuration File:** `com.inovexcorp.queryservice.scheduler.CleanHealthRecords.cfg`
+**Configuration (prefix `com.inovexcorp.queryservice.scheduler.CleanHealthRecords.`):**
 
 ```properties
 # Cron expression: Daily at midnight
-scheduler.expression=0 0 0 * * ?
+com.inovexcorp.queryservice.scheduler.CleanHealthRecords.scheduler.expression=0 0 0 * * ?
 
 # Retention period in days (default: 7 days)
-daysToLive=7
+com.inovexcorp.queryservice.scheduler.CleanHealthRecords.daysToLive=7
 ```
 
 ### 5. CleanSparqiMetrics
@@ -114,25 +117,29 @@ Removes old SPARQi metrics records from the database.
 **Dependencies:**
 - `SparqiMetricService` - Handles SPARQi metric data deletion
 
-**Configuration File:** `com.inovexcorp.queryservice.scheduler.CleanSparqiMetrics.cfg`
+**Configuration (prefix `com.inovexcorp.queryservice.scheduler.CleanSparqiMetrics.`):**
 
 ```properties
 # Cron expression: Daily at 2:00 AM
-scheduler.expression=0 0 2 * * ?
+com.inovexcorp.queryservice.scheduler.CleanSparqiMetrics.scheduler.expression=0 0 2 * * ?
 
 # Retention period in days (default: 7 days)
-daysToLive=7
+com.inovexcorp.queryservice.scheduler.CleanSparqiMetrics.daysToLive=7
 ```
 
 ## Technical Details
 
 ### Scheduling Framework
 
-All schedulers implement the `org.apache.karaf.scheduler.Job` interface and are registered as OSGi Declarative Services components with the following properties:
+All schedulers are `@ApplicationScoped` CDI beans that implement the module's own `Job` interface
+(`execute(JobContext)`) and declare a Quarkus `@Scheduled` trigger that calls it:
 
-- `scheduler.name` - Unique name for the scheduler
-- `scheduler.concurrent:Boolean=false` - Prevents concurrent executions
-- `configurationPolicy = ConfigurationPolicy.REQUIRE` - Configuration file is mandatory
+- `identity` - Unique name for the scheduler (e.g. `QueryMetrics`)
+- `cron = "${<prefix>.scheduler.expression:<default>}"` - Cron expression read from configuration, with a built-in
+  default
+- `concurrentExecution = SKIP` - Overlapping runs are skipped (the former `scheduler.concurrent=false`)
+
+Every property has a default, so no configuration is required for a job to run.
 
 ### Cron Expression Format
 
@@ -148,28 +155,24 @@ second minute hour day month weekday
 - `0 0 0 * * ?` - Daily at midnight
 - `0 0 2 * * ?` - Daily at 2:00 AM
 
-### OSGi Integration
+### CDI Integration
 
-Schedulers use OSGi Declarative Services for dependency injection:
+Schedulers use CDI for dependency injection and `OsgiConfig` for their other settings:
 
 ```java
-@Component(
-    name = "com.inovexcorp.queryservice.scheduler.SchedulerName",
-    immediate = true,
-    property = {
-        "scheduler.name=SchedulerName",
-        "scheduler.concurrent:Boolean=false"
-    },
-    configurationPolicy = ConfigurationPolicy.REQUIRE
-)
-@Designate(ocd = SchedulerConfig.class)
+@ApplicationScoped
 public class SchedulerName implements Job {
 
-    @Reference
-    private SomeService someService;
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.scheduler.SchedulerName";
 
-    @Activate
-    @Modified
+    @Inject
+    SomeService someService;
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(SchedulerConfig.class, CONFIG_PID));
+    }
+
     public void activate(final SchedulerConfig config) {
         // Read configuration
     }
@@ -178,6 +181,13 @@ public class SchedulerName implements Job {
     public void execute(JobContext context) {
         // Scheduled task logic
     }
+
+    @Scheduled(identity = "SchedulerName",
+            cron = "${com.inovexcorp.queryservice.scheduler.SchedulerName.scheduler.expression:0 0/1 * * * ?}",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void scheduled() {
+        execute(null);
+    }
 }
 ```
 
@@ -185,19 +195,19 @@ public class SchedulerName implements Job {
 
 ### Location
 
-Configuration files are located in:
+All scheduler properties are in:
 ```
-query-service-distribution/src/main/resources/etc/
+query-service-app/src/main/resources/application.properties
 ```
 
-After building, they are deployed to:
-```
-query-service-distribution/target/qtt-distribution/etc/
-```
+Any of them can be overridden at startup with a Java system property (`-D<property>=<value>`) or the equivalent
+environment variable (Quarkus maps e.g. `com.inovexcorp.queryservice.scheduler.CleanMetrics.minutesToLive` to
+`COM_INOVEXCORP_QUERYSERVICE_SCHEDULER_CLEANMETRICS_MINUTESTOLIVE`). The datasource health check also has the
+dedicated `HEALTH_CHECK_*` variables.
 
 ### Modifying Schedules
 
-To change a scheduler's frequency, edit the corresponding `.cfg` file and modify the `scheduler.expression` property. Changes take effect after restarting the Karaf container or reloading the configuration.
+To change a scheduler's frequency, override its `<prefix>.scheduler.expression` property. Changes take effect after restarting QTT.
 
 **Common Schedule Examples:**
 
@@ -220,28 +230,26 @@ scheduler.expression=0/15 * * * * ?
 
 ### Modifying Retention Periods
 
-Edit the retention parameters in the configuration files:
+Override the retention properties:
 
 **For minute-based retention (CleanMetrics):**
 ```properties
-minutesToLive=60  # 1 hour
-minutesToLive=1440  # 24 hours
+com.inovexcorp.queryservice.scheduler.CleanMetrics.minutesToLive=60    # 1 hour
+com.inovexcorp.queryservice.scheduler.CleanMetrics.minutesToLive=1440  # 24 hours
 ```
 
 **For day-based retention (CleanHealthRecords, CleanSparqiMetrics):**
 ```properties
-daysToLive=7   # 1 week
-daysToLive=30  # 1 month
-daysToLive=90  # 3 months
+com.inovexcorp.queryservice.scheduler.CleanHealthRecords.daysToLive=7   # 1 week
+com.inovexcorp.queryservice.scheduler.CleanHealthRecords.daysToLive=30  # 1 month
+com.inovexcorp.queryservice.scheduler.CleanSparqiMetrics.daysToLive=90  # 3 months
 ```
 
 ### Disabling Schedulers
 
-To disable a scheduler, either:
-1. Remove or rename its `.cfg` file
-2. Comment out all properties in the `.cfg` file
-
-Since all schedulers use `ConfigurationPolicy.REQUIRE`, they will not activate without a valid configuration.
+The datasource health check can be switched off with `HEALTH_CHECK_ENABLED=false` (the job still fires but does
+nothing). The other jobs have no enable flag; removing their properties does not disable them, because the
+`@Scheduled` triggers and the configuration types have built-in defaults.
 
 ## Dependencies
 
@@ -249,16 +257,10 @@ Since all schedulers use `ConfigurationPolicy.REQUIRE`, they will not activate w
 
 ```xml
 <dependencies>
-    <!-- OSGi -->
+    <!-- Quarkus Scheduler -->
     <dependency>
-        <groupId>org.osgi</groupId>
-        <artifactId>org.osgi.service.component.annotations</artifactId>
-    </dependency>
-
-    <!-- Karaf Scheduler -->
-    <dependency>
-        <groupId>org.apache.karaf.scheduler</groupId>
-        <artifactId>org.apache.karaf.scheduler.core</artifactId>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-scheduler</artifactId>
     </dependency>
 
     <!-- Query Service Modules -->
@@ -273,7 +275,7 @@ Since all schedulers use `ConfigurationPolicy.REQUIRE`, they will not activate w
 </dependencies>
 ```
 
-### OSGi Service References
+### Injected Beans
 
 - `MetricsScraper` - From query-service-metrics module
 - `RouteService` - From query-service-persistence module
@@ -318,15 +320,8 @@ mvn -pl query-service-scheduler clean install
 
 ### Checking Scheduler Status
 
-From the Karaf console:
-
-```bash
-# List all scheduled jobs
-schedule:list
-
-# View logs for scheduler activity
-log:tail
-```
+There is no scheduler console. Check the QTT log (`docker logs qtt`, or the console of `make run`) for the
+activation messages each job logs at startup, and enable DEBUG logging to see individual runs.
 
 ### Log Messages
 
@@ -337,11 +332,11 @@ INFO  [QueryMetrics] QueryMetrics activated
 DEBUG [QueryMetrics] Scanning all routes to capture metrics from existing state
 ```
 
-To enable DEBUG logging, edit `org.ops4j.pax.logging.cfg`:
+To enable DEBUG logging, set this environment variable (or the equivalent
+`-Dquarkus.log.category."com.inovexcorp.queryservice.scheduler".level=DEBUG`) and restart:
 
-```properties
-log4j2.logger.scheduler.name = com.inovexcorp.queryservice.scheduler
-log4j2.logger.scheduler.level = DEBUG
+```bash
+QUARKUS_LOG_CATEGORY__COM_INOVEXCORP_QUERYSERVICE_SCHEDULER__LEVEL=DEBUG
 ```
 
 ## Troubleshooting
@@ -351,46 +346,33 @@ log4j2.logger.scheduler.level = DEBUG
 **Symptoms:** Expected scheduled tasks are not executing
 
 **Possible Causes:**
-1. Configuration file is missing or invalid
-2. OSGi service dependencies are not satisfied
-3. Karaf scheduler feature is not installed
+1. Invalid cron expression or configuration value (check the log for the error)
+2. Health checks disabled with `HEALTH_CHECK_ENABLED=false`
+3. The job throws on every run (check the log for errors)
 
 **Solutions:**
 ```bash
-# Check if configuration exists
-ls query-service-distribution/target/qtt-distribution/etc/com.inovexcorp.queryservice.scheduler.*.cfg
-
-# Verify scheduler feature is installed
-feature:list | grep scheduler
-
-# Check bundle status
-bundle:list | grep scheduler
-
 # View recent logs
-log:tail
+docker logs qtt 2>&1 | grep -i -E 'scheduler|QueryMetrics|CleanMetrics|HealthCheck|CleanHealthRecords|CleanSparqiMetrics'
 ```
 
 ### Configuration Changes Not Applied
 
-**Solution:** Restart the Karaf container or reload the configuration:
+**Solution:** Configuration is read at startup only; restart QTT:
 
 ```bash
-# Restart bundle
-bundle:restart <bundle-id>
-
-# Or restart entire container
-bin/stop && bin/start
+docker restart qtt
 ```
 
 ### Database Connection Issues
 
 **Symptoms:** Schedulers fail to persist or delete data
 
-**Solution:** Check datasource configuration in `org.ops4j.datasource-qtt.cfg` and verify database connectivity.
+**Solution:** Check the database settings (`DB_URL`, `DB_USER`, `DB_PASSWORD`) and verify database connectivity.
 
 ## See Also
 
 - [query-service-metrics](../query-service-metrics/README.md) - Metrics collection infrastructure
 - [query-service-health](../query-service-health/README.md) - Datasource health checking
 - [query-service-persistence](../query-service-persistence/README.md) - JPA entities and services
-- [Apache Karaf Scheduler](https://karaf.apache.org/manual/latest/#_scheduler) - Karaf scheduling documentation
+- [Quarkus Scheduler](https://quarkus.io/guides/scheduler-reference) - Quarkus scheduling documentation

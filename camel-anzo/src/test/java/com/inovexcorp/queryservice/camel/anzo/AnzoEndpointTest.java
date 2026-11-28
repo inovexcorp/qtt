@@ -232,4 +232,13 @@ class AnzoEndpointTest {
         endpoint.setMaxQueryHeaderLength(1048576L); // 1MB
         assertThat(endpoint.getMaxQueryHeaderLength()).isEqualTo(1048576L);
     }
+
+    /** The endpoint used to be logged with toString() at INFO, which printed the Base64-encoded credentials. */
+    @Test
+    void toStringOmitsCredentials() {
+        AnzoEndpoint endpoint = new AnzoEndpoint("anzo:http://anzo", null, "http://anzo");
+        endpoint.setUser("dXNlcg==");
+        endpoint.setPassword("c2VjcmV0LXBhc3N3b3Jk");
+        assertThat(endpoint.toString()).doesNotContain("dXNlcg==").doesNotContain("c2VjcmV0LXBhc3N3b3Jk");
+    }
 }

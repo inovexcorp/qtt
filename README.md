@@ -39,7 +39,7 @@ HTTP Request + Freemarker Template → SPARQL Query → Graph Studio Backend →
 - **AI-Powered Assistance**: Optional SPARQi assistant helps develop SPARQL templates using LLMs
 - **Rich Web UI**: Angular-based interface for managing datasources, routes, and monitoring performance
 - **RESTful API**: Complete programmatic access to all features
-- **OSGi Runtime**: Built on Apache Karaf for modular, hot-deployable components
+- **Camel Quarkus Runtime**: Runs as a single Camel Quarkus application on the JVM
 
 ## Use Cases
 
@@ -63,25 +63,30 @@ QTT is built on a multi-module Maven project with these key components:
 - **query-service-metrics**: JMX-based metrics collection
 - **query-service-cache**: Redis-backed caching layer for query results
 - **query-service-sparqi**: Optional AI assistant for template development
-- **query-service-feature**: Karaf feature descriptor for OSGi deployment
-- **query-service-distribution**: Complete Karaf distribution with all bundles
+- **query-service-derby**: Embedded Derby support (driver, dialect, persistence unit); included by default, left
+  out of native builds
+- **query-service-app**: The Camel Quarkus application that assembles all modules into one runnable service and
+  container image
 
 **Frontend Module:**
 
-- **query-service-web**: Angular 15.2.2 web application (builds to OSGi bundle)
+- **query-service-web**: Angular web application (packaged into query-service-app)
 
 **Runtime Architecture:**
 
-The application runs in Apache Karaf 4.4.1 and provides two separate HTTP applications:
+The application runs on Camel Quarkus (Quarkus 3, Apache Camel 4, Java 17, JVM mode) and provides two separate HTTP
+applications:
 
-1. **JAX-RS Application** (Port 8080 - HTTP)
+1. **Web UI and REST API** (Port 8443 - HTTPS; also plain HTTP on port 8080)
     - Static CRUD endpoints for routes, datasources, layers
     - SPARQi AI assistant API
     - Metrics and settings endpoints
 
-2. **Camel Jetty Application** (Port 8888 - HTTP)
+2. **Query Endpoints** (`/query/{route-id}` on the same ports, Camel platform-http)
     - Dynamically created query endpoints based on database route definitions
-    - Endpoint pattern: `http://localhost:8888/{route-id}?param=value`
+    - Endpoint pattern: `https://localhost:8443/query/{route-id}?param=value`
+    - Each route is open or requires an OIDC token with `qtt-query` or a QTT API key
+      ([Securing the Query Endpoints](docs/administration.md#securing-the-query-endpoints))
 
 ## Quick Start
 
@@ -94,16 +99,17 @@ docker pull docker.io/inovexis/qtt:latest
 # Run the container
 docker run -d \
   --name qtt \
-  -p 8080:8080 \
-  -p 8888:8888 \
+  -p 8443:8443 \
   docker.io/inovexis/qtt:latest
 ```
 
 Access the application:
 
-- **Web UI**: http://localhost:8080
-- **API Base**: http://localhost:8080/queryrest/api/
-- **Query Endpoints**: http://localhost:8888/{route-id}
+- **Web UI**: https://localhost:8443 (self-signed certificate by default)
+- **API Base**: https://localhost:8443/queryrest/api/
+- **Query Endpoints**: https://localhost:8443/query/{route-id}
+
+The UI and API are also served over plain HTTP on port 8080 (add `-p 8080:8080`).
 
 For detailed deployment options, see the [Administration Guide](docs/administration.md).
 
@@ -133,8 +139,8 @@ For detailed deployment options, see the [Administration Guide](docs/administrat
 
 - Java 17 (JDK)
 - Apache Maven 3.6+
-- Node.js v20.18.1
-- Angular CLI 18.2.21
+- Node.js v26.13.1 (`query-service-web/.nvmrc`; with nvm: `nvm install && nvm use`)
+- Angular CLI 22.3 (installed by `npm ci` in `query-service-web`; use `npx ng`)
 
 **For Production Deployment:**
 

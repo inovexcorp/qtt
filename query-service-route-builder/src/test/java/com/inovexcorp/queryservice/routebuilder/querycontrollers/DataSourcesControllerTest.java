@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.camel.anzo.comm.AnzoClient;
 import com.inovexcorp.queryservice.camel.anzo.comm.QueryResponse;
@@ -13,12 +14,13 @@ import org.apache.camel.CamelContext;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -59,6 +61,10 @@ public class DataSourcesControllerTest {
 
     @Mock
     private CamelContext camelContext;
+
+    @org.mockito.Spy
+    private com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates routeUpdates =
+            new com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates();
 
     @InjectMocks
     private DataSourcesController dataSourcesController;
@@ -106,20 +112,54 @@ public class DataSourcesControllerTest {
         verify(dataSourceService).add(testDatasource);
     }
 
+    /** Re-POSTing an existing id updates it in place; delete + add used to wipe its routes (orphanRemoval). */
     @Test
-    public void testCreateDatasource_ReplaceExisting() {
+    public void testCreateDatasource_ReplaceExisting_UpdatesInPlace() {
         // Arrange
+        Datasources stored = new Datasources();
+        stored.setDataSourceId(TEST_DATASOURCE_ID);
+        stored.setCamelRouteTemplate(Collections.emptyList());
         when(dataSourceService.dataSourceExists(TEST_DATASOURCE_ID)).thenReturn(true);
-        doNothing().when(dataSourceService).delete(TEST_DATASOURCE_ID);
-        doNothing().when(dataSourceService).add(testDatasource);
+        when(dataSourceService.getDataSource(TEST_DATASOURCE_ID)).thenReturn(stored);
 
         // Act
         Response response = dataSourcesController.createDatasource(testDatasource);
 
         // Assert
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
-        verify(dataSourceService).delete(TEST_DATASOURCE_ID);
-        verify(dataSourceService).add(testDatasource);
+        verify(dataSourceService).update(testDatasource);
+        verify(dataSourceService, never()).delete(any());
+        verify(dataSourceService, never()).add(any());
+    }
+
+    @Test
+    public void testCreateDatasource_ReplaceExisting_KeepsAndRebuildsRoutes() throws Exception {
+        // Arrange
+        CamelRouteTemplate route = new CamelRouteTemplate();
+        route.setRouteId("route1");
+        route.setDatasources(testDatasource);
+        Datasources stored = new Datasources();
+        stored.setDataSourceId(TEST_DATASOURCE_ID);
+        stored.setCamelRouteTemplate(List.of(route));
+        when(dataSourceService.dataSourceExists(TEST_DATASOURCE_ID)).thenReturn(true);
+        when(dataSourceService.getDataSource(TEST_DATASOURCE_ID)).thenReturn(stored);
+        when(routeService.getRoute("route1")).thenReturn(route);
+        when(layerService.getLayerUris(route)).thenReturn(Collections.emptyList());
+        when(camelKarafComponent.routeBuilder(any(), any())).thenAnswer(inv ->
+                com.inovexcorp.queryservice.routebuilder.CamelRouteTemplateBuilder.builder()
+                        .camelRouteTemplate(inv.getArgument(0)).layerUris(inv.getArgument(1)).build());
+
+        // Act
+        Response response = dataSourcesController.createDatasource(testDatasource);
+
+        // Assert: the route row is saved again, never left deleted
+        assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
+        verify(routeService).add(route);
+        verify(camelContext).addRoutes(any());
+        // ...and callers were told to retry (503) while it was replaced.
+        verify(routeUpdates).begin("route1", null, null);
+        verify(routeUpdates).end("route1");
+        org.junit.Assert.assertFalse(routeUpdates.isUpdating("route1"));
     }
 
     @Test
@@ -173,7 +213,142 @@ public class DataSourcesControllerTest {
 
         // Assert
         assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertTrue(response.getEntity().toString().contains("Require non-null parameters"));
+        assertTrue(response.getEntity().toString().contains(DataSourcesController.PASSWORD_REQUIRED));
+        verify(dataSourceService, never()).add(any());
+    }
+
+    // ========================================
+    // Passwords are never returned, so a blank password keeps the stored one (same URL and username only)
+    // ========================================
+
+    private Datasources storedDatasource() {
+        Datasources stored = new Datasources();
+        stored.setDataSourceId(TEST_DATASOURCE_ID);
+        stored.setUrl(TEST_URL);
+        stored.setUsername(TEST_USERNAME);
+        stored.setPassword("stored-password");
+        stored.setTimeOutSeconds(TEST_TIMEOUT);
+        stored.setMaxQueryHeaderLength(TEST_MAX_QUERY_HEADER);
+        stored.setCamelRouteTemplate(Collections.emptyList());
+        when(dataSourceService.dataSourceExists(TEST_DATASOURCE_ID)).thenReturn(true);
+        when(dataSourceService.getDataSource(TEST_DATASOURCE_ID)).thenReturn(stored);
+        return stored;
+    }
+
+    @Test
+    public void testModifyDatasource_BlankPassword_KeepsStoredPassword() {
+        storedDatasource();
+        testDatasource.setPassword("");
+        testDatasource.setTimeOutSeconds("120");
+
+        Response response = dataSourcesController.modifyDatasource(testDatasource);
+
+        assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+        ArgumentCaptor<Datasources> updated = ArgumentCaptor.forClass(Datasources.class);
+        verify(dataSourceService).update(updated.capture());
+        assertEquals("stored-password", updated.getValue().getPassword());
+        assertEquals("120", updated.getValue().getTimeOutSeconds());
+    }
+
+    @Test
+    public void testModifyDatasource_MissingPassword_KeepsStoredPassword() {
+        storedDatasource();
+        testDatasource.setPassword(null);
+
+        Response response = dataSourcesController.modifyDatasource(testDatasource);
+
+        assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+        verify(dataSourceService).update(testDatasource);
+        assertEquals("stored-password", testDatasource.getPassword());
+    }
+
+    @Test
+    public void testModifyDatasource_NewPassword_ReplacesStoredPassword() {
+        storedDatasource();
+        testDatasource.setPassword("new-password");
+        testDatasource.setUrl("http://other-anzo:8080");
+
+        Response response = dataSourcesController.modifyDatasource(testDatasource);
+
+        assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+        verify(dataSourceService).update(testDatasource);
+        assertEquals("new-password", testDatasource.getPassword());
+    }
+
+    /** Otherwise anyone who can reach the API could send the stored credentials to their own server. */
+    @Test
+    public void testModifyDatasource_BlankPassword_ChangedUrl_Rejected() {
+        storedDatasource();
+        testDatasource.setPassword("");
+        testDatasource.setUrl("https://attacker.example.com");
+
+        Response response = dataSourcesController.modifyDatasource(testDatasource);
+
+        assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+        assertEquals(DataSourcesController.PASSWORD_REQUIRED_FOR_CHANGE, response.getEntity());
+        verify(dataSourceService, never()).update(any());
+    }
+
+    @Test
+    public void testModifyDatasource_BlankPassword_ChangedUsername_Rejected() {
+        storedDatasource();
+        testDatasource.setPassword(null);
+        testDatasource.setUsername("someone-else");
+
+        Response response = dataSourcesController.modifyDatasource(testDatasource);
+
+        assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+        verify(dataSourceService, never()).update(any());
+    }
+
+    @Test
+    public void testCreateDatasource_ExistingWithoutPassword_KeepsStoredPassword() {
+        storedDatasource();
+        testDatasource.setPassword(null);
+
+        Response response = dataSourcesController.createDatasource(testDatasource);
+
+        assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
+        verify(dataSourceService).update(testDatasource);
+        assertEquals("stored-password", testDatasource.getPassword());
+    }
+
+    @Test
+    public void testCreateDatasource_ExistingWithoutPassword_ChangedUrl_Rejected() {
+        storedDatasource();
+        testDatasource.setPassword(null);
+        testDatasource.setUrl("https://attacker.example.com");
+
+        Response response = dataSourcesController.createDatasource(testDatasource);
+
+        assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+        verify(dataSourceService, never()).update(any());
+        verify(dataSourceService, never()).add(any());
+    }
+
+    @Test
+    public void testTestDatasource_BlankPassword_ChangedUrl_DoesNotConnect() {
+        storedDatasource();
+        testDatasource.setPassword("");
+        testDatasource.setUrl("https://attacker.example.com");
+
+        Map<String, String> response = dataSourcesController.testDatasource(testDatasource);
+
+        assertEquals("error", response.get("status"));
+        assertEquals(DataSourcesController.PASSWORD_REQUIRED_FOR_CHANGE, response.get("message"));
+        assertEquals("", testDatasource.getPassword());
+    }
+
+    @Test
+    public void testTestDatasource_BlankPassword_UnknownDatasource_DoesNotConnect() {
+        when(dataSourceService.dataSourceExists("new-one")).thenReturn(false);
+        testDatasource.setDataSourceId("new-one");
+        testDatasource.setPassword(null);
+
+        Map<String, String> response = dataSourcesController.testDatasource(testDatasource);
+
+        assertEquals("error", response.get("status"));
+        assertEquals(DataSourcesController.PASSWORD_REQUIRED, response.get("message"));
     }
 
     @Test

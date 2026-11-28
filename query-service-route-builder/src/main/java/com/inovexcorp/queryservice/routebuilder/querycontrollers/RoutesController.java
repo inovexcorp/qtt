@@ -1,6 +1,15 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.security.RolesAllowed;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import com.inovexcorp.queryservice.persistence.audit.Audited;
+import com.inovexcorp.queryservice.security.QttRoles;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
+import com.inovexcorp.queryservice.QueryAccess;
+import com.inovexcorp.queryservice.RouteIds;
 import com.inovexcorp.queryservice.cache.CacheInfo;
 import com.inovexcorp.queryservice.cache.CacheKey;
 import com.inovexcorp.queryservice.cache.CacheService;
@@ -10,60 +19,108 @@ import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.RouteService;
+import com.inovexcorp.queryservice.routebuilder.FreemarkerTemplateProcessor;
+import com.inovexcorp.queryservice.routebuilder.RouteTemplateException;
 import com.inovexcorp.queryservice.routebuilder.service.RouteManagementService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Route;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.component.annotations.ReferenceCardinality;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
-import org.osgi.service.metatype.annotations.Designate;
+import org.eclipse.microprofile.config.ConfigProvider;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.Encoded;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.PATCH;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PATCH;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import org.jboss.resteasy.reactive.server.multipart.MultipartFormDataInput;
 import java.util.Map;
 
 @Slf4j
-@JaxrsResource
 @Path("/api/routes")
-@Designate(ocd = RoutesControllerConfig.class)
-@Component(immediate = true, service = RoutesController.class,
-        configurationPolicy = ConfigurationPolicy.REQUIRE)
+@ApplicationScoped
 public class RoutesController {
 
-    @Reference
-    private RouteManagementService routeManagementService;
-    @Reference
-    private RouteService routeService;
-    @Reference
-    private DataSourceService dataSourceService;
-    @Reference
-    private ContextManager contextManager;
-    @Reference(cardinality = ReferenceCardinality.OPTIONAL)
-    private volatile CacheService cacheService;
+    @Inject
+    RouteManagementService routeManagementService;
+    @Inject
+    RouteService routeService;
+    @Inject
+    DataSourceService dataSourceService;
+    @Inject
+    ContextManager contextManager;
+    @Inject
+    CacheService cacheService;
 
+    /** The base of every route's endpoint URL, without a trailing slash. */
     private String baseUrl;
 
-    @Activate
+    /** Default base when QUERY_BASE_URL is unset: relative to the server the UI is loaded from. */
+    static final String QUERY_PATH = "/query";
+
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(RoutesControllerConfig.class, CONFIG_PID));
+    }
+
     public void activate(final RoutesControllerConfig config) {
-        baseUrl = config.baseUrl().endsWith("/") ? config.baseUrl().substring(0, config.baseUrl().length() - 1)
-                : config.baseUrl();
-        log.info("RoutesController activated, going to use '{}' as base url for endpoints", baseUrl);
+        activate(config, ConfigProvider.getConfig().getOptionalValue("API_BASE_URL", String.class).orElse(null));
+    }
+
+    /** {@code legacyApiBaseUrl}: the pre-/query setting API_BASE_URL, which pointed at port 8888 and is ignored. */
+    void activate(final RoutesControllerConfig config, String legacyApiBaseUrl) {
+        String configured = config.baseUrl() == null ? "" : config.baseUrl().trim();
+        while (configured.endsWith("/")) {
+            configured = configured.substring(0, configured.length() - 1);
+        }
+        baseUrl = configured.isEmpty() ? QUERY_PATH : configured;
+        if (configured.isEmpty() && legacyApiBaseUrl != null && !legacyApiBaseUrl.isBlank()) {
+            log.warn("API_BASE_URL ({}) is no longer used: query routes moved from port 8888 to /query on the "
+                    + "application's own port. Set QUERY_BASE_URL to their public URL, for example "
+                    + "https://qtt.example.com/query.", legacyApiBaseUrl);
+        }
+        log.info("Query routes are served under {}/<routeId>", baseUrl);
+    }
+
+    /** Where a route is called: the configured public base URL, or /query on the UI's own server. */
+    String endpointUrl(String routeId) {
+        return baseUrl + "/" + routeId;
+    }
+
+    /** 400 for an unknown access value or an over-long role list; null when both are acceptable. */
+    private static Response rejectInvalidAccess(String accessPolicy, String requiredRoles) {
+        String message = null;
+        try {
+            QueryAccess.parse(accessPolicy);
+        } catch (IllegalArgumentException e) {
+            message = e.getMessage();
+        }
+        if (message == null && requiredRoles != null
+                && QueryAccess.formatRoles(QueryAccess.parseRoles(requiredRoles)) != null
+                && QueryAccess.formatRoles(QueryAccess.parseRoles(requiredRoles)).length()
+                > QueryAccess.MAX_REQUIRED_ROLES_LENGTH) {
+            message = "requiredRoles is longer than " + QueryAccess.MAX_REQUIRED_ROLES_LENGTH + " characters";
+        }
+        return message == null ? null : Response.status(Response.Status.BAD_REQUEST)
+                .entity(Map.of("error", "Invalid access setting", "message", message))
+                .type(MediaType.APPLICATION_JSON)
+                .build();
+    }
+
+    private static Response invalidRouteId(String routeId) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                .entity(Map.of("error", "Invalid route ID", "routeId", String.valueOf(routeId),
+                        "message", RouteIds.RULE))
+                .type(MediaType.APPLICATION_JSON)
+                .build();
     }
 
     /**
@@ -72,6 +129,7 @@ public class RoutesController {
      * @param routeId The ID of the route
      * @return Response containing the the content of the template
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("templateContent/{routeId}")
     public Response getTemplateContent(@PathParam("routeId") String routeId) {
@@ -88,6 +146,8 @@ public class RoutesController {
      * @return Response indicating success or failure
      * @throws Exception
      */
+    @Audited
+    @RolesAllowed(QttRoles.EDITOR)
     @PATCH
     @Path("{routeId}")
     public Response updateRouteStatus(@PathParam("routeId") String routeId, String status) throws Exception {
@@ -143,20 +203,50 @@ public class RoutesController {
      *                     target with a query
      * @throws Exception
      */
+    @Audited
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("{routeId}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response createEndpoint(@PathParam("routeId") String routeId,
-                                   @QueryParam("routeParams") String routeParams,
-                                   @QueryParam("dataSourceId") String dataSourceId,
-                                   @QueryParam("description") String description,
-                                   @QueryParam("graphMartUri") String graphMartUri,
-                                   @QueryParam("cacheEnabled") Boolean cacheEnabled,
-                                   @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
-                                   @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
-                                   @Encoded @FormParam("freemarker") String freemarker,
-                                   @Encoded @FormParam("layers") String layers) throws Exception {
+    public Response createEndpointMultipart(@PathParam("routeId") String routeId,
+                                            @QueryParam("routeParams") String routeParams,
+                                            @QueryParam("dataSourceId") String dataSourceId,
+                                            @QueryParam("description") String description,
+                                            @QueryParam("graphMartUri") String graphMartUri,
+                                            @QueryParam("cacheEnabled") Boolean cacheEnabled,
+                                            @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
+                                            @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
+                                            @QueryParam("accessPolicy") String accessPolicy,
+                                            @QueryParam("requiredRoles") String requiredRoles,
+                                            MultipartFormDataInput form) throws Exception {
+        return createEndpoint(routeId, routeParams, dataSourceId, description, graphMartUri, cacheEnabled,
+                cacheTtlSeconds, cacheKeyStrategy, MultipartText.field(form, "freemarker"),
+                MultipartText.field(form, "layers"), accessPolicy, requiredRoles);
+    }
+
+    public Response createEndpoint(String routeId, String routeParams, String dataSourceId, String description,
+                                   String graphMartUri, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                   String cacheKeyStrategy, String freemarker, String layers) throws Exception {
+        return createEndpoint(routeId, routeParams, dataSourceId, description, graphMartUri, cacheEnabled,
+                cacheTtlSeconds, cacheKeyStrategy, freemarker, layers, null, null);
+    }
+
+    /**
+     * @param accessPolicy  who may call the route: "default", "open" or "authenticated"; null means "default"
+     * @param requiredRoles roles an "authenticated" route also requires, comma-separated; null or empty for none
+     */
+    public Response createEndpoint(String routeId, String routeParams, String dataSourceId, String description,
+                                   String graphMartUri, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                   String cacheKeyStrategy, String freemarker, String layers, String accessPolicy,
+                                   String requiredRoles) throws Exception {
+        if (routeId != null && !RouteIds.isValid(routeId)) {
+            return invalidRouteId(routeId);
+        }
+        Response invalidAccess = rejectInvalidAccess(accessPolicy, requiredRoles);
+        if (invalidAccess != null) {
+            return invalidAccess;
+        }
         // If the incoming request was invalid (allow empty freemarker template)
         if (routeId == null || routeParams == null || dataSourceId == null || freemarker == null || description == null
                 || graphMartUri == null || layers == null) {
@@ -178,6 +268,10 @@ public class RoutesController {
         }
         // Else process the request
         else {
+            Response invalidTemplate = rejectInvalidTemplate(routeId, freemarker);
+            if (invalidTemplate != null) {
+                return invalidTemplate;
+            }
             // Check datasource health and log warning if DOWN or DISABLED
             Datasources datasource = dataSourceService.getDataSource(dataSourceId);
             if (datasource != null) {
@@ -193,9 +287,10 @@ public class RoutesController {
             }
 
             routeManagementService.createRoute(routeId, routeParams, dataSourceId, description,
-                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy);
-            final String res = String.format("{ \"endpointUrl\": \"%s/%s\" }", baseUrl, routeId);
-            return Response.status(Response.Status.CREATED).entity(res).type(MediaType.APPLICATION_JSON).build();
+                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy,
+                    accessPolicy, requiredRoles);
+            return Response.status(Response.Status.CREATED).entity(Map.of("endpointUrl", endpointUrl(routeId)))
+                    .type(MediaType.APPLICATION_JSON).build();
         }
     }
 
@@ -206,6 +301,7 @@ public class RoutesController {
      * @param routeId a String that is part of a {@link CamelRouteTemplate} routeId
      * @throws Exception
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @DELETE
     @Path("{routeId}")
     public Response deleteEndpoint(@PathParam("routeId") String routeId) throws Exception {
@@ -236,20 +332,48 @@ public class RoutesController {
      *                     target with a query
      * @throws Exception if the route does not exist.
      */
+    @Audited
+    @RolesAllowed(QttRoles.EDITOR)
     @PUT
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @Path("{routeId}")
-    public Response modifyEndpoint(@PathParam("routeId") String routeId,
-                                   @QueryParam("routeParams") String routeParams,
-                                   @QueryParam("dataSourceId") String dataSourceId,
-                                   @QueryParam("description") String description,
-                                   @QueryParam("graphMartUri") String graphMartUri,
-                                   @QueryParam("cacheEnabled") Boolean cacheEnabled,
-                                   @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
-                                   @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
-                                   @Encoded @FormParam("freemarker") String freemarker,
-                                   @Encoded @FormParam("layers") String layers) throws Exception {
+    public Response modifyEndpointMultipart(@PathParam("routeId") String routeId,
+                                            @QueryParam("routeParams") String routeParams,
+                                            @QueryParam("dataSourceId") String dataSourceId,
+                                            @QueryParam("description") String description,
+                                            @QueryParam("graphMartUri") String graphMartUri,
+                                            @QueryParam("cacheEnabled") Boolean cacheEnabled,
+                                            @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
+                                            @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
+                                            @QueryParam("accessPolicy") String accessPolicy,
+                                            @QueryParam("requiredRoles") String requiredRoles,
+                                            MultipartFormDataInput form) throws Exception {
+        return modifyEndpoint(routeId, routeParams, dataSourceId, description, graphMartUri, cacheEnabled,
+                cacheTtlSeconds, cacheKeyStrategy, MultipartText.field(form, "freemarker"),
+                MultipartText.field(form, "layers"), accessPolicy, requiredRoles);
+    }
+
+    public Response modifyEndpoint(String routeId, String routeParams, String dataSourceId, String description,
+                                   String graphMartUri, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                   String cacheKeyStrategy, String freemarker, String layers) throws Exception {
+        return modifyEndpoint(routeId, routeParams, dataSourceId, description, graphMartUri, cacheEnabled,
+                cacheTtlSeconds, cacheKeyStrategy, freemarker, layers, null, null);
+    }
+
+    /**
+     * @param accessPolicy  "default", "open" or "authenticated"; null keeps the route's current setting
+     * @param requiredRoles comma-separated roles: with {@code accessPolicy} given, the new list (absent: none);
+     *                      otherwise absent keeps the current list
+     */
+    public Response modifyEndpoint(String routeId, String routeParams, String dataSourceId, String description,
+                                   String graphMartUri, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                   String cacheKeyStrategy, String freemarker, String layers, String accessPolicy,
+                                   String requiredRoles) throws Exception {
+        Response invalidAccess = rejectInvalidAccess(accessPolicy, requiredRoles);
+        if (invalidAccess != null) {
+            return invalidAccess;
+        }
         // Check if route exists
         if (!routeManagementService.routeExists(routeId)) {
             return Response.status(Response.Status.NOT_FOUND)
@@ -259,7 +383,11 @@ public class RoutesController {
         }
         // Check if they'd just like to modify route freemarker template
         else if (routeParams == null && dataSourceId == null && freemarker != null && graphMartUri == null
-                && description == null && layers == null) {
+                && description == null && layers == null && accessPolicy == null && requiredRoles == null) {
+            Response invalidTemplate = rejectInvalidTemplate(routeId, freemarker);
+            if (invalidTemplate != null) {
+                return invalidTemplate;
+            }
             routeManagementService.modifyRouteTemplate(routeId, freemarker);
             return Response.ok().build();
         }
@@ -277,19 +405,76 @@ public class RoutesController {
         }
         // else all the fields are present, so mutate the entity in the database and generate the camel route.
         else {
+            Response invalidTemplate = rejectInvalidTemplate(routeId, freemarker);
+            if (invalidTemplate != null) {
+                return invalidTemplate;
+            }
             routeManagementService.modifyRoute(routeId, routeParams, dataSourceId, description,
-                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy);
+                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy,
+                    accessPolicy, requiredRoles);
             return Response.ok().build();
         }
     }
 
+    /**
+     * Checks that a template parses, exactly as a route would parse it, without saving anything. The route editor
+     * calls this while the user types to mark syntax errors.
+     *
+     * @param template the template text (text/plain)
+     * @return {@code {"valid": true}}, or {@code valid: false} with the parser's message and the 1-based position
+     */
+    @RolesAllowed(QttRoles.VIEWER) // a syntax check; changes nothing
+    @POST
+    @Path("template/validate")
+    @Consumes(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response validateTemplate(String template) {
+        try {
+            FreemarkerTemplateProcessor.checkSyntax("template", template);
+            return Response.ok(Map.of("valid", true)).build();
+        } catch (RouteTemplateException e) {
+            return Response.ok(syntaxError(e, false)).build();
+        }
+    }
+
+    /** A template that does not parse could never serve a query, so it is not saved: 400 with its position. */
+    private Response rejectInvalidTemplate(String routeId, String freemarker) {
+        try {
+            FreemarkerTemplateProcessor.checkSyntax(routeId, freemarker);
+            return null;
+        } catch (RouteTemplateException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(syntaxError(e, true))
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+    }
+
+    private static Map<String, Object> syntaxError(RouteTemplateException e, boolean rejected) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        if (rejected) {
+            body.put("error", "Template syntax error");
+            body.put("status", "TEMPLATE_ERROR");
+        } else {
+            body.put("valid", false);
+        }
+        body.put("message", rejected ? e.getMessage() : e.getSyntaxMessage());
+        body.put("line", e.getLine());
+        body.put("column", e.getColumn());
+        body.put("endLine", e.getEndLine());
+        body.put("endColumn", e.getEndColumn());
+        return body;
+    }
+
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{routeId}")
     public Response getEndpoint(@PathParam("routeId") String routeId) {
         CamelContext camelContext = contextManager.getDefaultContext();
         Route route = camelContext.getRoute(routeId);
-        if (route != null) {
-            return Response.status(Response.Status.OK).entity(routeService.getRoute(routeId))
+        CamelRouteTemplate stored = route != null ? routeService.getRoute(routeId) : null;
+        if (stored != null) {
+            return Response.status(Response.Status.OK).entity(stored)
                     .type(MediaType.APPLICATION_JSON).build();
         } else {
             return Response.status(Response.Status.NOT_FOUND)
@@ -299,12 +484,14 @@ public class RoutesController {
         }
     }
 
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     public Response getAllEndpoints() {
         return Response.status(Response.Status.OK).entity(routeService.getAll()).type(MediaType.APPLICATION_JSON)
                 .build();
     }
 
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("metadata")
     @Produces(MediaType.APPLICATION_JSON)
@@ -313,13 +500,18 @@ public class RoutesController {
                 .type(MediaType.APPLICATION_JSON).build();
     }
 
+    @Audited
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("clone/{routeId}")
     public Response cloneEndpoint(@PathParam("routeId") String routeId) throws Exception {
         String clonedRouteId = routeId + "Clone";
+        if (!RouteIds.isValid(clonedRouteId)) {
+            return invalidRouteId(clonedRouteId);
+        }
         routeManagementService.cloneRoute(routeId, clonedRouteId);
-        final String res = String.format("{ \"endpointUrl\": \"%s/%s\" }", baseUrl, clonedRouteId);
-        return Response.status(Response.Status.CREATED).entity(res).type(MediaType.APPLICATION_JSON).build();
+        return Response.status(Response.Status.CREATED).entity(Map.of("endpointUrl", endpointUrl(clonedRouteId)))
+                .type(MediaType.APPLICATION_JSON).build();
     }
 
     public String getFileContent(String routeId) {
@@ -332,6 +524,7 @@ public class RoutesController {
      * @param routeId The route ID whose cache should be cleared
      * @return Response indicating the number of cache entries deleted
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @DELETE
     @Path("{routeId}/cache")
     @Produces(MediaType.APPLICATION_JSON)
@@ -380,6 +573,7 @@ public class RoutesController {
      *
      * @return Response indicating the number of cache entries deleted
      */
+    @RolesAllowed(QttRoles.ADMIN)
     @DELETE
     @Path("cache")
     @Produces(MediaType.APPLICATION_JSON)
@@ -416,6 +610,7 @@ public class RoutesController {
      * @param routeId The route ID
      * @return Response with cache statistics
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{routeId}/cache/stats")
     @Produces(MediaType.APPLICATION_JSON)
@@ -470,6 +665,7 @@ public class RoutesController {
      *
      * @return Response with cache connection info and statistics
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("cache/info")
     @Produces(MediaType.APPLICATION_JSON)

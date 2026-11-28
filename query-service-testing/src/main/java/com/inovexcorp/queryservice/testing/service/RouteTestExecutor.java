@@ -1,5 +1,7 @@
 package com.inovexcorp.queryservice.testing.service;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
@@ -8,36 +10,24 @@ import com.inovexcorp.queryservice.routebuilder.service.TestRouteService;
 import com.inovexcorp.queryservice.testing.model.TestExecuteRequest;
 import com.inovexcorp.queryservice.testing.model.TestExecuteResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * OSGi service for executing route tests by creating temporary Camel routes
- * and invoking them via HTTP. This provides full end-to-end testing through
+ * Executes route tests by creating temporary Camel routes and invoking them
+ * in-process (see {@link TestRouteService#invokeTestRoute}). This provides full end-to-end testing through
  * the actual Camel route infrastructure with enhanced debugging information.
  */
 @Slf4j
-@Component(service = RouteTestExecutor.class, immediate = true)
+@ApplicationScoped
 public class RouteTestExecutor {
 
-    @Reference
-    private DataSourceService dataSourceService;
+    @Inject
+    DataSourceService dataSourceService;
 
-    @Reference
-    private TestRouteService testRouteService;
-
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(30))
-            .build();
+    @Inject
+    TestRouteService testRouteService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -82,26 +72,19 @@ public class RouteTestExecutor {
             // Build request body from parameters
             String requestBody = buildRequestBody(request.getParameters());
 
-            // Execute HTTP POST to the temporary route
-            String url = buildUriWithParameters(request.getParameters(), tempRouteId);
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                    .build();
-
             log.debug("Invoking test route {} with request body: {}", tempRouteId, requestBody);
 
-            HttpResponse<String> httpResponse = httpClient.send(httpRequest,
-                    HttpResponse.BodyHandlers.ofString());
+            // In-process: the test route is a direct: endpoint, never reachable over the network
+            TestRouteService.TestRouteResult routeResult = testRouteService.invokeTestRoute(
+                    tempRouteId, request.getParameters(), requestBody);
 
             long executionTime = System.currentTimeMillis() - startTime;
 
             // Handle response
-            if (httpResponse.statusCode() == 200) {
+            if (routeResult.status() == 200) {
                 // Parse enhanced response from test route
                 Map<String, Object> enhancedResponse = objectMapper.readValue(
-                        httpResponse.body(), Map.class);
+                        routeResult.body(), Map.class);
 
                 Object results = enhancedResponse.get("results");
                 Map<String, Object> debug = (Map<String, Object>) enhancedResponse.get("debug");
@@ -120,7 +103,7 @@ public class RouteTestExecutor {
             } else {
                 // Parse error response
                 Map<String, Object> errorResponse = objectMapper.readValue(
-                        httpResponse.body(), Map.class);
+                        routeResult.body(), Map.class);
 
                 String errorMessage = (String) errorResponse.get("error");
                 Map<String, Object> debug = (Map<String, Object>) errorResponse.get("debug");
@@ -268,37 +251,5 @@ public class RouteTestExecutor {
         }
 
         return sb.toString();
-    }
-
-    private String buildUriWithParameters(Map<String, String> parameters, String tempRouteId) {
-        StringBuilder url = new StringBuilder("http://localhost:8888");
-        url.append("/");
-        url.append(tempRouteId);
-        if (parameters != null && !parameters.isEmpty()) {
-            url.append("?");
-            boolean first = true;
-            for (Map.Entry<String, String> entry : parameters.entrySet()) {
-                if (!first) {
-                    url.append("&");
-                }
-                url.append(urlEncode(entry.getKey()))
-                        .append("=")
-                        .append(urlEncode(entry.getValue()));
-                first = false;
-            }
-        }
-        return url.toString();
-    }
-
-    /**
-     * URL encode a string value
-     */
-    private String urlEncode(String value) {
-        try {
-            return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            log.warn("Failed to URL encode value: {}", value, e);
-            return value;
-        }
     }
 }

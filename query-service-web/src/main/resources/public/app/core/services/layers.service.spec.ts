@@ -38,10 +38,8 @@ describe('LayersService', () => {
         expect(layers[1].title).toBe('Layer 2');
       });
 
-      const req = httpMock.expectOne(request =>
-        request.url.includes('/queryrest/api/anzo/layers/datasource-123') &&
-        request.params.get('graphmartUri') === graphmartUri
-      );
+      const req = httpMock.expectOne(request => request.url.includes('/queryrest/api/anzo/layers/datasource-123') &&
+        request.params.get('graphmartUri') === graphmartUri);
       expect(req.request.method).toBe('GET');
       req.flush(mockLayers);
     });
@@ -54,9 +52,7 @@ describe('LayersService', () => {
         expect(layers.length).toBe(0);
       });
 
-      const req = httpMock.expectOne(request =>
-        request.url.includes('/queryrest/api/anzo/layers/datasource-456')
-      );
+      const req = httpMock.expectOne(request => request.url.includes('/queryrest/api/anzo/layers/datasource-456'));
       req.flush([]);
     });
 
@@ -64,16 +60,11 @@ describe('LayersService', () => {
       const dataSourceId = 'datasource-789';
       const graphmartUri = 'http://example.org/graphmart3';
 
-      service.getGraphmartLayers(dataSourceId, graphmartUri).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getGraphmartLayers(dataSourceId, graphmartUri).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
-      const req = httpMock.expectOne(request =>
-        request.url.includes('/queryrest/api/anzo/layers/datasource-789')
-      );
+      const req = httpMock.expectOne(request => request.url.includes('/queryrest/api/anzo/layers/datasource-789'));
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });
     });
   });
@@ -107,12 +98,9 @@ describe('LayersService', () => {
     it('should handle errors when getting route layers', () => {
       const routeId = 'route-789';
 
-      service.getRouteLayers(routeId).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getRouteLayers(routeId).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne('/queryrest/api/layers/route-789');
       req.error(new ProgressEvent('error'), { status: 404, statusText: 'Not Found' });

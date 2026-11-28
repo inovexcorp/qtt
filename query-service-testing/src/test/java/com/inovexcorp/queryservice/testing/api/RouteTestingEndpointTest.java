@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.testing.api;
 
+import jakarta.inject.Inject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inovexcorp.queryservice.testing.model.TestExecuteRequest;
 import com.inovexcorp.queryservice.testing.model.TestExecuteResponse;
@@ -15,7 +16,7 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

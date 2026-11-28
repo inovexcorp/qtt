@@ -136,7 +136,9 @@ public class SimpleAnzoClient implements AnzoClient {
         conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
         byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
-        conn.setFixedLengthStreamingMode(bodyBytes.length);
+        // No fixed-length streaming mode: for streamed POSTs the JDK probes every pooled keep-alive connection with
+        // a 1 ms-timeout read before reuse (sun.net.www.http.HttpClient#available), adding a millisecond or more to
+        // every query. The form body is small, so letting HttpURLConnection buffer it (and set Content-Length) is free.
 
         try (OutputStream os = conn.getOutputStream()) {
             os.write(bodyBytes);
@@ -323,14 +325,14 @@ public class SimpleAnzoClient implements AnzoClient {
         // Three part constructor for concatenating layers... ex: "named-graph-uri" "=" "http://example.com/graph"
         final String namedGraphUriFormat = "%s%s=%s";
         String value = String.format("%s/sparql/graphmart/%s", this.server,
-                URLEncoder.encode(graphmartUri, Charset.defaultCharset()));
+                URLEncoder.encode(graphmartUri, StandardCharsets.UTF_8));
         // If layerUri's are specified, concatenate the URL with layers
         if (!layerUris.isEmpty()) {
             List<String> layers = Arrays.asList(layerUris.split(","));
             for (int i = 0; i < layers.size(); i++) {
                 //First layer needs ? instead of &
                 String delimiter = (i == 0) ? "?" : "&";
-                value = value.concat(String.format(namedGraphUriFormat, delimiter, "named-graph-uri", URLEncoder.encode(layers.get(i), Charset.defaultCharset())));
+                value = value.concat(String.format(namedGraphUriFormat, delimiter, "named-graph-uri", URLEncoder.encode(layers.get(i), StandardCharsets.UTF_8)));
             }
         }
         log.trace("Created URI to target: {}", value);
@@ -339,7 +341,7 @@ public class SimpleAnzoClient implements AnzoClient {
 
     private URI createLdsSparqlUri(String ldsCatalogUri) {
         final String value = String.format("%s/sparql/lds/%s", this.server,
-                URLEncoder.encode(ldsCatalogUri, Charset.defaultCharset()));
+                URLEncoder.encode(ldsCatalogUri, StandardCharsets.UTF_8));
         log.trace("Created URI to target: {}", value);
         return URI.create(value);
     }

@@ -1,33 +1,21 @@
 package com.inovexcorp.queryservice.scheduler;
 
+import jakarta.annotation.PostConstruct;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import io.quarkus.scheduler.Scheduled;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.health.HealthCheckConfigService;
 import com.inovexcorp.queryservice.health.HealthChecker;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.karaf.scheduler.Job;
-import org.apache.karaf.scheduler.JobContext;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Modified;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.metatype.annotations.Designate;
 
 @Slf4j
-@Component(name = "com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck",
-        immediate = true,
-        service = {Job.class, HealthCheckConfigService.class},
-        property = {
-                "scheduler.name=DatasourceHealthCheck",
-                "scheduler.concurrent:Boolean=false"
-        },
-        configurationPolicy = ConfigurationPolicy.REQUIRE
-)
-@Designate(ocd = DatasourceHealthConfig.class)
+@ApplicationScoped
 public class DatasourceHealthCheck implements Job, HealthCheckConfigService {
 
-    @Reference
-    private HealthChecker healthChecker;
+    @Inject
+    HealthChecker healthChecker;
 
     /**
      * -- GETTER --
@@ -39,8 +27,13 @@ public class DatasourceHealthCheck implements Job, HealthCheckConfigService {
     private boolean enabled;
     private int consecutiveFailureThreshold;
 
-    @Activate
-    @Modified
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(DatasourceHealthConfig.class, CONFIG_PID));
+    }
+
     public void activate(final DatasourceHealthConfig config) {
         this.enabled = config.enabled();
         this.consecutiveFailureThreshold = config.consecutiveFailureThreshold();
@@ -61,5 +54,12 @@ public class DatasourceHealthCheck implements Job, HealthCheckConfigService {
         } catch (Exception e) {
             log.error("Error during datasource health check execution: {}", e.getMessage(), e);
         }
+    }
+
+    /** Trigger: cron from {@code com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.scheduler.expression}; overlapping runs are skipped (scheduler.concurrent=false). */
+    @Scheduled(identity = "DatasourceHealthCheck", cron = "${com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.scheduler.expression:0 0/2 * * * ?}",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void scheduled() {
+        execute(null);
     }
 }

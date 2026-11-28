@@ -1,6 +1,10 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
+import com.inovexcorp.queryservice.security.QttRoles;
 import com.inovexcorp.queryservice.metrics.MetricObject;
 import com.inovexcorp.queryservice.metrics.MetricsScraper;
 import com.inovexcorp.queryservice.metrics.RouteMetrics;
@@ -10,19 +14,16 @@ import com.inovexcorp.queryservice.persistence.RouteService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.api.management.mbean.ManagedRouteMBean;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 
 import javax.management.MBeanServer;
 import javax.management.MBeanServerInvocationHandler;
 import javax.management.ObjectName;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,31 +36,37 @@ import java.util.stream.Collectors;
  * Provides endpoints to retrieve both live JMX metrics and persisted historical metrics.
  */
 @Slf4j
-@Component(immediate = true, service = MetricsController.class)
-@JaxrsResource
+@ApplicationScoped
 @Path("/api/metrics")
 public class MetricsController {
 
     private static final String ROUTE_NOT_FOUND_MESSAGE = "Route not found";
-    private static final MBeanServer MBEAN_SERVER = ManagementFactory.getPlatformMBeanServer();
+    /**
+     * Looked up on use rather than in a static initializer, so a native image does not capture an MBean server at
+     * build time. The JDK caches the platform MBean server, so this is cheap.
+     */
+    private static MBeanServer mBeanServer() {
+        return ManagementFactory.getPlatformMBeanServer();
+    }
 
-    @Reference
-    private ContextManager contextManager;
+    @Inject
+    ContextManager contextManager;
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
-    @Reference
-    private MetricService metricService;
+    @Inject
+    MetricService metricService;
 
-    @Reference
-    private MetricsScraper metricsScraper;
+    @Inject
+    MetricsScraper metricsScraper;
 
     /**
      * Retrieves all persisted metrics from the database.
      *
      * @return Response containing historical metrics data
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("route/persisted")
     @Produces(MediaType.APPLICATION_JSON)
@@ -85,6 +92,7 @@ public class MetricsController {
      * @return Response containing metrics for all routes
      * @throws Exception if MBean query fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("routes")
     @Produces(MediaType.APPLICATION_JSON)
@@ -108,6 +116,7 @@ public class MetricsController {
      * @return Response containing exchange metrics or 404 if route not found
      * @throws Exception if MBean lookup fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("exchanges/{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -135,6 +144,7 @@ public class MetricsController {
      * @return Response containing route metrics or 404 if route not found
      * @throws Exception if metrics retrieval fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("route/{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -158,6 +168,7 @@ public class MetricsController {
      * @return Response containing processing time metrics or 404 if route not found
      * @throws Exception if MBean lookup fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("/processingTime/{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -185,6 +196,7 @@ public class MetricsController {
      * @return Response containing metrics for filtered routes
      * @throws Exception if MBean query fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("routes/{datasourceId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -214,7 +226,7 @@ public class MetricsController {
     private Set<ObjectName> queryRouteMBeans(CamelContext ctx) throws Exception {
         String objectNamePattern = String.format("org.apache.camel:context=%s,type=routes,*",
                 ctx.getManagementName());
-        return MBEAN_SERVER.queryNames(new ObjectName(objectNamePattern), null);
+        return mBeanServer().queryNames(new ObjectName(objectNamePattern), null);
     }
 
     /**
@@ -230,12 +242,12 @@ public class MetricsController {
                 String.format("org.apache.camel:context=%s,type=routes,name=\"%s\"",
                         ctx.getManagementName(), routeId));
 
-        if (!MBEAN_SERVER.isRegistered(routeMBeanName)) {
+        if (!mBeanServer().isRegistered(routeMBeanName)) {
             return Optional.empty();
         }
 
         ManagedRouteMBean routeMBean = MBeanServerInvocationHandler.newProxyInstance(
-                MBEAN_SERVER, routeMBeanName, ManagedRouteMBean.class, true);
+                mBeanServer(), routeMBeanName, ManagedRouteMBean.class, true);
         return Optional.of(routeMBean);
     }
 
@@ -248,8 +260,16 @@ public class MetricsController {
      */
     private boolean isRouteTiedToDatasource(ObjectName routeMBeanName, String datasourceId) {
         String routeId = routeMBeanName.getKeyProperty("name").replace("\"", "");
-        CamelRouteTemplate route = routeService.getRoute(routeId);
-        return route.getDatasources().getDataSourceId().equals(datasourceId);
+        return routeBelongsToDatasource(routeService.getRoute(routeId), datasourceId);
+    }
+
+    /**
+     * True if the persisted route uses the given datasource. Routes running in Camel without a database row
+     * (temporary test routes, for example) belong to no datasource.
+     */
+    static boolean routeBelongsToDatasource(CamelRouteTemplate route, String datasourceId) {
+        return route != null && route.getDatasources() != null
+                && datasourceId != null && datasourceId.equals(route.getDatasources().getDataSourceId());
     }
 
     /**
@@ -264,7 +284,7 @@ public class MetricsController {
         for (ObjectName routeMBeanName : routeMBeanNames) {
             log.debug("Retrieving metrics for route {}", routeMBeanName.getKeyProperty("name"));
             ManagedRouteMBean routeMBean = MBeanServerInvocationHandler.newProxyInstance(
-                    MBEAN_SERVER, routeMBeanName, ManagedRouteMBean.class, true);
+                    mBeanServer(), routeMBeanName, ManagedRouteMBean.class, true);
             metrics.add(MetricObject.fromRouteMBean()
                     .managedRouteMBean(routeMBean)
                     .build());

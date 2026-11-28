@@ -1,12 +1,13 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
+import jakarta.inject.Inject;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.LayerAssociations;
-import org.apache.aries.jpa.template.EmConsumer;
-import org.apache.aries.jpa.template.EmFunction;
-import org.apache.aries.jpa.template.JpaTemplate;
-import org.apache.aries.jpa.template.TransactionType;
+import com.inovexcorp.queryservice.persistence.jpa.EmConsumer;
+import com.inovexcorp.queryservice.persistence.jpa.EmFunction;
+import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
+import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -14,8 +15,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -80,7 +81,7 @@ public class LayerServiceImplTest {
     @Test
     public void testDeleteAll_Success() {
         // Arrange
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(entityManager.createQuery(anyString())).thenReturn(query);
         when(query.setParameter("route_Id", testRoute.getRouteId())).thenReturn(query);
 
@@ -109,7 +110,7 @@ public class LayerServiceImplTest {
                 "http://layer3.example.com"
         );
 
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(query.setParameter("route_Id", testRoute.getRouteId())).thenReturn(query);
         when(query.getResultList()).thenReturn(expectedUris);
 
@@ -136,7 +137,7 @@ public class LayerServiceImplTest {
     @Test
     public void testGetLayerUris_NoLayers_ReturnsEmptyList() {
         // Arrange
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(query.setParameter("route_Id", testRoute.getRouteId())).thenReturn(query);
         when(query.getResultList()).thenReturn(Collections.emptyList());
 
@@ -161,7 +162,7 @@ public class LayerServiceImplTest {
         // Arrange
         List<String> expectedUris = Collections.singletonList("http://single-layer.example.com");
 
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(query.setParameter("route_Id", testRoute.getRouteId())).thenReturn(query);
         when(query.getResultList()).thenReturn(expectedUris);
 
@@ -212,7 +213,7 @@ public class LayerServiceImplTest {
         CamelRouteTemplate specificRoute = new CamelRouteTemplate();
         specificRoute.setRouteId("specificRoute");
 
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(entityManager.createQuery(anyString())).thenReturn(query);
         when(query.setParameter("route_Id", specificRoute.getRouteId())).thenReturn(query);
 
@@ -238,7 +239,7 @@ public class LayerServiceImplTest {
                 "http://layer2.example.com?filter=true&sort=asc"
         );
 
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(query.setParameter("route_Id", testRoute.getRouteId())).thenReturn(query);
         when(query.getResultList()).thenReturn(expectedUris);
 
@@ -268,7 +269,7 @@ public class LayerServiceImplTest {
                 "https://secure-layer2.example.com:9443"
         );
 
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(query.setParameter("route_Id", testRoute.getRouteId())).thenReturn(query);
         when(query.getResultList()).thenReturn(expectedUris);
 
@@ -321,7 +322,7 @@ public class LayerServiceImplTest {
         List<String> expectedUrisRoute1 = Arrays.asList("http://layer1", "http://layer2");
         List<String> expectedUrisRoute2 = Arrays.asList("http://layer3", "http://layer4");
 
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
 
         // Setup for route1
         when(query.setParameter("route_Id", "route1")).thenReturn(query);
@@ -362,7 +363,7 @@ public class LayerServiceImplTest {
         CamelRouteTemplate emptyRoute = new CamelRouteTemplate();
         emptyRoute.setRouteId("emptyRoute");
 
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(entityManager.createQuery(anyString())).thenReturn(query);
         when(query.setParameter("route_Id", emptyRoute.getRouteId())).thenReturn(query);
         when(query.executeUpdate()).thenReturn(0); // No rows deleted

@@ -8,13 +8,14 @@ This tutorial walks you through creating your first query route from start to fi
 
 ### Prerequisites
 
-- QTT is running and accessible at http://localhost:8080
+- QTT is running and accessible at https://localhost:8443 (or over plain HTTP at http://localhost:8080)
 - You have access to an Altair Graph Studio graph database instance
 - Basic familiarity with SPARQL and RDF
 
 ### Step 1: Access the Web UI
 
-1. Open your browser and navigate to: **http://localhost:8080/**
+1. Open your browser and navigate to: **https://localhost:8443/** (accept the self-signed certificate warning if
+   you use the default keystore)
 2. You should see the Query Templating Tool dashboard
 
 ### Step 2: Create Your First Datasource
@@ -103,18 +104,24 @@ This template:
 
 ### Step 4: Test Your Route
 
-Your new endpoint is now live at: `http://localhost:8888/people-search`
+Your new endpoint is now live at: `https://localhost:8443/query/people-search`. The route's page shows this URL
+and a ready-to-copy `curl` command.
+
+Routes are open to anyone who can reach the server unless you change their **Access** (on the route's page) or the
+server default (`QUERY_AUTH_DEFAULT`). An authenticated route needs `-H "Authorization: Bearer $QTT_TOKEN"`, where
+the token is an OIDC access token with the `qtt-query` role or an API key from **Settings › Query Access**; see
+[Securing the Query Endpoints](administration.md#securing-the-query-endpoints).
 
 **Test without parameters:**
 
 ```bash
-curl -X GET "http://localhost:8888/people-search"
+curl -k -X GET "https://localhost:8443/query/people-search"
 ```
 
 **Test with parameters:**
 
 ```bash
-curl -X GET "http://localhost:8888/people-search?name=john&limit=10"
+curl -k -X GET "https://localhost:8443/query/people-search?name=john&limit=10"
 ```
 
 ### Step 5: Monitor Performance
@@ -225,8 +232,9 @@ The Routes page displays all configured query endpoints in a searchable, sortabl
 #### Route Table Columns
 
 - **Status Icon**: Visual indicator of route and datasource status
-- **Route ID**: Unique identifier (sortable)
-- **Endpoint URL**: Full query path (http://localhost:8888/{route-id})
+- **Route ID**: Unique identifier (sortable), with a globe for an open route or a lock for one that needs a token
+  or API key
+- **Endpoint URL**: Full query path (https://localhost:8443/query/{route-id})
 - **Description**: User-friendly description (sortable)
 - **DataSource ID**: Associated datasource with health warnings
 - **Actions Menu**: Three-dot menu for route operations
@@ -267,6 +275,8 @@ Each route provides these actions:
     - Smart autocomplete for ontology elements
     - File upload button for existing templates
     - Context-aware suggestions (triggered by typing)
+    - Syntax checking as you type: a FreeMarker syntax error is underlined in the editor, and its line, column and
+      message are shown above it. A route whose template does not parse cannot be saved.
 
 4. Click **"Save"** to create the route
 
@@ -375,7 +385,7 @@ The Settings page displays system information and statistics.
 
 - **Version**: Application version number
 - **System Uptime**: Formatted uptime duration
-- **Database Type**: Active database driver (Derby/PostgreSQL/SQL Server)
+- **Database Type**: The database in use (Apache Derby, PostgreSQL or Microsoft SQL Server), as detected from `DB_URL`
 - **Remote Database Address**: JDBC connection URL
 
 #### Application Stats Card

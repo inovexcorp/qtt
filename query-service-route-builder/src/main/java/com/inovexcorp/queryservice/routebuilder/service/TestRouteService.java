@@ -12,8 +12,8 @@ public interface TestRouteService {
 
     /**
      * Creates a temporary test route with the given template content and configuration.
-     * The route will be available immediately at http://localhost:8888/{routeId} and
-     * will be automatically cleaned up after use.
+     * The route is reachable only in-process, through {@link #invokeTestRoute}, and is
+     * automatically cleaned up after use.
      *
      * @param templateContent The Freemarker template content to test
      * @param dataSourceId The ID of the datasource to use for query execution
@@ -26,8 +26,22 @@ public interface TestRouteService {
                           String graphMartUri, String layers) throws Exception;
 
     /**
+     * Sends one request to a test route, as a query route would receive it over HTTP: each parameter becomes a
+     * header (templates read them as {@code headers.*}) and {@code body} is the request body.
+     *
+     * @param routeId    the test route
+     * @param parameters request parameters (query string parameters of a real request); may be null
+     * @param body       the request body (JSON text); may be null
+     * @return the HTTP status the route set (200 if none) and the response body
+     */
+    TestRouteResult invokeTestRoute(String routeId, java.util.Map<String, String> parameters, String body);
+
+    /** What a test route answered. */
+    record TestRouteResult(int status, String body) {
+    }
+
+    /**
      * Deletes a temporary test route by stopping it and removing it from the Camel context.
-     * The template file will be automatically cleaned up by the TemplateCleanupRoutePolicy.
      *
      * @param routeId The ID of the test route to delete
      * @throws Exception If route deletion fails

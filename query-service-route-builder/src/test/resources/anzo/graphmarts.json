@@ -1,0 +1,178 @@
+{
+  "head" : {
+    "vars" : [
+      "gm",
+      "graphmartTitle",
+      "gmActive"
+    ]
+  },
+  "results" : {
+    "bindings" : [
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/93794a1ba2a24246a0f33c4340858d80"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "07-29-26 Test model Graphmart"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      },
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/f99b73c0921a40a89850a68078f09995"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "Acme Supply Chain Demo"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      },
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/b908b36490f14a9583ec2783a5159f8b"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "Book Store"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      },
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/223a4bd5a7274ffa998840e2550586f7"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "Ingest Book Store Vocabularies"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      },
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/2fe54cc12fa44ca6bdbaa6c7988944c8"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "Malware Sentinel"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      },
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/f245c31d33f44b378f9f1e09d9bd8cd2"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "ONT1 Graphmart"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      },
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/018c5c9031824d03a7975f19a9c6bbc5"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "OpenSky"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      },
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/8ef2c73f537b4fb4aa48d0726e4677c6"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "SHACL Demonstration"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      },
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/40c2f7c6415f42e4a9a84c231c1541f8"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "Supply Chain Analytics Graphmart"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      },
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/97258fbca8984df294389a5fb7d3b489"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "Test 07-23-26 Graphmart"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      },
+      {
+        "gm" : {
+          "type" : "uri",
+          "value" : "http://cambridgesemantics.com/Graphmart/f67ae141ccbe4c109733fcd23dd0b323"
+        },
+        "graphmartTitle" : {
+          "type" : "literal",
+          "value" : "paylocity"
+        },
+        "gmActive" : {
+          "datatype" : "http://www.w3.org/2001/XMLSchema#boolean",
+          "type" : "literal",
+          "value" : "true"
+        }
+      }
+    ]
+  }
+}

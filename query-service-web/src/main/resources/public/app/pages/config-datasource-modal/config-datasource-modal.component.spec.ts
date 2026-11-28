@@ -11,18 +11,17 @@ describe('ConfigDatasourceModalComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ConfigDatasourceModalComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, ConfigDatasourceModalComponent],
       providers: [
-        {
-          provide: MAT_DIALOG_DATA,
-          useValue: {
-            datasource: { dataSourceId: '1', name: 'Test Datasource' },
-            associatedRoutes: []
-          }
-        },
-        { provide: MatDialogRef, useValue: { close: () => {} } },
-        { provide: MatDialog, useValue: { closeAll: () => {} } }
+          {
+              provide: MAT_DIALOG_DATA,
+              useValue: {
+                  datasource: { dataSourceId: '1', name: 'Test Datasource' },
+                  associatedRoutes: []
+              }
+          },
+          { provide: MatDialogRef, useValue: { close: () => { } } },
+          { provide: MatDialog, useValue: { closeAll: () => { } } }
       ],
       schemas: [NO_ERRORS_SCHEMA]
     })

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <!-- Deliberately standalone (no parent): the suite must not inherit the runtime's dependency management, so it
+         tests every QTT runtime with the same HTTP client stack. -->
+    <groupId>com.inovexcorp.queryservice</groupId>
+    <artifactId>query-service-it</artifactId>
+    <version>2.0.0-SNAPSHOT</version>
+    <name>QTT :: Black-box Regression Suite</name>
+    <description>
+        HTTP-only regression tests run against a running QTT container (see scripts/stack.sh).
+        They do not depend on any QTT module, so the same suite runs against every runtime.
+        Skipped unless -Pit is given.
+    </description>
+
+    <properties>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <skipITs>true</skipITs>
+        <qtt.api>https://localhost:18443/queryrest/api</qtt.api>
+        <qtt.ui>https://localhost:18443</qtt.ui>
+        <qtt.query>http://localhost:18082/query</qtt.query>
+        <qtt.wiremock>http://localhost:18080</qtt.wiremock>
+        <qtt.anzo.internal>http://wiremock:8080</qtt.anzo.internal>
+        <qtt.redis>false</qtt.redis>
+        <qtt.db>derby</qtt.db>
+        <qtt.oidc>false</qtt.oidc>
+        <!-- QUERY_AUTH_DEFAULT of the stack under test (open or authenticated) -->
+        <qtt.queryAuthDefault>open</qtt.queryAuthDefault>
+        <qtt.oidc.realm>http://localhost:18180/realms/qtt</qtt.oidc.realm>
+        <it.groups/>
+        <it.excludedGroups>restart-setup,restart-verify</it.excludedGroups>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>5.5.0</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- RestAssured's HttpClient logs through commons-logging (not managed by the Quarkus BOM) -->
+        <dependency>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+            <version>1.3.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>4.2.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.26.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.18.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.5.2</version>
+                <configuration>
+                    <skipITs>${skipITs}</skipITs>
+                    <groups>${it.groups}</groups>
+                    <excludedGroups>${it.excludedGroups}</excludedGroups>
+                    <systemPropertyVariables>
+                        <qtt.api>${qtt.api}</qtt.api>
+                        <qtt.ui>${qtt.ui}</qtt.ui>
+                        <qtt.query>${qtt.query}</qtt.query>
+                        <qtt.wiremock>${qtt.wiremock}</qtt.wiremock>
+                        <qtt.anzo.internal>${qtt.anzo.internal}</qtt.anzo.internal>
+                        <qtt.redis>${qtt.redis}</qtt.redis>
+                        <qtt.db>${qtt.db}</qtt.db>
+                        <qtt.queryAuthDefault>${qtt.queryAuthDefault}</qtt.queryAuthDefault>
+                        <qtt.oidc>${qtt.oidc}</qtt.oidc>
+                        <qtt.oidc.realm>${qtt.oidc.realm}</qtt.oidc.realm>
+                    </systemPropertyVariables>
+                    <runOrder>alphabetical</runOrder>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>it</id>
+            <properties>
+                <skipITs>false</skipITs>
+            </properties>
+        </profile>
+    </profiles>
+</project>

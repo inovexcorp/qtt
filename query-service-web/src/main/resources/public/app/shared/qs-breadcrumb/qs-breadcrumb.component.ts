@@ -1,12 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { BreadcrumbService } from 'xng-breadcrumb';
+import { BreadcrumbService, BreadcrumbComponent } from 'xng-breadcrumb';
 import { filter } from 'rxjs';
+import { MatToolbar } from '@angular/material/toolbar';
 
 @Component({
-  selector: 'app-qs-breadcrumb',
-  templateUrl: './qs-breadcrumb.component.html',
-  styleUrls: ['./qs-breadcrumb.component.scss']
+    selector: 'app-qs-breadcrumb',
+    templateUrl: './qs-breadcrumb.component.html',
+    styleUrls: ['./qs-breadcrumb.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MatToolbar, BreadcrumbComponent]
 })
 export class QsBreadcrumbComponent implements OnInit {
 

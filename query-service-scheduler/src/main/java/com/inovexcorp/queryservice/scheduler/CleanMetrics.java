@@ -1,34 +1,28 @@
 package com.inovexcorp.queryservice.scheduler;
 
+import jakarta.annotation.PostConstruct;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import io.quarkus.scheduler.Scheduled;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.MetricService;
-import org.apache.karaf.scheduler.Job;
-import org.apache.karaf.scheduler.JobContext;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Modified;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.metatype.annotations.Designate;
 
 
-@Component(name = "com.inovexcorp.queryservice.scheduler.CleanMetrics",
-        immediate = true,
-        property = {
-                "scheduler.name=CleanMetrics",
-                "scheduler.concurrent:Boolean=false"
-        },
-        configurationPolicy = ConfigurationPolicy.REQUIRE
-)
-@Designate(ocd = CleanMetricsConfig.class)
+@ApplicationScoped
 public class CleanMetrics implements Job {
 
-    @Reference
-    private MetricService metricService;
+    @Inject
+    MetricService metricService;
 
     private int minutesToLive;
 
-    @Activate
-    @Modified
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.scheduler.CleanMetrics";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(CleanMetricsConfig.class, CONFIG_PID));
+    }
+
     public void activate(final CleanMetricsConfig config) {
         this.minutesToLive = config.minutesToLive();
     }
@@ -36,5 +30,12 @@ public class CleanMetrics implements Job {
     @Override
     public void execute(JobContext jobContext) {
         metricService.deleteOldRecords(minutesToLive);
+    }
+
+    /** Trigger: cron from {@code com.inovexcorp.queryservice.scheduler.CleanMetrics.scheduler.expression}; overlapping runs are skipped (scheduler.concurrent=false). */
+    @Scheduled(identity = "CleanMetrics", cron = "${com.inovexcorp.queryservice.scheduler.CleanMetrics.scheduler.expression:0 0/1 * * * ?}",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void scheduled() {
+        execute(null);
     }
 }

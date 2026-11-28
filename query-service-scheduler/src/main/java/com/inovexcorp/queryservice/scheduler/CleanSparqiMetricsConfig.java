@@ -1,15 +1,12 @@
 package com.inovexcorp.queryservice.scheduler;
 
-import org.osgi.service.metatype.annotations.AttributeDefinition;
-import org.osgi.service.metatype.annotations.ObjectClassDefinition;
 
 /**
  * Configuration for SPARQi metrics cleanup scheduler.
  */
-@ObjectClassDefinition(
-        name = "CleanSparqiMetricsConfig",
-        description = "Configuration for SPARQi metrics cleanup scheduler"
-)
+/**
+ * Configuration for SPARQi metrics cleanup scheduler
+ */
 public @interface CleanSparqiMetricsConfig {
 
     /**
@@ -18,9 +15,6 @@ public @interface CleanSparqiMetricsConfig {
      *
      * @return days to live
      */
-    @AttributeDefinition(
-            name = "daysToLive",
-            description = "How long SPARQi metrics should be persisted before deleted (in days)"
-    )
+    /** How long SPARQi metrics should be persisted before deleted (in days) */
     int daysToLive() default 7;
 }

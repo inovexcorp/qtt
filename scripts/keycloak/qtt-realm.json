@@ -1,0 +1,136 @@
+{
+  "realm": "qtt",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "roles": {
+    "realm": [
+      {"name": "qtt-viewer", "description": "QTT: read-only"},
+      {"name": "qtt-editor", "description": "QTT: routes, templates, tests, SPARQi"},
+      {"name": "qtt-admin", "description": "QTT: everything, including datasources"},
+      {"name": "legacy-admins", "description": "Site role mapped to qtt-admin with OIDC_ADMIN_GROUPS (tests group mapping)"},
+      {"name": "qtt-query", "description": "QTT: call query routes whose access is authenticated"},
+      {"name": "finance-apps", "description": "Site role used as a route's required role (tests requiredRoles)"}
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "qtt",
+      "name": "QTT (test only)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "qtt-test-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["https://localhost:18443/*", "https://localhost:8443/*", "http://localhost:8080/*"],
+      "webOrigins": ["+"],
+      "attributes": {"post.logout.redirect.uris": "+"},
+      "protocolMappers": [
+        {
+          "name": "qtt-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {"included.client.audience": "qtt", "access.token.claim": "true", "id.token.claim": "false"}
+        }
+      ]
+    },
+    {
+      "clientId": "qtt-ci",
+      "name": "QTT automation (test only)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "qtt-ci-test-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "qtt-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {"included.client.audience": "qtt", "access.token.claim": "true", "id.token.claim": "false"}
+        }
+      ]
+    },
+    {
+      "clientId": "qtt-reader",
+      "name": "Application calling QTT query routes (test only)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "qtt-reader-test-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "qtt-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {"included.client.audience": "qtt", "access.token.claim": "true", "id.token.claim": "false"}
+        }
+      ]
+    },
+    {
+      "clientId": "qtt-finance",
+      "name": "Application with the finance-apps role (tests required roles)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "qtt-finance-test-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "qtt-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {"included.client.audience": "qtt", "access.token.claim": "true", "id.token.claim": "false"}
+        }
+      ]
+    },
+    {
+      "clientId": "other-app",
+      "name": "A different application (tests audience rejection)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "other-app-test-secret",
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true
+    }
+  ],
+  "users": [
+    {"username": "viewer", "enabled": true, "email": "viewer@example.test", "emailVerified": true,
+     "firstName": "Vera", "lastName": "Viewer", "realmRoles": ["qtt-viewer"],
+     "credentials": [{"type": "password", "value": "viewer-pw", "temporary": false}]},
+    {"username": "editor", "enabled": true, "email": "editor@example.test", "emailVerified": true,
+     "firstName": "Eddie", "lastName": "Editor", "realmRoles": ["qtt-editor"],
+     "credentials": [{"type": "password", "value": "editor-pw", "temporary": false}]},
+    {"username": "editor2", "enabled": true, "email": "editor2@example.test", "emailVerified": true,
+     "firstName": "Erin", "lastName": "Editor", "realmRoles": ["qtt-editor"],
+     "credentials": [{"type": "password", "value": "editor2-pw", "temporary": false}]},
+    {"username": "admin", "enabled": true, "email": "admin@example.test", "emailVerified": true,
+     "firstName": "Ada", "lastName": "Admin", "realmRoles": ["qtt-admin"],
+     "credentials": [{"type": "password", "value": "admin-pw", "temporary": false}]},
+    {"username": "mapped", "enabled": true, "email": "mapped@example.test", "emailVerified": true,
+     "firstName": "Max", "lastName": "Mapped", "realmRoles": ["legacy-admins"],
+     "credentials": [{"type": "password", "value": "mapped-pw", "temporary": false}]},
+    {"username": "norole", "enabled": true, "email": "norole@example.test", "emailVerified": true,
+     "firstName": "Nora", "lastName": "Norole",
+     "credentials": [{"type": "password", "value": "norole-pw", "temporary": false}]},
+    {"username": "service-account-qtt-ci", "enabled": true, "serviceAccountClientId": "qtt-ci",
+     "realmRoles": ["qtt-admin"]},
+    {"username": "service-account-other-app", "enabled": true, "serviceAccountClientId": "other-app",
+     "realmRoles": ["qtt-admin"]},
+    {"username": "service-account-qtt-reader", "enabled": true, "serviceAccountClientId": "qtt-reader",
+     "realmRoles": ["qtt-query"]},
+    {"username": "service-account-qtt-finance", "enabled": true, "serviceAccountClientId": "qtt-finance",
+     "realmRoles": ["qtt-query", "finance-apps"]}
+  ]
+}

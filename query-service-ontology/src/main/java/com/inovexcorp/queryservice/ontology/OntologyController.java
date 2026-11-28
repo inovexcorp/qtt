@@ -1,24 +1,25 @@
 package com.inovexcorp.queryservice.ontology;
 
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ontology.model.CacheStatistics;
+import com.inovexcorp.queryservice.security.QttRoles;
 import com.inovexcorp.queryservice.ontology.model.OntologyElement;
 import com.inovexcorp.queryservice.ontology.model.OntologyElementType;
 import com.inovexcorp.queryservice.ontology.model.OntologyMetadata;
 import lombok.extern.slf4j.Slf4j;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 
-import javax.ws.rs.DELETE;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.Map;
 
@@ -27,12 +28,11 @@ import java.util.Map;
  * Provides endpoints for querying cached ontology elements from Anzo.
  */
 @Slf4j
-@JaxrsResource
 @Path("/api/ontology")
-@Component(immediate = true, service = OntologyController.class)
+@ApplicationScoped
 public class OntologyController {
 
-    @Reference
+    @Inject
     OntologyService ontologyService;
 
     /**
@@ -44,6 +44,7 @@ public class OntologyController {
      * @param limit   Maximum number of results to return
      * @return List of matching ontology elements
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -81,6 +82,7 @@ public class OntologyController {
      * @param routeId The route ID
      * @return Ontology metadata
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{routeId}/metadata")
     @Produces(MediaType.APPLICATION_JSON)
@@ -103,6 +105,7 @@ public class OntologyController {
      * @param routeId The route ID
      * @return Success message
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("{routeId}/refresh")
     @Produces(MediaType.APPLICATION_JSON)
@@ -127,6 +130,7 @@ public class OntologyController {
      * @param routeId The route ID
      * @return Success message
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @DELETE
     @Path("{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -142,6 +146,7 @@ public class OntologyController {
      *
      * @return Cache performance statistics
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("cache/statistics")
     @Produces(MediaType.APPLICATION_JSON)
@@ -156,6 +161,7 @@ public class OntologyController {
      * @param routeId The route ID
      * @return Success message
      */
+    @RolesAllowed(QttRoles.VIEWER) // loads what GET {routeId} would; the route page calls it on open
     @POST
     @Path("{routeId}/warm")
     @Produces(MediaType.APPLICATION_JSON)

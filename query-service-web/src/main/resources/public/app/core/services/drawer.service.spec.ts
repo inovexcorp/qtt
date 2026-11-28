@@ -17,13 +17,13 @@ describe('DrawerService', () => {
     expect(service.closeDrawer$).toBeDefined();
   });
 
-  it('should emit when requestCloseDrawer is called', (done) => {
+  it('should emit when requestCloseDrawer is called', async () => {
     let emitted = false;
 
     service.closeDrawer$.subscribe(() => {
       emitted = true;
       expect(emitted).toBe(true);
-      done();
+      ;
     });
 
     service.requestCloseDrawer();

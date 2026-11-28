@@ -1,0 +1,86 @@
+package com.inovexcorp.queryservice.camel.anzo.comm;
+
+import com.sun.net.httpserver.HttpServer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** HTTP behaviour of SimpleAnzoClient against a real (in-process) server. */
+class SimpleAnzoClientConnectionTest {
+
+    private HttpServer server;
+    private final List<Integer> clientPorts = new CopyOnWriteArrayList<>();
+    private final List<String> contentLengths = new CopyOnWriteArrayList<>();
+    private final List<String> bodies = new CopyOnWriteArrayList<>();
+    private final List<String> rawUris = new CopyOnWriteArrayList<>();
+
+    @BeforeEach
+    void start() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/sparql/graphmart/", exchange -> {
+            clientPorts.add(exchange.getRemoteAddress().getPort());
+            rawUris.add(exchange.getRequestURI().getRawPath() + "?" + exchange.getRequestURI().getRawQuery());
+            contentLengths.add(exchange.getRequestHeaders().getFirst("Content-Length"));
+            try (InputStream in = exchange.getRequestBody()) {
+                bodies.add(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+            }
+            byte[] out = "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"/>".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/rdf+xml");
+            exchange.sendResponseHeaders(200, out.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(out);
+            }
+        });
+        server.start();
+    }
+
+    @AfterEach
+    void stop() {
+        server.stop(0);
+    }
+
+    private void query(SimpleAnzoClient client, String sparql) throws Exception {
+        QueryResponse r = client.queryGraphmart(sparql, "urn:gm", "", AnzoClient.RESPONSE_FORMAT.RDFXML, 10, false);
+        try (InputStream body = r.getResponse().body()) {
+            body.readAllBytes();
+        }
+    }
+
+    @Test
+    void sendsBodyWithContentLengthAndReusesTheConnection() throws Exception {
+        SimpleAnzoClient client = new SimpleAnzoClient("http://127.0.0.1:" + server.getAddress().getPort(),
+                "user", "pass", 10);
+        query(client, "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o } # é 日本");
+        query(client, "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o } LIMIT 1");
+        query(client, "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o } LIMIT 2");
+
+        assertThat(bodies.get(0)).startsWith("query=").contains("format=application%2Frdf%2Bxml");
+        assertThat(java.net.URLDecoder.decode(bodies.get(0), StandardCharsets.UTF_8)).contains("# é 日本");
+        assertThat(contentLengths).allSatisfy(cl -> assertThat(cl).isNotNull());
+        assertThat(Integer.parseInt(contentLengths.get(0))).isEqualTo(bodies.get(0).getBytes(StandardCharsets.UTF_8).length);
+        // keep-alive: all three queries arrived over the same client connection
+        assertThat(clientPorts).hasSize(3);
+        assertThat(clientPorts.stream().distinct().count()).isEqualTo(1);
+    }
+
+    /** IRIs are percent-encoded as UTF-8 whatever the JVM's default charset (it is ASCII without a UTF-8 locale). */
+    @Test
+    void encodesGraphmartAndLayerIrisAsUtf8() throws Exception {
+        SimpleAnzoClient client = new SimpleAnzoClient("http://127.0.0.1:" + server.getAddress().getPort(),
+                "user", "pass", 10);
+        QueryResponse r = client.queryGraphmart("ASK {}", "urn:gm:café", "urn:layer:ü", AnzoClient.RESPONSE_FORMAT.RDFXML, 10, false);
+        try (InputStream body = r.getResponse().body()) {
+            body.readAllBytes();
+        }
+        assertThat(rawUris.get(0)).contains("caf%C3%A9").contains("named-graph-uri=urn%3Alayer%3A%C3%BC");
+    }
+}

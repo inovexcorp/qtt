@@ -33,7 +33,6 @@ SPARQi is particularly helpful when you need to:
 docker run -d \
   --name qtt \
   -p 8080:8080 \
-  -p 8888:8888 \
   -e SPARQI_ENABLED=true \
   -e SPARQI_LLM_BASE_URL=https://api.openai.com/v1 \
   -e SPARQI_LLM_API_KEY=sk-your-openai-key \
@@ -95,7 +94,6 @@ litellm --config litellm_config.yaml --port 4000
 docker run -d \
   --name qtt \
   -p 8080:8080 \
-  -p 8888:8888 \
   -e SPARQI_ENABLED=true \
   -e SPARQI_LLM_BASE_URL=http://host.docker.internal:4000 \
   -e SPARQI_LLM_API_KEY=anything \
@@ -111,7 +109,6 @@ docker run -d \
 docker run -d \
   --name qtt \
   -p 8080:8080 \
-  -p 8888:8888 \
   -e SPARQI_ENABLED=true \
   -e SPARQI_LLM_BASE_URL=https://your-resource.openai.azure.com/openai/deployments/your-deployment \
   -e SPARQI_LLM_API_KEY=your-azure-key \
@@ -316,6 +313,9 @@ For programmatic access, SPARQi provides a REST API.
 curl -X POST "http://localhost:8080/queryrest/api/sparqi/session?routeId=people-search&userId=alice"
 ```
 
+With sign-in on, the session belongs to the signed-in user and `userId` is ignored. Only that user (and admins) can
+read, use or end it; to anyone else it answers `404`. With sign-in off, `userId` is recorded as given.
+
 **Response:**
 
 ```json
@@ -376,7 +376,7 @@ curl -X GET "http://localhost:8080/queryrest/api/sparqi/health"
 
 - Verify `SPARQI_ENABLED=true`
 - Check health endpoint: `/api/sparqi/health`
-- Review Karaf logs: `docker logs qtt | grep sparqi`
+- Review QTT logs: `docker logs qtt | grep sparqi`
 
 **LLM timeouts:**
 

@@ -1,11 +1,14 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
+import jakarta.inject.Inject;
+import com.inovexcorp.queryservice.persistence.DatasourceStatus;
 import com.inovexcorp.queryservice.persistence.Datasources;
+import com.inovexcorp.queryservice.persistence.DisabledDatasources;
 import com.inovexcorp.queryservice.persistence.util.PasswordEncryptionService;
-import org.apache.aries.jpa.template.EmConsumer;
-import org.apache.aries.jpa.template.EmFunction;
-import org.apache.aries.jpa.template.JpaTemplate;
-import org.apache.aries.jpa.template.TransactionType;
+import com.inovexcorp.queryservice.persistence.jpa.EmConsumer;
+import com.inovexcorp.queryservice.persistence.jpa.EmFunction;
+import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
+import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -13,8 +16,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -47,6 +50,9 @@ public class DataSourceServiceImplTest {
 
     @Mock
     private PasswordEncryptionService encryptionService;
+
+    @Mock
+    private DisabledDatasources disabledDatasources;
 
     @InjectMocks
     private DataSourceServiceImpl dataSourceService;
@@ -117,7 +123,7 @@ public class DataSourceServiceImplTest {
     @Test
     public void testDeleteAll_Success() {
         // Arrange
-        javax.persistence.Query query = mock(javax.persistence.Query.class);
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
         when(entityManager.createQuery("delete from Datasources")).thenReturn(query);
 
         doAnswer(invocation -> {
@@ -430,5 +436,31 @@ public class DataSourceServiceImplTest {
         // Assert
         verify(entityManager).merge(newDs);
         verify(entityManager).flush();
+    }
+
+    /** Routes check DisabledDatasources on every request; status changes must reach it. */
+    @Test
+    public void testUpdateDatasourceStatus_NotifiesDisabledDatasources() {
+        doAnswer(inv -> {
+            ((EmConsumer) inv.getArgument(1)).accept(entityManager);
+            return null;
+        }).when(jpaTemplate).tx(eq(TransactionType.Required), any(EmConsumer.class));
+        when(entityManager.find(Datasources.class, "test-datasource")).thenReturn(testDatasource);
+
+        dataSourceService.updateDatasourceStatus("test-datasource", DatasourceStatus.DISABLED, null);
+
+        verify(disabledDatasources).statusChanged("test-datasource", DatasourceStatus.DISABLED);
+    }
+
+    @Test
+    public void testDelete_NotifiesDisabledDatasources() {
+        doAnswer(inv -> {
+            ((EmConsumer) inv.getArgument(1)).accept(entityManager);
+            return null;
+        }).when(jpaTemplate).tx(eq(TransactionType.Required), any(EmConsumer.class));
+
+        dataSourceService.delete("test-datasource");
+
+        verify(disabledDatasources).removed("test-datasource");
     }
 }

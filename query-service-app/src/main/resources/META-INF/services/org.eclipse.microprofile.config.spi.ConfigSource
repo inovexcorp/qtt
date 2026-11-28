@@ -1,0 +1,2 @@
+com.inovexcorp.queryservice.app.DatabaseKindConfigSource
+com.inovexcorp.queryservice.app.security.OidcTlsConfigSource

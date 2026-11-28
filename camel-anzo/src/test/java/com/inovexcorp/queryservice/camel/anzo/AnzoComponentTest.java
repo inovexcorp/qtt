@@ -1,10 +1,12 @@
 package com.inovexcorp.queryservice.camel.anzo;
 
 import org.apache.camel.Endpoint;
-import org.apache.camel.test.junit4.CamelTestSupport;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.apache.camel.test.junit5.CamelTestSupport;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -15,9 +17,8 @@ public class AnzoComponentTest extends CamelTestSupport {
 
     private AnzoComponent component;
 
-    @Before
-    public void setUp() throws Exception {
-        super.setUp();
+    @BeforeEach
+    void createComponent() {
         component = new AnzoComponent();
         component.setCamelContext(context);
     }
@@ -173,8 +174,8 @@ public class AnzoComponentTest extends CamelTestSupport {
         assertEquals(16384L, anzoEndpoint.getMaxQueryHeaderLength());
     }
 
-    @Ignore
-    @Test(expected = Exception.class)
+    @Disabled("Disabled before the migration: createEndpoint does not validate the remaining URI")
+    @Test
     public void testCreateEndpointWithInvalidUri() throws Exception {
         // Test with malformed URI to ensure proper error handling
         String uri = "anzo://invalid uri with spaces";
@@ -182,7 +183,7 @@ public class AnzoComponentTest extends CamelTestSupport {
         parameters.put("user", "testuser");
         parameters.put("password", "password123");
 
-        component.createEndpoint(uri, "invalid uri with spaces", parameters);
+        assertThrows(Exception.class, () -> component.createEndpoint(uri, "invalid uri with spaces", parameters));
     }
 
     @Test

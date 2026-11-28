@@ -9,9 +9,6 @@ This guide covers advanced deployment scenarios, database migration, high availa
 **Step 1: Export Data from Derby**
 
 ```bash
-# Connect to Karaf console
-docker exec -it qtt bin/client
-
 # Use custom export script or JDBC dump
 # (Implementation-specific)
 ```
@@ -78,8 +75,7 @@ services:
       DB_URL: "jdbc:postgresql://postgresql-primary:5432/qtt"
       #...
     ports:
-      - "8080:8080"
-      - "8888:8888"
+      - "8443:8443"
 
   qtt-standby:
     image: docker.io/inovexis/qtt:latest
@@ -131,13 +127,9 @@ docker cp ./templates-backup qtt:/opt/qtt/data/templates
 
 ### Configuration Backup
 
-```bash
-# Backup all configuration
-docker cp qtt:/opt/qtt/etc ./etc-backup
-
-# Restore
-docker cp ./etc-backup qtt:/opt/qtt/etc
-```
+QTT's configuration is packaged into the application and overridden with environment variables, so there are no
+configuration files to back up inside the container. Keep your compose files or `docker run` settings (and any custom
+keystore) under version control or in your secrets store instead.
 
 ### Full System Backup
 
@@ -152,42 +144,11 @@ docker exec qtt-postgres pg_dump -U qttuser qtt > $BACKUP_DIR/database.sql
 # Backup templates
 docker cp qtt:/opt/qtt/data/templates $BACKUP_DIR/templates
 
-# Backup configuration
-docker cp qtt:/opt/qtt/etc $BACKUP_DIR/etc
-
 # Create archive
 tar -czf $BACKUP_DIR.tar.gz $BACKUP_DIR
 rm -rf $BACKUP_DIR
 
 echo "Backup created: $BACKUP_DIR.tar.gz"
-```
-
-## Custom Karaf Features
-
-You can extend QTT with custom OSGi bundles.
-
-**Create custom feature:**
-
-```xml
-<!-- custom-feature.xml -->
-<features xmlns="http://karaf.apache.org/xmlns/features/v1.3.0" name="custom-features">
-    <feature name="custom-bundle" version="1.0.0">
-        <bundle>mvn:com.example/custom-bundle/1.0.0</bundle>
-    </feature>
-</features>
-```
-
-**Deploy:**
-
-```bash
-# Copy feature to deploy
-docker cp custom-feature.xml qtt:/opt/qtt/deploy/
-
-# Or install via Karaf console
-docker exec -it qtt bin/client
-
-karaf@root()> feature:repo-add file:///opt/qtt/deploy/custom-feature.xml
-karaf@root()> feature:install custom-bundle
 ```
 
 ## Security Hardening
@@ -197,13 +158,6 @@ karaf@root()> feature:install custom-bundle
 - Use CA-signed certificates (not self-signed)
 - Enforce TLS 1.2+ only
 - Disable weak cipher suites
-
-**Configure in `org.ops4j.pax.web.cfg`:**
-
-```properties
-org.ops4j.pax.web.ssl.protocols.included=TLSv1.2,TLSv1.3
-org.ops4j.pax.web.ssl.ciphersuites.excluded=.*NULL.*,.*RC4.*,.*MD5.*,.*DES.*,.*DSS.*
-```
 
 ### 2. Network Segmentation
 
@@ -236,28 +190,42 @@ networks:
   external:
 ```
 
-### 3. Secrets Management
+### 3. Route Templates
 
-Use Docker secrets or Kubernetes secrets:
+Without sign-in, anyone who can reach the management API can save route templates, so turn on
+[Single Sign-On](administration.md#single-sign-on-oidc) for shared deployments. Templates are rendered with
+FreeMarker's safeguards for untrusted templates switched on: no `?new` or `?api`, no `<#include>`/`<#import>`, and no
+Java methods on request objects (see [What Templates Cannot Do](template-development.md#what-templates-cannot-do)).
+Templates never see a caller's `Authorization`, `Cookie` or proxy headers, so they can't pass credentials on to Anzo.
+
+The query routes share ports 8443/8080 with the UI. To let applications reach only the query routes, route the path
+`/query/` to them through your reverse proxy and keep `/` and `/queryrest/` internal
+([Exposing only the query routes](administration.md#exposing-only-the-query-routes)), and close routes that should
+not be public ([Securing the Query Endpoints](administration.md#securing-the-query-endpoints)).
+
+### 4. Secrets Management
+
+Keep secrets out of images and compose files and pass them to the container as environment variables at
+start-up, for example from a Kubernetes Secret:
 
 ```yaml
-services:
-  qtt:
-    secrets:
-      - db_password
-      - sparqi_api_key
-    environment:
-      DB_PASSWORD_FILE: /run/secrets/db_password
-      SPARQI_LLM_API_KEY_FILE: /run/secrets/sparqi_api_key
-
-secrets:
-  db_password:
-    file: ./secrets/db_password.txt
-  sparqi_api_key:
-    file: ./secrets/sparqi_api_key.txt
+env:
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: qtt-secrets
+        key: db-password
+  - name: SPARQI_LLM_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: qtt-secrets
+        key: sparqi-api-key
 ```
 
-### 4. Least Privilege Database Access
+QTT reads these values from environment variables only; it does not support `*_FILE` variables that point to
+secret files.
+
+### 5. Least Privilege Database Access
 
 Grant only required permissions:
 
@@ -283,7 +251,7 @@ ALL
 SEQUENCES IN SCHEMA public TO qttuser;
 ```
 
-### 5. Rate Limiting
+### 6. Rate Limiting
 
 Use nginx or HAProxy for rate limiting:
 
@@ -365,9 +333,9 @@ SELECT * WHERE {
 
 **Time-Based Invalidation (Automatic):**
 
-```properties
+```bash
 # All cache entries expire after TTL
-cache.defaultTtlSeconds=3600  # 1 hour
+CACHE_DEFAULT_TTL=3600  # 1 hour
 ```
 
 **Manual Invalidation:**
@@ -382,7 +350,7 @@ curl -X DELETE "http://localhost:8080/queryrest/api/routes/cache"
 
 ### Fail-Open vs Fail-Closed Strategy
 
-**Fail-Open (Default):** `cache.failOpen=true`
+**Fail-Open (Default):** `CACHE_FAIL_OPEN=true`
 
 ```
 Cache Error → Log warning → Continue without cache → Query executes normally
@@ -397,7 +365,7 @@ Cons:
 ✗ May not notice cache failures immediately
 ```
 
-**Fail-Closed:** `cache.failOpen=false`
+**Fail-Closed:** `CACHE_FAIL_OPEN=false`
 
 ```
 Cache Error → Throw exception → Return 500 error to client
@@ -420,8 +388,9 @@ Cons:
 
 **Documentation:**
 
-- Apache Karaf: https://karaf.apache.org/manual/latest/
 - Apache Camel: https://camel.apache.org/manual/
+- Camel Quarkus: https://camel.apache.org/camel-quarkus/latest/
+- Quarkus: https://quarkus.io/guides/
 - Freemarker: https://freemarker.apache.org/docs/
 - SPARQL: https://www.w3.org/TR/sparql11-query/
 - JSON-LD: https://json-ld.org/
@@ -446,8 +415,6 @@ Cons:
 **Anzo**: Cambridge Semantics graph database platform
 
 **Apache Camel**: Integration framework for routing and mediation
-
-**Apache Karaf**: OSGi runtime environment
 
 **Cache Aside Pattern**: Caching strategy where the application checks cache first, then queries database on miss and
 updates cache
@@ -476,7 +443,7 @@ updates cache
 
 **Monaco Editor**: Code editor component (used by VS Code)
 
-**OSGi**: Modular Java framework
+**Quarkus**: Java application framework that QTT runs on (via Camel Quarkus)
 
 **RDF**: Resource Description Framework
 

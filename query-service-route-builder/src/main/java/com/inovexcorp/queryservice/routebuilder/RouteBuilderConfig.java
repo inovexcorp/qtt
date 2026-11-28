@@ -1,17 +1,13 @@
 package com.inovexcorp.queryservice.routebuilder;
 
-import org.osgi.service.metatype.annotations.AttributeDefinition;
-import org.osgi.service.metatype.annotations.ObjectClassDefinition;
-
 /**
- * Configuration for the {@link CamelKarafComponent} component.
+ * Configuration for {@link CamelKarafComponent}. PID: com.inovexcorp.queryservice.routebuilder
  */
-@ObjectClassDefinition(name = "RouteBuilderConfig", description = "Configuration of location of ftl files")
 public @interface RouteBuilderConfig {
 
-    /**
-     * @return Location of where templates should be held.
-     */
-    @AttributeDefinition(name = "templateLocation", description = "Location of where templates should be held")
-    String templateLocation();
+    /** Location of where templates should be held */
+    String templateLocation() default "data/templates/";
+
+    /** Return the Anzo metadata headers (anzo.query, anzo.query_duration, anzo.graphmart) to query callers. */
+    boolean debugHeaders() default false;
 }

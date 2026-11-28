@@ -1,0 +1,15 @@
+{
+  "name": "err-http500",
+  "priority": 1,
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/sparql/graphmart/urn%3Amock%3Ahttp500.*"
+  },
+  "response": {
+    "status": 500,
+    "headers": {
+      "Content-Type": "text/plain"
+    },
+    "body": "Internal error in mock Anzo"
+  }
+}

@@ -411,6 +411,8 @@ h1.card-header {
 }
 
 // Material overrides
+// Material has no token for the outlined field's inner padding or the select's trailing space; these target its
+// internal classes, so check them after Material upgrades.
 .mat-mdc-select {
   padding-right: 10px;
 }
@@ -615,23 +617,7 @@ h1.card-header {
 }
 
 // Snackbar styles for success and error messages
-::ng-deep .success-snackbar {
-  background-color: #4caf50 !important;
-  color: white !important;
-
-  .mat-mdc-button {
-    color: white !important;
-  }
-}
-
-::ng-deep .error-snackbar {
-  background-color: #f44336 !important;
-  color: white !important;
-
-  .mat-mdc-button {
-    color: white !important;
-  }
-}
+// Snack bar variants (.success-snackbar, .error-snackbar) are global: styles.scss.
 
 // Tab layout styles
 .route-tabs {
@@ -1199,5 +1185,36 @@ h1.card-header {
   50% {
     transform: scale(1.1);
     opacity: 0.7;
+  }
+}
+
+// Template syntax error reported by the server while typing (also marked in the editor)
+.template-syntax-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid #f44336;
+  border-radius: 4px;
+  background-color: #ffebee;
+  color: #c62828;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-size: 0.875rem;
+
+  mat-icon {
+    flex: none;
+    color: #f44336;
+  }
+}
+
+// Title with the "created by / last changed by" line under it
+.title-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  h1 {
+    margin-bottom: 0;
   }
 }

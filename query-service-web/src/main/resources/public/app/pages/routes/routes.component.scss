@@ -145,3 +145,7 @@ button[mat-menu-item][disabled] {
     color: #999 !important;
   }
 }
+
+.route-id-cell { display: inline-flex; align-items: center; gap: 6px; }
+.access-icon { font-size: 18px; width: 18px; height: 18px; color: rgba(0, 0, 0, 0.55); }
+.access-icon.access-open { color: #b45309; }

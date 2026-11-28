@@ -1,0 +1,11 @@
+# QTT native image (experimental). Build the binary first: mvn -Pnative -pl query-service-app package
+#   podman build -f src/main/docker/Dockerfile.native -t inovexis/qtt:native .
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5
+ENV LANG=C.UTF-8
+RUN mkdir -p /opt/qtt/data /opt/qtt/etc && chown -R 1001:0 /opt/qtt && chmod -R g=u /opt/qtt
+WORKDIR /opt/qtt
+COPY --chown=1001:0 target/*-runner /opt/qtt/application
+COPY --chown=1001:0 src/main/etc/keystore /opt/qtt/etc/keystore
+USER 1001
+EXPOSE 8443 8080
+ENTRYPOINT ["/opt/qtt/application"]

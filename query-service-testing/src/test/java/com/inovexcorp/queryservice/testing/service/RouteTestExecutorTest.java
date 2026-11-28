@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.testing.service;
 
+import jakarta.inject.Inject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
 import com.inovexcorp.queryservice.persistence.DatasourceStatus;
@@ -16,10 +17,6 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Field;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,12 +36,6 @@ class RouteTestExecutorTest {
 
     @Mock
     private TestRouteService testRouteService;
-
-    @Mock
-    private HttpClient httpClient;
-
-    @Mock
-    private HttpResponse<String> httpResponse;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -68,11 +59,6 @@ class RouteTestExecutorTest {
         datasource = new Datasources();
         datasource.setDataSourceId("ds1");
         datasource.setStatus(DatasourceStatus.UP);
-
-        // Inject mocked httpClient via reflection since it's a final field
-        Field httpClientField = RouteTestExecutor.class.getDeclaredField("httpClient");
-        httpClientField.setAccessible(true);
-        httpClientField.set(executor, httpClient);
     }
 
     // ========================================
@@ -93,10 +79,8 @@ class RouteTestExecutorTest {
         debug.put("sparqlQuery", "SELECT * WHERE { ?s ?p ?o }");
         enhancedResponse.put("debug", debug);
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -178,10 +162,8 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         executor.executeTest(request);
@@ -209,10 +191,8 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         executor.executeTest(request);
@@ -233,7 +213,7 @@ class RouteTestExecutorTest {
         when(dataSourceService.getDataSource("ds1")).thenReturn(datasource);
         when(testRouteService.createTestRoute(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn("test-route-123");
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
                 .thenThrow(new RuntimeException("HTTP failure"));
 
         // Act
@@ -256,10 +236,8 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         doThrow(new RuntimeException("Cleanup failed"))
                 .when(testRouteService).deleteTestRoute("test-route-123");
@@ -289,21 +267,22 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         executor.executeTest(request);
 
         // Assert
-        ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
-        verify(httpClient).send(requestCaptor.capture(), any(HttpResponse.BodyHandler.class));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(testRouteService).invokeTestRoute(eq("test-route-123"), paramsCaptor.capture(), bodyCaptor.capture());
 
-        // The request body should be a nested JSON structure
-        // We can't easily inspect the body, but we verified the logic exists
-        assertThat(requestCaptor.getValue()).isNotNull();
+        // The request body is a nested JSON structure built from the body.* parameters
+        Map<?, ?> body = objectMapper.readValue(bodyCaptor.getValue(), Map.class);
+        assertThat(body.get("name")).isEqualTo(Map.of("first", "John", "last", "Doe"));
+        assertThat(body.get("email")).isEqualTo("john@example.com");
     }
 
     @Test
@@ -324,22 +303,21 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         executor.executeTest(request);
 
         // Assert
-        ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
-        verify(httpClient).send(requestCaptor.capture(), any(HttpResponse.BodyHandler.class));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(testRouteService).invokeTestRoute(eq("test-route-123"), paramsCaptor.capture(), bodyCaptor.capture());
 
-        String uri = requestCaptor.getValue().uri().toString();
-        assertThat(uri).contains("http://localhost:8888/test-route-123");
-        assertThat(uri).contains("?");
-        // URL encoded parameters should be present
+        // Every parameter reaches the route (as a header there), unencoded
+        assertThat(paramsCaptor.getValue()).containsEntry("limit", "10").containsEntry("offset", "20")
+                .containsEntry("filter", "type=Person");
     }
 
     @Test
@@ -356,21 +334,20 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         executor.executeTest(request);
 
         // Assert
-        ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
-        verify(httpClient).send(requestCaptor.capture(), any(HttpResponse.BodyHandler.class));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(testRouteService).invokeTestRoute(eq("test-route-123"), paramsCaptor.capture(), bodyCaptor.capture());
 
-        String uri = requestCaptor.getValue().uri().toString();
-        assertThat(uri).isEqualTo("http://localhost:8888/test-route-123");
-        assertThat(uri).doesNotContain("?");
+        assertThat(paramsCaptor.getValue()).isEmpty();
+        assertThat(bodyCaptor.getValue()).isEqualTo("{}");
     }
 
     @Test
@@ -387,20 +364,20 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         executor.executeTest(request);
 
         // Assert
-        ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
-        verify(httpClient).send(requestCaptor.capture(), any(HttpResponse.BodyHandler.class));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(testRouteService).invokeTestRoute(eq("test-route-123"), paramsCaptor.capture(), bodyCaptor.capture());
 
-        String uri = requestCaptor.getValue().uri().toString();
-        assertThat(uri).isEqualTo("http://localhost:8888/test-route-123");
+        assertThat(paramsCaptor.getValue()).isNull();
+        assertThat(bodyCaptor.getValue()).isEqualTo("{}");
     }
 
     @Test
@@ -421,16 +398,14 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         executor.executeTest(request);
 
         // Assert - should succeed without including empty values
-        verify(httpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        verify(testRouteService).invokeTestRoute(anyString(), any(), any());
     }
 
     @Test
@@ -448,10 +423,8 @@ class RouteTestExecutorTest {
         debug.put("stackTrace", "java.lang.Exception: SPARQL error\n\tat ...");
         errorResponse.put("debug", debug);
 
-        when(httpResponse.statusCode()).thenReturn(500);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(errorResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(500, objectMapper.writeValueAsString(errorResponse)));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -483,10 +456,8 @@ class RouteTestExecutorTest {
         debug.put("routeId", "test-route-123");
         enhancedResponse.put("debug", debug);
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -512,10 +483,8 @@ class RouteTestExecutorTest {
         debug.put("someOtherInfo", "value");
         enhancedResponse.put("debug", debug);
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -537,10 +506,8 @@ class RouteTestExecutorTest {
         Map<String, Object> enhancedResponse = new HashMap<>();
         enhancedResponse.put("results", Map.of("data", "value"));
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -563,16 +530,14 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
                 .thenAnswer(invocation -> {
                     try {
                         Thread.sleep(50); // Simulate network delay
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
-                    return httpResponse;
+                    return new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse));
                 });
 
         // Act
@@ -599,10 +564,8 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -640,7 +603,7 @@ class RouteTestExecutorTest {
         when(dataSourceService.getDataSource("ds1")).thenReturn(datasource);
         when(testRouteService.createTestRoute(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn("test-route-123");
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
                 .thenThrow(new RuntimeException("Connection refused"));
 
         // Act
@@ -661,10 +624,8 @@ class RouteTestExecutorTest {
         when(dataSourceService.getDataSource("ds1")).thenReturn(datasource);
         when(testRouteService.createTestRoute(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn("test-route-123");
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn("invalid json {{{");
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, "invalid json {{{"));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -739,10 +700,8 @@ class RouteTestExecutorTest {
         errorResponse.put("error", "Query failed");
         errorResponse.put("debug", null);
 
-        when(httpResponse.statusCode()).thenReturn(500);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(errorResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(500, objectMapper.writeValueAsString(errorResponse)));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -766,10 +725,8 @@ class RouteTestExecutorTest {
         errorResponse.put("error", "Query failed");
         errorResponse.put("debug", new HashMap<>());
 
-        when(httpResponse.statusCode()).thenReturn(500);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(errorResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(500, objectMapper.writeValueAsString(errorResponse)));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -795,10 +752,8 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -808,14 +763,14 @@ class RouteTestExecutorTest {
     }
 
     @Test
-    void executeTest_interruptedDuringHttpCall_shouldReturnError() throws Exception {
+    void executeTest_routeInvocationFails_shouldReturnError() throws Exception {
         // Arrange
         when(dataSourceService.dataSourceExists("ds1")).thenReturn(true);
         when(dataSourceService.getDataSource("ds1")).thenReturn(datasource);
         when(testRouteService.createTestRoute(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn("test-route-123");
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenThrow(new InterruptedException("Thread interrupted"));
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenThrow(new IllegalStateException("Thread interrupted"));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -839,16 +794,14 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
                 .thenAnswer(invocation -> {
                     try {
                         Thread.sleep(200);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
-                    return httpResponse;
+                    return new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse));
                 });
 
         // Act
@@ -870,10 +823,8 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of("key", "value"));
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         doThrow(new RuntimeException("Failed to delete route"))
                 .when(testRouteService).deleteTestRoute("test-route-123");
@@ -906,10 +857,8 @@ class RouteTestExecutorTest {
         enhancedResponse.put("results", Map.of());
         enhancedResponse.put("debug", Map.of());
 
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(objectMapper.writeValueAsString(enhancedResponse));
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenReturn(httpResponse);
+        when(testRouteService.invokeTestRoute(anyString(), any(), any()))
+                .thenReturn(new TestRouteService.TestRouteResult(200, objectMapper.writeValueAsString(enhancedResponse)));
 
         // Act
         TestExecuteResponse response = executor.executeTest(request);
@@ -917,14 +866,13 @@ class RouteTestExecutorTest {
         // Assert
         assertThat(response.getStatus()).isEqualTo("success");
 
-        ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
-        verify(httpClient).send(requestCaptor.capture(), any(HttpResponse.BodyHandler.class));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(testRouteService).invokeTestRoute(eq("test-route-123"), paramsCaptor.capture(), bodyCaptor.capture());
 
-        String uri = requestCaptor.getValue().uri().toString();
-        // Query parameters should be in URL
-        assertThat(uri).contains("limit=");
-        assertThat(uri).contains("offset=");
-        assertThat(uri).contains("filter=");
+        // Query parameters are passed to the route
+        assertThat(paramsCaptor.getValue()).containsKeys("limit", "offset", "filter");
     }
 
     @Test

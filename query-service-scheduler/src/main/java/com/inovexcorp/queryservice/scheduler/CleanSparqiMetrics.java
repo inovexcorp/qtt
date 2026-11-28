@@ -1,46 +1,39 @@
 package com.inovexcorp.queryservice.scheduler;
 
+import jakarta.annotation.PostConstruct;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import io.quarkus.scheduler.Scheduled;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.SparqiMetricService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.karaf.scheduler.Job;
-import org.apache.karaf.scheduler.JobContext;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Modified;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.metatype.annotations.Designate;
 
 /**
  * Scheduled job for cleaning up old SPARQi metrics records.
  * Runs based on cron schedule defined in configuration.
  */
 @Slf4j
-@Component(
-        name = "com.inovexcorp.queryservice.scheduler.CleanSparqiMetrics",
-        immediate = true,
-        property = {
-                "scheduler.name=CleanSparqiMetrics",
-                "scheduler.concurrent:Boolean=false"
-        },
-        configurationPolicy = ConfigurationPolicy.REQUIRE
-)
-@Designate(ocd = CleanSparqiMetricsConfig.class)
+@ApplicationScoped
 public class CleanSparqiMetrics implements Job {
 
-    @Reference
-    private SparqiMetricService sparqiMetricService;
+    @Inject
+    SparqiMetricService sparqiMetricService;
 
     private int daysToLive;
+
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.scheduler.CleanSparqiMetrics";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(CleanSparqiMetricsConfig.class, CONFIG_PID));
+    }
 
     /**
      * Activates the scheduler with the provided configuration.
      *
      * @param config Configuration for the cleanup job
      */
-    @Activate
-    @Modified
-    public void activate(final CleanSparqiMetricsConfig config) {
+        public void activate(final CleanSparqiMetricsConfig config) {
         this.daysToLive = config.daysToLive();
         log.info("CleanSparqiMetrics scheduler activated with daysToLive: {}", daysToLive);
     }
@@ -60,5 +53,12 @@ public class CleanSparqiMetrics implements Job {
         } catch (Exception e) {
             log.error("Failed to clean up SPARQi metrics", e);
         }
+    }
+
+    /** Trigger: cron from {@code com.inovexcorp.queryservice.scheduler.CleanSparqiMetrics.scheduler.expression}; overlapping runs are skipped (scheduler.concurrent=false). */
+    @Scheduled(identity = "CleanSparqiMetrics", cron = "${com.inovexcorp.queryservice.scheduler.CleanSparqiMetrics.scheduler.expression:0 0 2 * * ?}",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void scheduled() {
+        execute(null);
     }
 }

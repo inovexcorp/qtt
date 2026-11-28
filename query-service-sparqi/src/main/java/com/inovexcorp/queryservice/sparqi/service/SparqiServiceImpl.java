@@ -1,5 +1,10 @@
 package com.inovexcorp.queryservice.sparqi.service;
 
+import jakarta.annotation.PostConstruct;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import jakarta.annotation.PreDestroy;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inovexcorp.queryservice.cache.CacheService;
@@ -43,13 +48,6 @@ import dev.langchain4j.service.tool.DefaultToolExecutor;
 import dev.langchain4j.service.tool.ToolExecutionResult;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringSubstitutor;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Deactivate;
-import org.osgi.service.component.annotations.Modified;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.metatype.annotations.Designate;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -65,28 +63,26 @@ import java.util.stream.Collectors;
  * Implementation of SPARQi service using OpenAI-compatible endpoints.
  */
 @Slf4j
-@Designate(ocd = SparqiServiceConfig.class)
-@Component(name = "com.inovexcorp.queryservice.sparqi", immediate = true, service = SparqiService.class,
-        configurationPolicy = ConfigurationPolicy.REQUIRE)
+@ApplicationScoped
 public class SparqiServiceImpl implements SparqiService {
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
-    @Reference
-    private LayerService layerService;
+    @Inject
+    LayerService layerService;
 
-    @Reference
-    private OntologyService ontologyService;
+    @Inject
+    OntologyService ontologyService;
 
-    @Reference
-    private SparqiMetricService sparqiMetricService;
+    @Inject
+    SparqiMetricService sparqiMetricService;
 
-    @Reference
-    private DataSourceService dataSourceService;
+    @Inject
+    DataSourceService dataSourceService;
 
-    @Reference
-    private CacheService cacheService;
+    @Inject
+    CacheService cacheService;
 
     private SparqiSessionManager sessionManager;
     private ChatModel chatModel;
@@ -101,14 +97,20 @@ public class SparqiServiceImpl implements SparqiService {
     private double outputTokenCostPer1M;
     private String modelName;
 
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.sparqi";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(SparqiServiceConfig.class, CONFIG_PID));
+    }
+
     /**
      * Activates the SPARQi AI Assistant service by initializing the configuration and logging the activation.
      *
      * @param config The configuration object containing parameters specific to the SPARQi service.
      *               This configuration is used to set up the service during activation.
      */
-    @Activate
-    public void activate(final SparqiServiceConfig config) {
+        public void activate(final SparqiServiceConfig config) {
         log.info("Activating SPARQi AI Assistant service");
         configure(config);
     }
@@ -120,7 +122,6 @@ public class SparqiServiceImpl implements SparqiService {
      *
      * @param config The updated configuration object containing parameters for the SPARQi service.
      */
-    @Modified
     public void modified(final SparqiServiceConfig config) {
         log.info("SPARQi service configuration modified");
         configure(config);
@@ -134,7 +135,7 @@ public class SparqiServiceImpl implements SparqiService {
      * Once deactivated, the service is no longer in an active state and will not
      * process further requests until reactivated.
      */
-    @Deactivate
+    @PreDestroy
     public void deactivate() {
         log.info("Deactivating SPARQi service");
     }
@@ -292,6 +293,11 @@ public class SparqiServiceImpl implements SparqiService {
      * @return a list of SparqiMessage objects representing the message history of the session
      * @throws SparqiException if the session with the specified ID is not found
      */
+    @Override
+    public java.util.Optional<String> getSessionOwner(String sessionId) {
+        return sessionManager.getSession(sessionId).map(SparqiSession::getUserId);
+    }
+
     @Override
     public List<SparqiMessage> getSessionHistory(String sessionId) throws SparqiException {
         SparqiSession session = sessionManager.getSession(sessionId)

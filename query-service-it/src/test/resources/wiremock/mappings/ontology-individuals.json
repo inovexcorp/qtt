@@ -1,0 +1,20 @@
+{
+  "name": "ontology-individuals",
+  "priority": 3,
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/sparql/graphmart/.*",
+    "bodyPatterns": [
+      {
+        "contains": "owl%3ANamedIndividual"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/sparql-results+json"
+    },
+    "bodyFileName": "ontology-individuals.json"
+  }
+}

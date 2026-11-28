@@ -14,20 +14,20 @@ describe('ConfigRouteComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ConfigRouteComponent],
       imports: [
-        HttpClientTestingModule,
-        MatAutocompleteModule,
-        BrowserAnimationsModule
+          HttpClientTestingModule,
+          MatAutocompleteModule,
+          BrowserAnimationsModule,
+          ConfigRouteComponent
       ],
       providers: [
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            params: of({ id: '1' }),
-            snapshot: { params: { id: '1' } }
+          {
+              provide: ActivatedRoute,
+              useValue: {
+                  params: of({ id: '1' }),
+                  snapshot: { params: { id: '1' } }
+              }
           }
-        }
       ],
       schemas: [NO_ERRORS_SCHEMA]
     })

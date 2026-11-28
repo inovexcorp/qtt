@@ -1,13 +1,14 @@
-import { Component, ElementRef, OnInit, AfterViewInit, OnDestroy, ViewChild, Inject } from '@angular/core';
-import { FormGroup, FormControl, Validators } from '@angular/forms';
+import { Component, ElementRef, OnInit, AfterViewInit, OnDestroy, ViewChild, Inject, inject, ChangeDetectionStrategy } from '@angular/core';
+import { SettingsService } from '../../core/services/settings.service';
+import { effectiveAccess } from '../../shared/query-endpoint';
+import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ViewEncapsulation } from '@angular/core';
-import { trigger, state, style, transition, animate } from '@angular/animations';
 import { Datasources } from '../../core/models/datasources';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { ConfigRouteService } from './config-route.service';
 import { NewRoute } from '../../core/models/routes-interfaces/new-route';
-import { Router, ActivatedRoute } from '@angular/router';
-import { MatIconRegistry } from '@angular/material/icon';
+import { Router, ActivatedRoute, RouterLink } from '@angular/router';
+import { MatIconRegistry, MatIcon } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { map, Observable, startWith, Subject, takeUntil } from 'rxjs';
 import { Graphmarts } from '../../core/models/graphmarts';
@@ -15,8 +16,8 @@ import { GraphmartsService } from '../../core/services/graphmarts.service';
 import { GraphmartLayers } from '../../core/models/graphmart-layers';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { LayersService } from '../../core/services/layers.service';
-import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { MatChipInputEvent } from '@angular/material/chips';
+import { MatAutocompleteSelectedEvent, MatAutocompleteTrigger, MatAutocomplete } from '@angular/material/autocomplete';
+import { MatChipInputEvent, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput } from '@angular/material/chips';
 import { OntologyService } from '../../core/services/ontology/ontology.service';
 import { registerOntologyAutocomplete, OntologyAutocompleteProvider } from '../../core/services/ontology/ontology-autocomplete.provider';
 import { RoutesService } from '../routes/routes.service';
@@ -25,33 +26,40 @@ import { DrawerService } from '../../core/services/drawer.service';
 import { SparqiService } from '../../core/services/sparqi.service';
 import { CacheService } from '../../core/services/cache.service';
 import { CacheInfo, RouteCacheStats } from '../../core/models/cache-info';
-import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialog, MAT_DIALOG_DATA, MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTabChangeEvent } from '@angular/material/tabs';
-import * as monaco from 'monaco-editor';
-
-// Import ALL editor features including suggest
-import 'monaco-editor/esm/vs/editor/edcore.main.js';
-import 'monaco-editor/esm/vs/editor/editor.all.js';
+import { MatTabChangeEvent, MatTabGroup, MatTab } from '@angular/material/tabs';
+import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
+import * as monaco from 'monaco-editor'; // the full editor: every contribution (suggest, find, ...) and language
+import { loadMonacoStyles } from '../../shared/code-editor/monaco-environment';
+import { MatCard, MatCardContent } from '@angular/material/card';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
+import { AuditLineComponent } from '../../shared/audit-line/audit-line.component';
+import { IfRoleDirective } from '../../shared/if-role.directive';
+import { EndpointPanelComponent } from '../../shared/endpoint-panel/endpoint-panel.component';
+import { RouteAccessComponent } from '../../shared/route-access/route-access.component';
+import { MatFormField, MatLabel, MatSuffix, MatHint } from '@angular/material/form-field';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { MatInput } from '@angular/material/input';
+import { MatSlideToggle } from '@angular/material/slide-toggle';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatExpansionPanel, MatExpansionPanelHeader, MatExpansionPanelTitle, MatExpansionPanelDescription } from '@angular/material/expansion';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { CodeEditorComponent } from '../../shared/code-editor/code-editor.component';
+import { SparqiChatComponent } from './sparqi-chat/sparqi-chat.component';
+import { AsyncPipe, JsonPipe } from '@angular/common';
+import { CdkScrollable } from '@angular/cdk/scrolling';
 
 
 
 @Component({
-  selector: 'app-config-route',
-  templateUrl: './config-route.component.html',
-  styleUrls: ['./config-route.component.scss'],
-  encapsulation: ViewEncapsulation.None,
-  animations: [
-    trigger('slideDown', [
-      transition(':enter', [
-        style({ height: 0, opacity: 0, overflow: 'hidden' }),
-        animate('300ms ease-out', style({ height: '*', opacity: 1 }))
-      ]),
-      transition(':leave', [
-        animate('300ms ease-in', style({ height: 0, opacity: 0, overflow: 'hidden' }))
-      ])
-    ])
-  ]
+    selector: 'app-config-route',
+    templateUrl: './config-route.component.html',
+    styleUrls: ['./config-route.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MatCard, MatIconButton, MatTooltip, MatIcon, AuditLineComponent, MatButton, IfRoleDirective, RouterLink, FormsModule, ReactiveFormsModule, MatTabGroup, MatTab, EndpointPanelComponent, RouteAccessComponent, MatFormField, MatLabel, MatSelect, MatOption, MatSuffix, MatInput, MatAutocompleteTrigger, MatAutocomplete, MatChipGrid, MatChipRow, MatChipRemove, MatChipInput, MatSlideToggle, MatProgressSpinner, MatCardContent, MatExpansionPanel, MatExpansionPanelHeader, MatExpansionPanelTitle, MatExpansionPanelDescription, MatHint, MatCheckbox, CodeEditorComponent, SparqiChatComponent, AsyncPipe, JsonPipe]
 })
 export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
 
@@ -138,6 +146,9 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   layerPlaceholder: string = this.layers.length < 1 ? "Keep blank to target all layers" : "Add a new layer(s)...";
   private ontologyAutocompleteProvider?: OntologyAutocompleteProvider;
   private monacoEditor?: monaco.editor.IStandaloneCodeEditor;
+  private templateValidation?: { dispose(): void };
+  /** The template's current syntax error, shown below the editor (null when it parses). */
+  templateSyntaxError: TemplateValidation | null = null;
 
   // Cache configuration
   cacheInfo?: CacheInfo;
@@ -183,7 +194,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   toolCallsCount: number = 0;
 
   // Monaco editor options for JSON
-  jsonEditorOptions = {
+  jsonEditorOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
     theme: 'vs-dark',
     language: 'json',
     automaticLayout: true,
@@ -208,9 +219,26 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     // Cache fields
     cacheEnabled: new FormControl(false),
     cacheTtlSeconds: new FormControl<number | null>(null),
-    cacheKeyStrategy: new FormControl('QUERY_HASH')
-
+    cacheKeyStrategy: new FormControl('QUERY_HASH'),
+    // Who may call it (see app-route-access)
+    accessPolicy: new FormControl('default'),
+    requiredRoles: new FormControl('')
   })
+
+  /** Base URL of the query routes (QUERY_BASE_URL, or "/query" on this server) and the server's default access. */
+  queryBaseUrl: string | null = null;
+  serverDefaultAccess: 'open' | 'authenticated' = 'open';
+  private settingsService = inject(SettingsService);
+
+  /** The access that applies to this route as currently edited. */
+  get effectiveAccessValue(): 'open' | 'authenticated' {
+    return effectiveAccess(this.configRoute.value['accessPolicy'], this.serverDefaultAccess);
+  }
+
+  /** HTTP methods as currently edited. */
+  get editedMethods(): string[] {
+    return (this.configRoute.value['routeParams'] as string[] | null) || [];
+  }
   get template() { return this.configRoute.get('template') }
   get routeParameters() { return this.configRoute.get('routeParameters'); }
   get routeDescription() { return this.configRoute.get('routeDescription'); }
@@ -238,7 +266,8 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     private sparqiService: SparqiService,
     private cacheService: CacheService,
     private dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private templateValidationService: TemplateValidationService
   ) {
     this.matIconRegistry.addSvgIcon(
       'anzo-logo',
@@ -426,11 +455,18 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     let cacheTtlSeconds = this.configRoute.value['cacheTtlSeconds'] as number | null;
     let cacheKeyStrategy = this.configRoute.value['cacheKeyStrategy'] as string;
 
+    // Access
+    let accessPolicy = (this.configRoute.value['accessPolicy'] as string) || 'default';
+    let requiredRoles = (this.configRoute.value['requiredRoles'] as string) || '';
+
     if (!httpMethods || httpMethods.length === 0 || !routeDescription || !graphMartUri || !templateBody || !dataSourceId) { return; }
 
-    this.configRouteService.configRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy } as NewRoute)
-      .subscribe(() => {
-        this.navigateBack();
+    this.configRouteService.configRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, accessPolicy, requiredRoles } as NewRoute)
+      .subscribe({
+        next: () => this.navigateBack(),
+        // Stay on the page (keeping the edits) and say why, e.g. a template syntax error
+        error: (error) => this.snackBar.open(`Route not saved: ${saveErrorMessage(error)}`, 'Close',
+          { duration: 10000, panelClass: ['error-snackbar'] })
       });
   }
 
@@ -848,6 +884,14 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.getDatasources();
 
+    // Where the route is called, and what "default" access means on this server
+    this.routesService.getBaseUrl().pipe(takeUntil(this.destroy$))
+      .subscribe({ next: metadata => this.queryBaseUrl = metadata.baseUrl, error: () => this.queryBaseUrl = '/query' });
+    this.settingsService.getSsoInfo().pipe(takeUntil(this.destroy$)).subscribe({
+      next: info => this.serverDefaultAccess = info.queryAuthDefault === 'authenticated' ? 'authenticated' : 'open',
+      error: () => { /* keep "open"; informational only */ }
+    });
+
     // Check if SPARQI is enabled
     this.checkSparqiStatus();
 
@@ -900,6 +944,10 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
           if (this.routeData.cacheKeyStrategy) {
             this.configRoute.controls['cacheKeyStrategy'].setValue(this.routeData.cacheKeyStrategy);
           }
+
+          // Load access configuration
+          this.configRoute.controls['accessPolicy'].setValue(this.routeData.accessPolicy || 'default');
+          this.configRoute.controls['requiredRoles'].setValue(this.routeData.requiredRoles || '');
 
           // Load cache info for displaying defaults
           this.loadCacheInfo();
@@ -1086,6 +1134,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
       : this.templateContent || '';
 
     try {
+      loadMonacoStyles();
       this.monacoEditor = monaco.editor.create(this.monacoEditorContainer.nativeElement, {
         value: initialValue,
         language: 'freemarker2',
@@ -1122,6 +1171,10 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
         // Keep templateContent in sync
         this.templateContent = value;
       });
+
+      // Mark syntax errors as the user types (the server rejects saving a template that does not parse)
+      this.templateValidation = this.templateValidationService.attach(this.monacoEditor,
+        result => this.templateSyntaxError = result && !result.valid ? result : null);
 
       // Wait a bit then initialize autocomplete
       setTimeout(() => {
@@ -1456,6 +1509,9 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
 
+    this.templateValidation?.dispose();
+    this.templateValidation = undefined;
+
     // Dispose Monaco editor
     if (this.monacoEditor) {
       this.monacoEditor.dispose();
@@ -1474,8 +1530,8 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
 
 // Confirmation Dialog Component for Cache Clearing
 @Component({
-  selector: 'cache-clear-confirm-dialog',
-  template: `
+    selector: 'cache-clear-confirm-dialog',
+    template: `
     <h2 mat-dialog-title>Clear Cache for Route?</h2>
     <mat-dialog-content>
       <p>Are you sure you want to clear all cached query results for route <strong>{{data.routeId}}</strong>?</p>
@@ -1489,7 +1545,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
       <button mat-raised-button color="warn" [mat-dialog-close]="true" cdkFocusInitial>Clear Cache</button>
     </mat-dialog-actions>
   `,
-  styles: [`
+    styles: [`
     .warning-text {
       display: flex;
       align-items: center;
@@ -1506,7 +1562,9 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     mat-dialog-content p {
       margin: 8px 0;
     }
-  `]
+  `],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MatDialogTitle, CdkScrollable, MatDialogContent, MatIcon, MatDialogActions, MatButton, MatDialogClose]
 })
 export class CacheClearConfirmDialog {
   constructor(

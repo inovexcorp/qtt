@@ -1,3 +1,4 @@
+import type { Mock, MockedObject } from "vitest";
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
@@ -11,25 +12,26 @@ import { SparqiSession, SparqiMessage, SparqiContext } from '../../../core/model
 describe('SparqiChatComponent', () => {
   let component: SparqiChatComponent;
   let fixture: ComponentFixture<SparqiChatComponent>;
-  let mockSparqiService: jasmine.SpyObj<SparqiService>;
-  let mockDialog: jasmine.SpyObj<MatDialog>;
+  let mockSparqiService: MockedObject<SparqiService>;
+  let mockDialog: MockedObject<MatDialog>;
 
   beforeEach(async () => {
-    mockSparqiService = jasmine.createSpyObj('SparqiService', [
-      'getOrCreateSession',
-      'getSessionHistory',
-      'sendMessage',
-      'getSessionContext',
-      'clearSession'
-    ]);
-    mockDialog = jasmine.createSpyObj('MatDialog', ['open']);
+    mockSparqiService = {
+      getOrCreateSession: vi.fn().mockName('SparqiService.getOrCreateSession'),
+      getSessionHistory: vi.fn().mockName('SparqiService.getSessionHistory'),
+      sendMessage: vi.fn().mockName('SparqiService.sendMessage'),
+      getSessionContext: vi.fn().mockName('SparqiService.getSessionContext'),
+      clearSession: vi.fn().mockName('SparqiService.clearSession')
+    } as unknown as MockedObject<SparqiService>;
+    mockDialog = {
+      open: vi.fn().mockName('MatDialog.open')
+    } as unknown as MockedObject<MatDialog>;
 
     await TestBed.configureTestingModule({
-      declarations: [SparqiChatComponent],
-      imports: [HttpClientTestingModule, TextFieldModule],
+      imports: [HttpClientTestingModule, TextFieldModule, SparqiChatComponent],
       providers: [
-        { provide: SparqiService, useValue: mockSparqiService },
-        { provide: MatDialog, useValue: mockDialog }
+          { provide: SparqiService, useValue: mockSparqiService },
+          { provide: MatDialog, useValue: mockDialog }
       ],
       schemas: [NO_ERRORS_SCHEMA]
     }).compileComponents();
@@ -53,8 +55,8 @@ describe('SparqiChatComponent', () => {
       const mockHistory: SparqiMessage[] = [];
 
       component.routeId = 'test-route';
-      mockSparqiService.getOrCreateSession.and.returnValue(of(mockSession));
-      mockSparqiService.getSessionHistory.and.returnValue(of(mockHistory));
+      mockSparqiService.getOrCreateSession.mockReturnValue(of(mockSession));
+      mockSparqiService.getSessionHistory.mockReturnValue(of(mockHistory));
 
       component.ngOnInit();
 
@@ -73,8 +75,8 @@ describe('SparqiChatComponent', () => {
       const mockHistory: SparqiMessage[] = [];
 
       component.routeId = 'test-route';
-      mockSparqiService.getOrCreateSession.and.returnValue(of(mockSession));
-      mockSparqiService.getSessionHistory.and.returnValue(of(mockHistory));
+      mockSparqiService.getOrCreateSession.mockReturnValue(of(mockSession));
+      mockSparqiService.getSessionHistory.mockReturnValue(of(mockHistory));
 
       component.ngOnInit();
 
@@ -85,11 +87,9 @@ describe('SparqiChatComponent', () => {
 
     it('should handle session initialization error', () => {
       component.routeId = 'test-route';
-      mockSparqiService.getOrCreateSession.and.returnValue(
-        throwError(() => new Error('Failed to initialize'))
-      );
+      mockSparqiService.getOrCreateSession.mockReturnValue(throwError(() => new Error('Failed to initialize')));
 
-      spyOn(console, 'error');
+      vi.spyOn(console, 'error').mockReturnValue(undefined);
 
       component.ngOnInit();
 
@@ -109,8 +109,8 @@ describe('SparqiChatComponent', () => {
       };
       const mockHistory: SparqiMessage[] = [];
 
-      mockSparqiService.getOrCreateSession.and.returnValue(of(mockSession));
-      mockSparqiService.getSessionHistory.and.returnValue(of(mockHistory));
+      mockSparqiService.getOrCreateSession.mockReturnValue(of(mockSession));
+      mockSparqiService.getSessionHistory.mockReturnValue(of(mockHistory));
 
       // Simulate Angular's behavior: update the property before calling ngOnChanges
       component.routeId = 'new-route';
@@ -145,7 +145,7 @@ describe('SparqiChatComponent', () => {
       };
 
       component.currentMessage = userMessage;
-      mockSparqiService.sendMessage.and.returnValue(of(mockResponse));
+      mockSparqiService.sendMessage.mockReturnValue(of(mockResponse));
 
       component.sendMessage();
 
@@ -186,11 +186,9 @@ describe('SparqiChatComponent', () => {
     it('should handle send message error', () => {
       const userMessage = 'Test message';
       component.currentMessage = userMessage;
-      mockSparqiService.sendMessage.and.returnValue(
-        throwError(() => new Error('Failed to send'))
-      );
+      mockSparqiService.sendMessage.mockReturnValue(throwError(() => new Error('Failed to send')));
 
-      spyOn(console, 'error');
+      vi.spyOn(console, 'error').mockReturnValue(undefined);
 
       component.sendMessage();
 
@@ -211,7 +209,7 @@ describe('SparqiChatComponent', () => {
         content: 'Response',
         timestamp: new Date()
       };
-      mockSparqiService.sendMessage.and.returnValue(of(mockResponse));
+      mockSparqiService.sendMessage.mockReturnValue(of(mockResponse));
 
       component.retryLastMessage();
 
@@ -264,7 +262,7 @@ describe('SparqiChatComponent', () => {
         ontologyElementCount: 100
       };
       component.showContext = false;
-      mockSparqiService.getSessionContext.and.returnValue(of(mockContext));
+      mockSparqiService.getSessionContext.mockReturnValue(of(mockContext));
 
       component.loadContext();
 
@@ -292,11 +290,9 @@ describe('SparqiChatComponent', () => {
 
     it('should handle context load error', () => {
       component.showContext = false;
-      mockSparqiService.getSessionContext.and.returnValue(
-        throwError(() => new Error('Failed to load'))
-      );
+      mockSparqiService.getSessionContext.mockReturnValue(throwError(() => new Error('Failed to load')));
 
-      spyOn(console, 'error');
+      vi.spyOn(console, 'error').mockReturnValue(undefined);
 
       component.loadContext();
 
@@ -309,7 +305,7 @@ describe('SparqiChatComponent', () => {
     beforeEach(() => {
       component.sessionId = 'session-123';
       component.routeId = 'test-route';
-      spyOn(window, 'confirm').and.returnValue(true);
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
     });
 
     it('should clear chat and create new session', () => {
@@ -321,9 +317,9 @@ describe('SparqiChatComponent', () => {
       };
       const mockHistory: SparqiMessage[] = [];
 
-      mockSparqiService.clearSession.and.returnValue(of(undefined));
-      mockSparqiService.getOrCreateSession.and.returnValue(of(mockSession));
-      mockSparqiService.getSessionHistory.and.returnValue(of(mockHistory));
+      mockSparqiService.clearSession.mockReturnValue(of(undefined));
+      mockSparqiService.getOrCreateSession.mockReturnValue(of(mockSession));
+      mockSparqiService.getSessionHistory.mockReturnValue(of(mockHistory));
 
       component.messages = [
         { role: 'user', content: 'Test', timestamp: new Date() }
@@ -338,7 +334,7 @@ describe('SparqiChatComponent', () => {
     });
 
     it('should not clear if user cancels', () => {
-      (window.confirm as jasmine.Spy).and.returnValue(false);
+      (window.confirm as Mock).mockReturnValue(false);
 
       component.clearChat();
 
@@ -346,11 +342,9 @@ describe('SparqiChatComponent', () => {
     });
 
     it('should handle clear session error', () => {
-      mockSparqiService.clearSession.and.returnValue(
-        throwError(() => new Error('Failed to clear'))
-      );
+      mockSparqiService.clearSession.mockReturnValue(throwError(() => new Error('Failed to clear')));
 
-      spyOn(console, 'error');
+      vi.spyOn(console, 'error').mockReturnValue(undefined);
 
       component.clearChat();
 
@@ -362,7 +356,7 @@ describe('SparqiChatComponent', () => {
 
   describe('close', () => {
     it('should emit closePanel event', () => {
-      spyOn(component.closePanel, 'emit');
+      vi.spyOn(component.closePanel, 'emit').mockReturnValue(undefined);
 
       component.close();
 
@@ -375,13 +369,13 @@ describe('SparqiChatComponent', () => {
       component.sessionId = 'session-123';
       component.currentMessage = 'Test message';
       const mockEvent = new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true });
-      spyOn(mockEvent, 'preventDefault');
+      vi.spyOn(mockEvent, 'preventDefault').mockReturnValue(undefined);
       const mockResponse: SparqiMessage = {
         role: 'assistant',
         content: 'Response',
         timestamp: new Date()
       };
-      mockSparqiService.sendMessage.and.returnValue(of(mockResponse));
+      mockSparqiService.sendMessage.mockReturnValue(of(mockResponse));
 
       component.onKeyDown(mockEvent);
 

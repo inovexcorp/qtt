@@ -3,6 +3,31 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { CacheStatistics } from '../models/ontology/cache-statistics';
 
+/** The response of GET /queryrest/api/settings/sso: how sign-in is configured (no secrets). */
+export interface SsoInfo {
+  enabled: boolean;
+  issuer: string | null;
+  clientId: string | null;
+  clientSecretConfigured: boolean;
+  applicationType: string | null;
+  usernameClaim: string | null;
+  /** Null means the provider's default role claims are read. */
+  rolesClaim: string | null;
+  rolesSource: string | null;
+  audience: string[];
+  groupMappings: { viewer: string[]; editor: string[]; admin: string[]; query?: string[] };
+  /** What query routes left at "default" require (QUERY_AUTH_DEFAULT). */
+  queryAuthDefault?: 'open' | 'authenticated';
+  /** How many query routes exist, and how many of them anyone can call. */
+  queryRoutes?: number;
+  openQueryRoutes?: number;
+  /** Which key encrypts the session cookie: 'OIDC_SESSION_SECRET', 'client secret' or 'generated at startup'. */
+  sessionKey: string;
+  privateCaTrustStore: boolean;
+  forceHttpsRedirect: boolean;
+  logoutPath: string | null;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -19,6 +44,10 @@ export class SettingsService {
 
   getStats(): Observable<any> {
     return this.http.get<any>(this.settingsUrl + 'stats');
+  }
+
+  getSsoInfo(): Observable<SsoInfo> {
+    return this.http.get<SsoInfo>(this.settingsUrl + 'sso');
   }
 
   getCacheStatistics(): Observable<CacheStatistics> {

@@ -1,32 +1,32 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.LayerAssociations;
+import com.inovexcorp.queryservice.security.QttRoles;
 import com.inovexcorp.queryservice.persistence.LayerService;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import org.json.JSONArray;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 /**
  * Controller class responsible for managing layers associated with routes.
  *
  * <p>The LayersController provides RESTful endpoints to interact with the route and layer management.
  */
-@Component(immediate = true, service = LayersController.class)
-@JaxrsResource
+@ApplicationScoped
 @Path("/api/layers")
 public class LayersController {
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
-    @Reference
-    private LayerService layerService;
+    @Inject
+    LayerService layerService;
 
     /**
      * Deletes all layers associated with the specified route.
@@ -38,6 +38,7 @@ public class LayersController {
      * @return A {@link Response} indicating the success or failure of the operation. Returns
      *         {@link Response.Status#NO_CONTENT} if successful, otherwise {@link Response.Status#NOT_FOUND}.
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @DELETE
     @Path("{routeId}")
     public Response deleteAssociatedLayers(@PathParam("routeId") String routeId) {
@@ -59,6 +60,7 @@ public class LayersController {
      * @param routeId The ID of the route for which to retrieve associated layer URIs.
      * @return A {@link Response} containing the list of layer URIs or a 404 Not Found status if the route does not exist.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("{routeId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -83,6 +85,7 @@ public class LayersController {
      * @return A {@link Response} indicating the success or failure of the operation. Returns
      *         {@link Response.Status#OK} if successful, otherwise {@link Response.Status#NOT_FOUND}.
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("{routeId}")
     @Consumes(MediaType.APPLICATION_JSON)

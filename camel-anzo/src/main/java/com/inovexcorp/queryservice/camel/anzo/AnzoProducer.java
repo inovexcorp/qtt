@@ -17,7 +17,8 @@ public class AnzoProducer extends DefaultProducer {
     public AnzoProducer(AnzoEndpoint endpoint) {
         super(endpoint);
         this.endpoint = endpoint;
-        log.info("Anzo producer created for endpoint: {}", endpoint.toString());
+        // Only the server: the endpoint's toString() includes the (Base64-encoded) credentials.
+        log.info("Anzo producer created for server {} (graphmart {})", endpoint.getServer(), endpoint.getGraphmartUri());
         this.anzoClient = this.endpoint.getClient();
     }
 
@@ -36,7 +37,7 @@ public class AnzoProducer extends DefaultProducer {
                     AnzoClient.RESPONSE_FORMAT.RDFXML, endpoint.getTimeoutSeconds(), endpoint.isSkipCache());
         }
         // Log the response data.
-        log.info("Anzo query for exchange '{}' took {}ms", exchange, response.getQueryDuration());
+        log.debug("Anzo query for exchange '{}' took {}ms", exchange, response.getQueryDuration());
         if (log.isDebugEnabled()) {
             log.debug("Anzo Query Response Headers:\n\t{}", response.getHeaders());
         }
@@ -55,10 +56,18 @@ public class AnzoProducer extends DefaultProducer {
         return exchange.getIn().getBody(String.class);
     }
 
+    /**
+     * HTTP header values cannot contain line breaks; HTTP servers (Netty, Vert.x) reject them and fail the response.
+     * Jetty (Karaf) folded them into spaces, so do the same here and keep the header identical for clients.
+     */
+    static String headerSafe(String value) {
+        return value == null ? null : value.replace('\r', ' ').replace('\n', ' ');
+    }
+
     private void attachQueryToOutHeaders(String query, Exchange exchange) {
         int queryLength = query.getBytes(StandardCharsets.UTF_8).length;
         if (queryLength < endpoint.getMaxQueryHeaderLength()) {
-            exchange.getMessage().setHeader(AnzoHeaders.ANZO_QUERY, query);
+            exchange.getMessage().setHeader(AnzoHeaders.ANZO_QUERY, headerSafe(query));
         } else {
             exchange.getMessage().setHeader(AnzoHeaders.ANZO_QUERY, queryLength + " exceeds maximum size of "
                     + endpoint.getMaxQueryHeaderLength() + " bytes -- See query-service logs.");

@@ -1,5 +1,9 @@
 package com.inovexcorp.queryservice.health.impl;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
 import com.inovexcorp.queryservice.camel.anzo.comm.QueryResponse;
 import com.inovexcorp.queryservice.camel.anzo.comm.SimpleAnzoClient;
@@ -12,10 +16,6 @@ import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Deactivate;
-import org.osgi.service.component.annotations.Reference;
 
 import java.util.List;
 import java.util.Map;
@@ -31,7 +31,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * for each health check, reducing connection overhead and preventing socket exhaustion.
  */
 @Slf4j
-@Component(immediate = true, service = HealthChecker.class)
+@ApplicationScoped
 public class SimpleHealthChecker implements HealthChecker {
 
     private static final int HEALTH_CHECK_TIMEOUT_SECONDS = 5;
@@ -39,17 +39,17 @@ public class SimpleHealthChecker implements HealthChecker {
     private static final int INITIAL_BACKOFF_MS = 1000;
     private static final int JITTER_MAX_MS = 500;
 
-    @Reference
-    private DataSourceService dataSourceService;
+    @Inject
+    DataSourceService dataSourceService;
 
-    @Reference
-    private DatasourceHealthService datasourceHealthService;
+    @Inject
+    DatasourceHealthService datasourceHealthService;
 
-    @Reference
-    private RouteService routeService;
+    @Inject
+    RouteService routeService;
 
-    @Reference
-    private ContextManager contextManager;
+    @Inject
+    ContextManager contextManager;
 
     /**
      * Cache of AnzoClient instances keyed by datasource ID.
@@ -63,13 +63,17 @@ public class SimpleHealthChecker implements HealthChecker {
      */
     private final Map<String, String> clientConfigKeys = new ConcurrentHashMap<>();
 
-    @Activate
+    @PostConstruct
+    void postConstruct() {
+        activate();
+    }
+
     public void activate() {
         log.info("SimpleHealthChecker activated with client pooling enabled (timeout: {}s, max retries: {}, jitter: {}ms)",
                 HEALTH_CHECK_TIMEOUT_SECONDS, MAX_RETRY_ATTEMPTS, JITTER_MAX_MS);
     }
 
-    @Deactivate
+    @PreDestroy
     public void deactivate() {
         log.info("SimpleHealthChecker deactivating - clearing {} cached clients", clientCache.size());
         clientCache.clear();

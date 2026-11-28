@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF
+	xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#narrowerTransitive">
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">has narrower transitive</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#e6bd20889d9eb6617d7b5d4c1144d841">
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/2008/07/OntologyService#FrameProperty"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">has narrower transitive</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#f60a3ce4913d8acb7b9b2f4eb824aecf">
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/2008/07/OntologyService#FrameProperty"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">has broader</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#narrowerTransitive">
+	<rdf:type rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"/>
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#ObjectProperty"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#923c4018c3de0fa5b60865dbc429ef19">
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/2008/07/OntologyService#FrameProperty"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">has narrower match</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#OrderedCollection">
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/2008/07/OntologyService#FrameClass"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">Ordered Collection</label>
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#Class"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#ConceptScheme">
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/2008/07/OntologyService#FrameClass"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">Concept Scheme</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#Concept">
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/2008/07/OntologyService#FrameClass"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">Concept</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#ConceptScheme">
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#Class"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#Concept">
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#Class"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#topConceptOf">
+	<rdf:type rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">is top concept in scheme</label>
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#ObjectProperty"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#broadMatch">
+	<rdf:type rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">has broader match</label>
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#ObjectProperty"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#e4fd5632f0d2b8cf163c2865342d45ed">
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/2008/07/OntologyService#FrameProperty"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">has broader transitive</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#definition">
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AnnotationProperty"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">definition</label>
+	<rdf:type rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core">
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#Ontology"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">SKOS Vocabulary</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#note">
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AnnotationProperty"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">note</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#1fa69e8e30e1109459e18cd8599e4886">
+	<rdf:type rdf:resource="http://cambridgesemantics.com/ontologies/2008/07/OntologyService#FrameProperty"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">has member list</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#hasTopConcept">
+	<rdf:type rdf:resource="http://www.w3.org/2002/07/owl#ObjectProperty"/>
+	<label xmlns="http://www.w3.org/2000/01/rdf-schema#" xml:lang="en">has top concept</label>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#note">
+	<rdf:type rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"/>
+</rdf:Description>
+
+<rdf:Description rdf:about="http://www.w3.org/2004/02/skos/core#hasTopConcept">
+	<rdf:type rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#Property"/>
+</rdf:Description>
+
+</rdf:RDF>

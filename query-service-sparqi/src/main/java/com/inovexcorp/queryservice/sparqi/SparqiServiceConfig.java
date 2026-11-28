@@ -1,16 +1,13 @@
 package com.inovexcorp.queryservice.sparqi;
 
-import org.osgi.service.metatype.annotations.AttributeDefinition;
-import org.osgi.service.metatype.annotations.ObjectClassDefinition;
 
 /**
  * Configuration for SPARQi AI Assistant service.
  * Supports OpenAI-compatible endpoints including OpenAI, LiteLLM, Azure OpenAI, etc.
  */
-@ObjectClassDefinition(
-        name = "SPARQi Service Configuration",
-        description = "Configuration for SPARQi AI Assistant - SPARQL template development helper"
-)
+/**
+ * Configuration for SPARQi AI Assistant - SPARQL template development helper
+ */
 public @interface SparqiServiceConfig {
 
     /**
@@ -22,19 +19,13 @@ public @interface SparqiServiceConfig {
      *
      * @return Base URL for OpenAI-compatible API (OpenAI, LiteLLM, Azure OpenAI, etc.)
      */
-    @AttributeDefinition(
-            name = "LLM Base URL",
-            description = "Base URL for OpenAI-compatible API (OpenAI, LiteLLM, Azure OpenAI, etc.)"
-    )
+    /** Base URL for OpenAI-compatible API (OpenAI, LiteLLM, Azure OpenAI, etc.) */
     String llmBaseUrl() default "http://localhost:4000";
 
     /**
      * @return API key for authentication with the LLM endpoint.
      */
-    @AttributeDefinition(
-            name = "LLM API Key",
-            description = "API key for authentication with LLM provider"
-    )
+    /** API key for authentication with LLM provider */
     String llmApiKey() default "";
 
     /**
@@ -46,19 +37,13 @@ public @interface SparqiServiceConfig {
      *
      * @return Name of the LLM model to use
      */
-    @AttributeDefinition(
-            name = "LLM Model Name",
-            description = "Name of the LLM model to use"
-    )
+    /** Name of the LLM model to use */
     String llmModelName() default "gpt-4o-mini";
 
     /**
      * @return Request timeout in seconds.
      */
-    @AttributeDefinition(
-            name = "LLM Timeout (seconds)",
-            description = "Timeout for LLM requests in seconds"
-    )
+    /** Timeout for LLM requests in seconds */
     int llmTimeout() default 60;
 
     /**
@@ -67,19 +52,13 @@ public @interface SparqiServiceConfig {
      *
      * @return Model temperature
      */
-    @AttributeDefinition(
-            name = "LLM Temperature",
-            description = "Model temperature (0.0-1.0) - lower is more deterministic"
-    )
+    /** Model temperature (0.0-1.0) - lower is more deterministic */
     double llmTemperature() default 0.7;
 
     /**
      * @return Maximum tokens per response.
      */
-    @AttributeDefinition(
-            name = "LLM Max Tokens",
-            description = "Maximum tokens per LLM response"
-    )
+    /** Maximum tokens per LLM response */
     int llmMaxTokens() default 2000;
 
     /**
@@ -87,38 +66,26 @@ public @interface SparqiServiceConfig {
      *
      * @return Session timeout in minutes
      */
-    @AttributeDefinition(
-            name = "Session Timeout (minutes)",
-            description = "Timeout for inactive SPARQi sessions in minutes"
-    )
+    /** Timeout for inactive SPARQi sessions in minutes */
     int sessionTimeoutMinutes() default 30;
 
     /**
      * @return Maximum number of messages to retain in conversation history.
      */
-    @AttributeDefinition(
-            name = "Max Conversation History",
-            description = "Maximum number of messages to keep in conversation history"
-    )
+    /** Maximum number of messages to keep in conversation history */
     int maxConversationHistory() default 50;
 
     /**
      * @return Enable or disable SPARQi service.
      */
-    @AttributeDefinition(
-            name = "Enable SPARQi",
-            description = "Enable or disable SPARQi AI Assistant service"
-    )
+    /** Enable or disable SPARQi AI Assistant service */
     boolean enableSparqi() default true;
 
     /**
      * @return Welcome message template shown when a new session starts.
      * Available variables: {{routeId}}, {{ontologyElementCount}}
      */
-    @AttributeDefinition(
-            name = "Welcome Message Template",
-            description = "Template for SPARQi welcome message. Variables: {{routeId}}, {{ontologyElementCount}}"
-    )
+    /** Template for SPARQi welcome message. Variables: {{routeId}}, {{ontologyElementCount}} */
     String welcomeMessageTemplate() default
             "Hi! I'm SPARQi, your friendly SPARQL assistant. " +
                     "I can see you're working on the '{{routeId}}' route. " +
@@ -130,11 +97,7 @@ public @interface SparqiServiceConfig {
      * Available variables: {{routeId}}, {{routeDescription}}, {{graphMartUri}},
      * {{layerUris}}, {{ontologyElementCount}}, {{currentTemplateSection}}
      */
-    @AttributeDefinition(
-            name = "System Prompt Template",
-            description = "Template for SPARQi system prompt. Variables: {{routeId}}, {{routeDescription}}, " +
-                    "{{graphMartUri}}, {{layerUris}}, {{ontologyElementCount}}, {{currentTemplateSection}}"
-    )
+    /** Template for SPARQi system prompt. Variables: {{routeId}}, {{routeDescription}}, {{graphMartUri}}, {{layerUris}}, {{ontologyElementCount}}, {{currentTemplateSection}} */
     String systemPromptTemplate() default
             "You are SPARQi, a friendly and helpful SPARQL expert who loves to teach. " +
                     "You help users develop Freemarker-templated SPARQL CONSTRUCT queries.\n\n" +
@@ -166,10 +129,7 @@ public @interface SparqiServiceConfig {
     /**
      * @return Enable or disable metrics collection for SPARQi interactions
      */
-    @AttributeDefinition(
-            name = "Enable Metrics",
-            description = "Enable or disable SPARQi metrics collection (token usage, costs, etc.)"
-    )
+    /** Enable or disable SPARQi metrics collection (token usage, costs, etc.) */
     boolean metricsEnabled() default true;
 
     /**
@@ -178,10 +138,7 @@ public @interface SparqiServiceConfig {
      *
      * @return Cost per 1M input tokens
      */
-    @AttributeDefinition(
-            name = "Input Token Cost (per 1M)",
-            description = "Cost in dollars per 1 million input tokens (for cost estimation)"
-    )
+    /** Cost in dollars per 1 million input tokens (for cost estimation) */
     double inputTokenCostPer1M() default 2.50;
 
     /**
@@ -190,10 +147,7 @@ public @interface SparqiServiceConfig {
      *
      * @return Cost per 1M output tokens
      */
-    @AttributeDefinition(
-            name = "Output Token Cost (per 1M)",
-            description = "Cost in dollars per 1 million output tokens (for cost estimation)"
-    )
+    /** Cost in dollars per 1 million output tokens (for cost estimation) */
     double outputTokenCostPer1M() default 10.00;
 
     /**
@@ -201,11 +155,7 @@ public @interface SparqiServiceConfig {
      * Available variables: {{ontologyElementCount}}, {{ontologyElementsSummary}},
      * {{templateContent}}, {{includeEdgeCases}}
      */
-    @AttributeDefinition(
-            name = "Test Generation System Prompt Template",
-            description = "Template for test data generation system prompt. Variables: {{ontologyElementCount}}, " +
-                    "{{ontologyElementsSummary}}, {{templateContent}}, {{includeEdgeCases}}"
-    )
+    /** Template for test data generation system prompt. Variables: {{ontologyElementCount}}, {{ontologyElementsSummary}}, {{templateContent}}, {{includeEdgeCases}} */
     String testGenerationSystemPromptTemplate() default
             "You are an expert at generating realistic test data for SPARQL query templates.\n\n" +
                     "**Your Task:**\n" +
@@ -243,10 +193,7 @@ public @interface SparqiServiceConfig {
      * @return User message template for test data generation request.
      * Available variables: {{userContext}}, {{includeEdgeCases}}
      */
-    @AttributeDefinition(
-            name = "Test Generation User Message Template",
-            description = "Template for test data generation user message. Variables: {{userContext}}, {{includeEdgeCases}}"
-    )
+    /** Template for test data generation user message. Variables: {{userContext}}, {{includeEdgeCases}} */
     String testGenerationUserMessageTemplate() default
             "Generate realistic test data for this Freemarker template." +
                     "{{userContext}}" +

@@ -13,7 +13,7 @@ This module enhances the Query Service with context-aware autocomplete suggestio
 - **Multiple Element Types**: Supports classes, properties (object, datatype, annotation), and individuals
 - **Prefix Search**: Fast filtering by URI or label prefix for real-time autocomplete
 - **REST API**: Clean JAX-RS endpoints for frontend integration
-- **Modular Design**: Standalone OSGi bundle that can be easily enabled/disabled
+- **Modular Design**: Standalone library module (plain jar with a Jandex index) whose CDI beans Quarkus discovers
 
 ## Architecture
 
@@ -25,7 +25,7 @@ This module enhances the Query Service with context-aware autocomplete suggestio
 2. **OntologyServiceImpl** (Implementation)
    - Integrates with AnzoClient to execute SPARQL queries
    - Uses Caffeine cache for high-performance caching
-   - Configurable via OSGi Config Admin
+   - CDI bean (`@ApplicationScoped`), configured from `application.properties` via `OsgiConfig`
 
 3. **OntologyController** (REST)
    - JAX-RS endpoints at `/api/ontology`
@@ -123,48 +123,50 @@ Pre-loads ontology data for a route (non-blocking).
 
 ## Configuration
 
-Configuration file: `query-service-distribution/src/main/resources/etc/com.inovexcorp.queryservice.ontology.cfg`
+Configuration file: `query-service-app/src/main/resources/application.properties` (properties prefixed with
+`com.inovexcorp.queryservice.ontology.`, read via `OsgiConfig`). Override with the environment variables shown and
+restart.
 
 ### Available Settings
 
 ```properties
 # Cache TTL in minutes (default: 60)
-cacheTtlMinutes=60
+com.inovexcorp.queryservice.ontology.cacheTtlMinutes=${ONTO_CACHE_TTL:60}
 
-# Maximum number of routes to cache (default: 100)
-cacheMaxEntries=100
+# Maximum number of routes to cache (QTT default: 20)
+com.inovexcorp.queryservice.ontology.cacheMaxEntries=${ONTO_CACHE_MAX_ENTRIES:20}
 
 # Enable/disable caching (default: true)
-cacheEnable=true
+com.inovexcorp.queryservice.ontology.cacheEnable=${ONTO_CACHE_ENABLED:true}
 
 # Query timeout in seconds (default: 30)
-ontologyQueryTimeout=30
+com.inovexcorp.queryservice.ontology.ontologyQueryTimeout=${ONTO_CACHE_QUERY_TIMEOUT:30}
 
 # Maximum ontology elements per query (default: 1000)
-ontologyMaxResults=1000
+com.inovexcorp.queryservice.ontology.ontologyMaxResults=${ONTO_CACHE_QUERY_LIMIT:1000}
 ```
 
 ### Tuning Recommendations
 
 **For small ontologies (<1000 elements):**
-```properties
-cacheTtlMinutes=120
-cacheMaxEntries=50
-ontologyMaxResults=1000
+```bash
+ONTO_CACHE_TTL=120
+ONTO_CACHE_MAX_ENTRIES=50
+ONTO_CACHE_QUERY_LIMIT=1000
 ```
 
 **For large ontologies (>10000 elements):**
-```properties
-cacheTtlMinutes=30
-cacheMaxEntries=200
-ontologyMaxResults=2000
+```bash
+ONTO_CACHE_TTL=30
+ONTO_CACHE_MAX_ENTRIES=200
+ONTO_CACHE_QUERY_LIMIT=2000
 ```
 
 **For high-traffic production:**
-```properties
-cacheTtlMinutes=60
-cacheMaxEntries=500
-ontologyQueryTimeout=60
+```bash
+ONTO_CACHE_TTL=60
+ONTO_CACHE_MAX_ENTRIES=500
+ONTO_CACHE_QUERY_TIMEOUT=60
 ```
 
 ## SPARQL Queries
@@ -315,22 +317,21 @@ Tests cover:
 - `query-service-persistence`: Route and datasource access
 - `caffeine`: High-performance caching
 - `rdf4j`: SPARQL result parsing
-- JAX-RS, OSGi, Jackson
+- Jakarta REST (Quarkus REST), CDI, Jackson
 
 ### Runtime Dependencies
-- Apache Karaf 4.4.1+
-- Apache Camel 3.20.5+
+- Camel Quarkus (Quarkus 3.40, Camel 4.22), via `query-service-app`
 - RDF4J 4.2.1+
 - Java 17+
 
 ## Troubleshooting
 
 ### Autocomplete Not Working
-1. Verify ontology bundle is installed: `bundle:list | grep ontology`
-2. Check configuration file exists and is loaded
+1. Verify the ontology API answers: `curl -k https://localhost:8443/queryrest/api/ontology/cache/statistics`
+2. Check the `ONTO_CACHE_*` settings
 3. Verify route exists: `curl http://localhost:8443/queryrest/api/routes/{routeId}`
 4. Check cache metadata: `curl http://localhost:8443/queryrest/api/ontology/{routeId}/metadata`
-5. Check logs: `log:tail` in Karaf console
+5. Check logs: `docker logs qtt` (or the console of `make run`)
 
 ### Slow Performance
 1. Check cache statistics for low hit rate
@@ -348,7 +349,7 @@ Tests cover:
 1. Reduce `cacheMaxEntries`
 2. Reduce `ontologyMaxResults`
 3. Reduce `cacheTtlMinutes` to evict entries sooner
-4. Monitor heap usage in Karaf
+4. Monitor JVM heap usage (the container sets `-XX:+UseSerialGC -XX:MaxRAMPercentage=75.0` in `JAVA_OPTS`)
 
 ## Development
 

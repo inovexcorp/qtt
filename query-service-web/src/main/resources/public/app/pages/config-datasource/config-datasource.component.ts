@@ -1,27 +1,49 @@
-import {Component, OnInit, ViewEncapsulation, ViewChild, AfterViewInit} from '@angular/core';
-import {FormControl, FormGroup, Validators} from '@angular/forms';
+import {Component, OnInit, ViewEncapsulation, ViewChild, AfterViewInit, ChangeDetectionStrategy} from '@angular/core';
+import { AbstractControl, FormControl, FormGroup, ValidationErrors, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import {ActivatedRoute, Router} from '@angular/router';
 import {DatasourceService} from '../../core/services/datasource.service';
+import {AuditInfo} from '../../core/models/audit';
 import {Datasources} from '../../core/models/datasources';
 import {MatDialog} from '@angular/material/dialog';
 import {DeleteDatasourceModalComponent} from '../delete-datasource-modal/delete-datasource-modal.component';
 import {ConfigDatasourceModalComponent} from '../config-datasource-modal/config-datasource-modal.component';
 import {MetricsService} from '../../core/services/metrics.service';
 import {RouteMetric, RouteMetricsResponse} from '../../core/models/metric-data';
-import {MatTableDataSource} from '@angular/material/table';
+import { MatTableDataSource, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow } from '@angular/material/table';
 import {MatPaginator} from '@angular/material/paginator';
-import {MatSort} from '@angular/material/sort';
+import { MatSort, MatSortHeader } from '@angular/material/sort';
+import { MatCard, MatCardHeader, MatCardTitle, MatCardContent } from '@angular/material/card';
+import { AuditLineComponent } from '../../shared/audit-line/audit-line.component';
+import { IfRoleDirective } from '../../shared/if-role.directive';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTabGroup, MatTab } from '@angular/material/tabs';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatDivider } from '@angular/material/list';
+import { MatFormField, MatLabel, MatSuffix, MatError, MatHint } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatSelect, MatOption } from '@angular/material/select';
+import { NgClass, JsonPipe } from '@angular/common';
+import { MatProgressBar } from '@angular/material/progress-bar';
 
 @Component({
-  selector: 'app-config-datasource',
-  templateUrl: './config-datasource.component.html',
-  styleUrls: ['./config-datasource.component.scss'],
-  encapsulation: ViewEncapsulation.None
+    selector: 'app-config-datasource',
+    templateUrl: './config-datasource.component.html',
+    styleUrls: ['./config-datasource.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MatCard, AuditLineComponent, IfRoleDirective, MatIconButton, MatIcon, MatTabGroup, MatTab, MatButton, MatTooltip, MatDivider, FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatSuffix, MatError, MatHint, MatSelect, MatOption, NgClass, MatProgressBar, MatCardHeader, MatCardTitle, MatCardContent, MatTable, MatSort, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatSortHeader, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatPaginator, JsonPipe]
 })
 export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
+  /** Who created and last changed this datasource. */
+  audit?: AuditInfo | null;
+
   private sub: any;
   dataSourceId: string = '';
   private associatedRoutes: string[] = [];
+  // The stored password can only be kept while these are unchanged (the API never returns it)
+  private storedUrl: string = '';
+  private storedUsername: string = '';
   testResponse: any;
   testResponseStatus: 'success' | 'error' | null = null;
 
@@ -59,7 +81,9 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     timeOutSeconds: new FormControl('', Validators.required),
     maxQueryHeaderLength: new FormControl('', Validators.required),
     username: new FormControl('', Validators.required),
-    password: new FormControl('', Validators.required),
+    // Blank keeps the stored password, unless the URL or username changes
+    password: new FormControl('', (control: AbstractControl): ValidationErrors | null =>
+      this.passwordRequiredForChange(control) ? {requiredForChange: true} : null),
     validateCertificate: new FormControl('true', Validators.required)
   })
   hide = true;
@@ -102,6 +126,8 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
       this.dataSourceId = params['dataSourceId'];
     });
     this.getDatasource();
+    this.configDatasource.controls['url'].valueChanges.subscribe(() => this.revalidatePassword());
+    this.configDatasource.controls['username'].valueChanges.subscribe(() => this.revalidatePassword());
     this.loadUsageMetrics();
     this.checkHealthCheckStatus();
   }
@@ -131,14 +157,16 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     this.datasourceService.getDatasource(this.dataSourceId)
       .subscribe((datasources) => {
         this.dataSourceId = datasources.dataSourceId;
+        this.storedUrl = datasources.url;
+        this.storedUsername = datasources.username;
         this.configDatasource.controls['url'].setValue(datasources.url);
         this.configDatasource.controls['timeOutSeconds'].setValue(datasources.timeOutSeconds);
         this.configDatasource.controls['maxQueryHeaderLength'].setValue(datasources.maxQueryHeaderLength);
         this.configDatasource.controls['username'].setValue(datasources.username);
-        this.configDatasource.controls['password'].setValue(datasources.password);
         this.configDatasource.controls['validateCertificate'].setValue(datasources.validateCertificate.toString())
         this.associatedRoutes = datasources.camelRouteTemplate;
         this.datasourceStatus = datasources.status;
+        this.audit = datasources.audit;
       });
   }
 
@@ -148,9 +176,12 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     let timeOutSeconds: string = this.configDatasource.value['timeOutSeconds'] as string;
     let maxQueryHeaderLength: string = this.configDatasource.value['maxQueryHeaderLength'] as string;
     let username: string = this.configDatasource.value['username'] as string;
-    let password: string = this.configDatasource.value['password'] as string;
+    let password: string | undefined = (this.configDatasource.value['password'] as string) || undefined;
     let validateCertificate: boolean = this.configDatasource.value['validateCertificate'] === 'true';
-    if (!dataSourceId || !url || !timeOutSeconds || !maxQueryHeaderLength || !username || !password) {
+    if (!dataSourceId || !url || !timeOutSeconds || !maxQueryHeaderLength || !username) {
+      return;
+    }
+    if (this.password?.invalid) {
       return;
     }
 
@@ -193,6 +224,22 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
     });
   }
 
+  /** True when the URL or username differs from the stored datasource and no new password was entered. */
+  private passwordRequiredForChange(password: AbstractControl): boolean {
+    const group = password.parent;
+    if (!group || password.value || !this.storedUrl) {
+      return false;
+    }
+    return group.get('url')?.value !== this.storedUrl || group.get('username')?.value !== this.storedUsername;
+  }
+
+  private revalidatePassword(): void {
+    this.password?.updateValueAndValidity({emitEvent: false});
+    if (this.password?.invalid) {
+      this.password.markAsTouched();
+    }
+  }
+
   public test(): void {
     this.datasourceService.testDatasource(this.asDataSource()).subscribe({
       next: response => {
@@ -214,7 +261,7 @@ export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
       timeOutSeconds: this.configDatasource.value['timeOutSeconds'] as string,
       maxQueryHeaderLength: this.configDatasource.value['maxQueryHeaderLength'] as string,
       username: this.configDatasource.value['username'] as string,
-      password: this.configDatasource.value['password'] as string,
+      password: (this.configDatasource.value['password'] as string) || undefined,
       validateCertificate: this.configDatasource.value['validateCertificate'] === 'true'
     } as Datasources;
   }

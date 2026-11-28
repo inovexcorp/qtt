@@ -1,0 +1,76 @@
+{
+  "label": "phase5-quarkus-jvm-port",
+  "image": "qtt:phase4-wip",
+  "commit": "7b4a1ea",
+  "date": "2026-11-26T17:29:23",
+  "note": "Camel Quarkus 3.40 JVM mode, Temurin 17 JRE; FreeMarker parse-once, Anzo client without streaming probe",
+  "image_bytes": 427499752,
+  "image_gzip_bytes": 189384981,
+  "layers": 12,
+  "cold_start": [
+    {
+      "api_ms": 2490,
+      "first_query_ms": 2605
+    },
+    {
+      "api_ms": 2595,
+      "first_query_ms": 2696
+    },
+    {
+      "api_ms": 2457,
+      "first_query_ms": 2571
+    },
+    {
+      "api_ms": 2538,
+      "first_query_ms": 2623
+    },
+    {
+      "api_ms": 2569,
+      "first_query_ms": 2672
+    },
+    {
+      "api_ms": 2423,
+      "first_query_ms": 2543
+    },
+    {
+      "api_ms": 2573,
+      "first_query_ms": 2672
+    },
+    {
+      "api_ms": 2566,
+      "first_query_ms": 2682
+    },
+    {
+      "api_ms": 2530,
+      "first_query_ms": 2636
+    },
+    {
+      "api_ms": 2542,
+      "first_query_ms": 2616
+    }
+  ],
+  "api_ready_ms_median": 2540.0,
+  "api_ready_ms_min": 2423,
+  "api_ready_ms_max": 2595,
+  "first_query_ms_median": 2629.5,
+  "first_query_ms_min": 2543,
+  "first_query_ms_max": 2696,
+  "rss_idle_mb": 452.1,
+  "load_uncached": {
+    "rps": 1039.0,
+    "p50_ms": 7.14,
+    "p95_ms": 12.2,
+    "p99_ms": 14.17,
+    "errors": 0,
+    "requests": 31182
+  },
+  "load_cached": {
+    "rps": 9002.0,
+    "p50_ms": 0.83,
+    "p95_ms": 1.27,
+    "p99_ms": 2.09,
+    "errors": 0,
+    "requests": 270071
+  },
+  "rss_after_load_mb": 569.2
+}

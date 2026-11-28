@@ -1,0 +1,484 @@
+{
+  "head" : {
+    "vars" : [
+      "uri",
+      "label",
+      "comment",
+      "type",
+      "domains",
+      "ranges"
+    ]
+  },
+  "results" : {
+    "bindings" : [
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#prefLabel"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "preferred label"
+        },
+        "comment" : {
+          "type" : "literal",
+          "value" : "skos:prefLabel, skos:altLabel and skos:hiddenLabel are pairwise\n      disjoint properties.\nThe range of skos:prefLabel is the class of RDF plain literals.\nA resource has no more than one value of skos:prefLabel per language tag, and no more than one value of skos:prefLabel without language tag."
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nAnnotationProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#changeNote"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "change note"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "AnnotationProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#topConceptOf"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "is top concept in scheme"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nObjectProperty"
+        },
+        "domains" : {
+          "type" : "literal",
+          "value" : "http://www.w3.org/2004/02/skos/core#Concept"
+        },
+        "ranges" : {
+          "type" : "literal",
+          "value" : "http://www.w3.org/2004/02/skos/core#ConceptScheme"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#note"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "note"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "AnnotationProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#definition"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "definition"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nAnnotationProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#example"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "example"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "AnnotationProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#narrowMatch"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has narrower match"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nObjectProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#altLabel"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "alternative label"
+        },
+        "comment" : {
+          "type" : "literal",
+          "value" : "The range of skos:altLabel is the class of RDF plain literals.\nskos:prefLabel, skos:altLabel and skos:hiddenLabel are pairwise disjoint properties."
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "AnnotationProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#narrowerTransitive"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has narrower transitive"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "ObjectProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#hiddenLabel"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "hidden label"
+        },
+        "comment" : {
+          "type" : "literal",
+          "value" : "The range of skos:hiddenLabel is the class of RDF plain literals.\nskos:prefLabel, skos:altLabel and skos:hiddenLabel are pairwise disjoint properties."
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nAnnotationProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#broadMatch"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has broader match"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "ObjectProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#hasTopConcept"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has top concept"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "ObjectProperty\nProperty"
+        },
+        "domains" : {
+          "type" : "literal",
+          "value" : "http://www.w3.org/2004/02/skos/core#ConceptScheme"
+        },
+        "ranges" : {
+          "type" : "literal",
+          "value" : "http://www.w3.org/2004/02/skos/core#Concept"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#member"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has member"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "ObjectProperty\nProperty"
+        },
+        "domains" : {
+          "type" : "literal",
+          "value" : "http://www.w3.org/2004/02/skos/core#Collection"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#editorialNote"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "editorial note"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nAnnotationProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#related"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has related"
+        },
+        "comment" : {
+          "type" : "literal",
+          "value" : "skos:related is disjoint with skos:broaderTransitive"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "ObjectProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#inScheme"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "is in scheme"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "ObjectProperty\nProperty"
+        },
+        "ranges" : {
+          "type" : "literal",
+          "value" : "http://www.w3.org/2004/02/skos/core#ConceptScheme"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#memberList"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has member list"
+        },
+        "comment" : {
+          "type" : "literal",
+          "value" : "For any resource, every item in the list given as the value of the\n      skos:memberList property is also a value of the skos:member property."
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nObjectProperty"
+        },
+        "domains" : {
+          "type" : "literal",
+          "value" : "http://www.w3.org/2004/02/skos/core#OrderedCollection"
+        },
+        "ranges" : {
+          "type" : "literal",
+          "value" : "http://www.w3.org/1999/02/22-rdf-syntax-ns#List"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#narrower"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has narrower"
+        },
+        "comment" : {
+          "type" : "literal",
+          "value" : "Narrower concepts are typically rendered as children in a concept hierarchy (tree)."
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nObjectProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#notation"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "notation"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nDatatypeProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#scopeNote"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "scope note"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "AnnotationProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#historyNote"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "history note"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "AnnotationProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#exactMatch"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has exact match"
+        },
+        "comment" : {
+          "type" : "literal",
+          "value" : "skos:exactMatch is disjoint with each of the properties skos:broadMatch and skos:relatedMatch."
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nObjectProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#closeMatch"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has close match"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "ObjectProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#broader"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has broader"
+        },
+        "comment" : {
+          "type" : "literal",
+          "value" : "Broader concepts are typically rendered as parents in a concept hierarchy (tree)."
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "ObjectProperty\nProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#semanticRelation"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "is in semantic relation with"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nObjectProperty"
+        },
+        "domains" : {
+          "type" : "literal",
+          "value" : "http://www.w3.org/2004/02/skos/core#Concept"
+        },
+        "ranges" : {
+          "type" : "literal",
+          "value" : "http://www.w3.org/2004/02/skos/core#Concept"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#mappingRelation"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "is in mapping relation with"
+        },
+        "comment" : {
+          "type" : "literal",
+          "value" : "These concept mapping relations mirror semantic relations, and the data model defined below is similar (with the exception of skos:exactMatch) to the data model defined for semantic relations. A distinct vocabulary is provided for concept mapping relations, to provide a convenient way to differentiate links within a concept scheme from links between concept schemes. However, this pattern of usage is not a formal requirement of the SKOS data model, and relies on informal definitions of best practice."
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nObjectProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#relatedMatch"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has related match"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nObjectProperty"
+        }
+      },
+      {
+        "uri" : {
+          "type" : "uri",
+          "value" : "http://www.w3.org/2004/02/skos/core#broaderTransitive"
+        },
+        "label" : {
+          "type" : "literal",
+          "value" : "has broader transitive"
+        },
+        "type" : {
+          "type" : "literal",
+          "value" : "Property\nObjectProperty"
+        }
+      }
+    ]
+  }
+}

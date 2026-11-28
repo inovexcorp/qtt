@@ -1,5 +1,9 @@
 package com.inovexcorp.queryservice.cache;
 
+import jakarta.annotation.PostConstruct;
+import com.inovexcorp.queryservice.config.OsgiConfig;
+import jakarta.annotation.PreDestroy;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.lettuce.core.KeyScanCursor;
@@ -13,11 +17,6 @@ import io.lettuce.core.support.ConnectionPoolSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import org.osgi.service.component.annotations.Activate;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.ConfigurationPolicy;
-import org.osgi.service.component.annotations.Deactivate;
-import org.osgi.service.metatype.annotations.Designate;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,13 +33,7 @@ import java.util.zip.GZIPOutputStream;
  * Redis-backed implementation of CacheService using Lettuce client.
  */
 @Slf4j
-@Component(
-        service = CacheService.class,
-        immediate = true,
-        configurationPolicy = ConfigurationPolicy.REQUIRE,
-        configurationPid = "com.inovexcorp.queryservice.cache"
-)
-@Designate(ocd = CacheConfig.class)
+@ApplicationScoped
 public class RedisCacheService implements CacheService {
 
     private RedisClient redisClient;
@@ -62,7 +55,13 @@ public class RedisCacheService implements CacheService {
     private boolean connected;
     private String lastError;
 
-    @Activate
+    static final String CONFIG_PID = "com.inovexcorp.queryservice.cache";
+
+    @PostConstruct
+    void postConstruct() {
+        activate(OsgiConfig.load(CacheConfig.class, CONFIG_PID));
+    }
+
     public void activate(CacheConfig config) {
         this.config = config;
         this.enabled = config.redis_enabled();
@@ -100,7 +99,7 @@ public class RedisCacheService implements CacheService {
         }
     }
 
-    @Deactivate
+    @PreDestroy
     public void deactivate() {
         log.info("Deactivating Redis cache service");
         if (statsCache != null) {

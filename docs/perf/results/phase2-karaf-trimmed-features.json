@@ -1,0 +1,77 @@
+{
+  "label": "phase2-karaf-trimmed-features",
+  "image": "qtt:phase2",
+  "commit": "144536b+dirty",
+  "date": "2026-11-26T16:50:37",
+  "note": "RDF4J subset bundle; no Elasticsearch/LMDB/MapDB/spatial, LangGraph4j, obr, jasypt, service-wrapper",
+  "image_bytes": 453270349,
+  "image_gzip_bytes": 211459122,
+  "layers": 14,
+  "cold_start": [
+    {
+      "api_ms": 6368,
+      "first_query_ms": 6437
+    },
+    {
+      "api_ms": 6431,
+      "first_query_ms": 6507
+    },
+    {
+      "api_ms": 6211,
+      "first_query_ms": 6268
+    },
+    {
+      "api_ms": 6247,
+      "first_query_ms": 6301
+    },
+    {
+      "api_ms": 6043,
+      "first_query_ms": 6116
+    },
+    {
+      "api_ms": 6154,
+      "first_query_ms": 6229
+    },
+    {
+      "api_ms": 6088,
+      "first_query_ms": 6145
+    },
+    {
+      "api_ms": 6098,
+      "first_query_ms": 6185
+    },
+    {
+      "api_ms": 6339,
+      "first_query_ms": 6416
+    },
+    {
+      "api_ms": 6224,
+      "first_query_ms": 6304
+    }
+  ],
+  "api_ready_ms_median": 6217.5,
+  "api_ready_ms_min": 6043,
+  "api_ready_ms_max": 6431,
+  "first_query_ms_median": 6284.5,
+  "first_query_ms_min": 6116,
+  "first_query_ms_max": 6507,
+  "rss_idle_mb": 673.7,
+  "load_uncached": {
+    "rps": 1071.4,
+    "p50_ms": 7.47,
+    "p95_ms": 9.68,
+    "p99_ms": 11.31,
+    "errors": 0,
+    "requests": 32149
+  },
+  "load_cached": {
+    "rps": 7340.8,
+    "p50_ms": 0.95,
+    "p95_ms": 1.65,
+    "p99_ms": 4.7,
+    "errors": 0,
+    "requests": 220267
+  },
+  "rss_after_load_mb": 759.1,
+  "load_remeasured": "2026-11-26T17:37:38"
+}

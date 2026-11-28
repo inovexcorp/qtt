@@ -1,0 +1,15 @@
+{
+  "name": "err-http400",
+  "priority": 1,
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/sparql/graphmart/urn%3Amock%3Ahttp400.*"
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "Content-Type": "text/plain"
+    },
+    "body": "ErrorCode[10497] mock parse error near line 1"
+  }
+}

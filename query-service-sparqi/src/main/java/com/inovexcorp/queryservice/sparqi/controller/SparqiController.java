@@ -1,8 +1,12 @@
 package com.inovexcorp.queryservice.sparqi.controller;
 
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.SparqiMetricRecord;
 import com.inovexcorp.queryservice.persistence.SparqiMetricService;
 import com.inovexcorp.queryservice.persistence.SparqiMetricsSummary;
+import com.inovexcorp.queryservice.security.QttRoles;
 import com.inovexcorp.queryservice.sparqi.SparqiException;
 import com.inovexcorp.queryservice.sparqi.SparqiService;
 import com.inovexcorp.queryservice.sparqi.model.SparqiContext;
@@ -12,20 +16,20 @@ import com.inovexcorp.queryservice.sparqi.model.TestGenerationResponse;
 import com.inovexcorp.queryservice.sparqi.session.SparqiSession;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
-import org.osgi.service.jaxrs.whiteboard.propertytypes.JaxrsResource;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
+import java.security.Principal;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -35,16 +39,41 @@ import java.util.Map;
  * Provides endpoints for managing conversation sessions and sending messages.
  */
 @Slf4j
-@JaxrsResource
 @Path("/api/sparqi")
-@Component(immediate = true, service = SparqiController.class)
+@ApplicationScoped
 public class SparqiController {
 
-    @Reference
-    private SparqiService sparqiService;
+    @Inject
+    SparqiService sparqiService;
 
-    @Reference
-    private SparqiMetricService sparqiMetricService;
+    @Inject
+    SparqiMetricService sparqiMetricService;
+
+    /** The user name QTT gives everyone when sign-in is off. */
+    static final String ANONYMOUS = "anonymous";
+
+    /** The signed-in user's name, or "anonymous". */
+    static String caller(SecurityContext security) {
+        Principal principal = security == null ? null : security.getUserPrincipal();
+        return principal == null || principal.getName() == null ? ANONYMOUS : principal.getName();
+    }
+
+    /**
+     * Whether the caller may see or use a session: its owner and admins may. With sign-in off everyone is the
+     * anonymous admin, so every session stays reachable as before.
+     */
+    boolean mayUseSession(SecurityContext security, String sessionId) {
+        return sparqiService.getSessionOwner(sessionId)
+                .map(owner -> owner.equals(caller(security)) || security == null || security.isUserInRole(QttRoles.ADMIN))
+                .orElse(true); // no such session: let the service report "not found" as before
+    }
+
+    /** Someone else's session looks the same as a missing one, so session ids can't be probed. */
+    private static Response sessionNotFound(String sessionId) {
+        return Response.status(Response.Status.NOT_FOUND)
+                .entity(Map.of("error", "Session not found: " + sessionId))
+                .build();
+    }
 
     /**
      * Provides the health status of the SPARQi service.
@@ -56,6 +85,7 @@ public class SparqiController {
      * - status: "available" if the service is enabled, otherwise "disabled".
      * - activeSessions: the number of active sessions.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("/health")
     @Produces(MediaType.APPLICATION_JSON)
@@ -84,12 +114,14 @@ public class SparqiController {
      * - 400 (Bad Request) if the `routeId` is missing or invalid.
      * - 500 (Internal Server Error) if the session creation fails due to a service error.
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("/session")
     @Produces(MediaType.APPLICATION_JSON)
     public Response startSession(
             @QueryParam("routeId") String routeId,
-            @QueryParam("userId") String userId) {
+            @QueryParam("userId") String userId,
+            @Context SecurityContext security) {
 
         if (routeId == null || routeId.isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -97,7 +129,10 @@ public class SparqiController {
                     .build();
         }
 
-        String effectiveUserId = userId != null ? userId : "anonymous";
+        // The session belongs to the signed-in user. The userId parameter is only honoured with sign-in off, where
+        // everyone is "anonymous" (kept for API compatibility); a signed-in caller cannot claim another name.
+        String caller = caller(security);
+        String effectiveUserId = ANONYMOUS.equals(caller) && userId != null && !userId.isBlank() ? userId : caller;
 
         try {
             SparqiSession session = sparqiService.startSession(routeId, effectiveUserId);
@@ -140,13 +175,19 @@ public class SparqiController {
      * - 404 (Not Found) if the session does not exist.
      * - 500 (Internal Server Error) if an unexpected service error occurs.
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("/session/{sessionId}/message")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response sendMessage(
             @PathParam("sessionId") String sessionId,
-            MessageRequest request) {
+            MessageRequest request,
+            @Context SecurityContext security) {
+
+        if (!mayUseSession(security, sessionId)) {
+            return sessionNotFound(sessionId);
+        }
 
         if (request == null || request.getMessage() == null || request.getMessage().isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -192,10 +233,14 @@ public class SparqiController {
      * - 200 (OK) with a list of SparqiMessage objects containing the session history.
      * - 404 (Not Found) with an error message if the session does not exist.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("/session/{sessionId}/history")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getHistory(@PathParam("sessionId") String sessionId) {
+    public Response getHistory(@PathParam("sessionId") String sessionId, @Context SecurityContext security) {
+        if (!mayUseSession(security, sessionId)) {
+            return sessionNotFound(sessionId);
+        }
         try {
             List<SparqiMessage> history = sparqiService.getSessionHistory(sessionId);
             return Response.ok(history).build();
@@ -219,10 +264,14 @@ public class SparqiController {
      * - 200 (OK) with a JSON representation of the SparqiContext if the session exists.
      * - 404 (Not Found) with an error message if the session does not exist.
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("/session/{sessionId}/context")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getContext(@PathParam("sessionId") String sessionId) {
+    public Response getContext(@PathParam("sessionId") String sessionId, @Context SecurityContext security) {
+        if (!mayUseSession(security, sessionId)) {
+            return sessionNotFound(sessionId);
+        }
         try {
             SparqiContext context = sparqiService.getSessionContext(sessionId);
             return Response.ok(context).build();
@@ -245,10 +294,14 @@ public class SparqiController {
      * @return A Response object:
      * - 200 (OK) with a success message if the session was terminated successfully.
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @DELETE
     @Path("/session/{sessionId}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response terminateSession(@PathParam("sessionId") String sessionId) {
+    public Response terminateSession(@PathParam("sessionId") String sessionId, @Context SecurityContext security) {
+        if (!mayUseSession(security, sessionId)) {
+            return sessionNotFound(sessionId);
+        }
         sparqiService.terminateSession(sessionId);
         return Response.ok(Map.of("message", "Session terminated")).build();
     }
@@ -261,6 +314,7 @@ public class SparqiController {
      * - 200 (OK) with SparqiMetricsSummary containing aggregated metrics
      * - 500 (Internal Server Error) if metrics retrieval fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("/metrics/summary")
     @Produces(MediaType.APPLICATION_JSON)
@@ -285,6 +339,7 @@ public class SparqiController {
      * - 200 (OK) with List of SparqiMetricRecord for the requested time period
      * - 500 (Internal Server Error) if metrics retrieval fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("/metrics/history")
     @Produces(MediaType.APPLICATION_JSON)
@@ -309,6 +364,7 @@ public class SparqiController {
      * - 200 (OK) with Map of route ID to total token count
      * - 500 (Internal Server Error) if metrics retrieval fails
      */
+    @RolesAllowed(QttRoles.VIEWER)
     @GET
     @Path("/metrics/tokens-by-route")
     @Produces(MediaType.APPLICATION_JSON)
@@ -336,6 +392,7 @@ public class SparqiController {
      *         - 400 (Bad Request) if the request is invalid
      *         - 500 (Internal Server Error) if generation fails
      */
+    @RolesAllowed(QttRoles.EDITOR)
     @POST
     @Path("/generate-test-request")
     @Consumes(MediaType.APPLICATION_JSON)

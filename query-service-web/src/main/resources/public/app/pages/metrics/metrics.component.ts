@@ -1,18 +1,24 @@
-import { Component, ViewChild, ViewEncapsulation } from '@angular/core';
+import { Component, ViewChild, ViewEncapsulation, ChangeDetectionStrategy } from '@angular/core';
 import { MetricsService } from '../../core/services/metrics.service';
 import { RouteMetric, RouteMetricsResponse } from '../../core/models/metric-data';
 import { DatasourceService } from '../../core/services/datasource.service';
 import { Datasources } from '../../core/models/datasources';
 import { Observable } from 'rxjs/internal/Observable';
-import { FormGroup, FormControl } from '@angular/forms';
+import { FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { map, startWith } from 'rxjs/operators';
-import { MatSelectChange } from '@angular/material/select';
-import { MatTableDataSource } from '@angular/material/table';
+import { MatSelectChange, MatOption, MatSelect } from '@angular/material/select';
+import { MatTableDataSource, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow } from '@angular/material/table';
 import { MetricTableData } from '../../core/models/metric-table-data';
 import { MatPaginator } from '@angular/material/paginator';
 import { LineGraph } from '../../core/models/persisted-interfaces/line-graph';
 import { LineGraphObject } from '../../core/models/persisted-interfaces/line-graph-object';
-import { ScaleType } from '@swimlane/ngx-charts';
+import { ScaleType, NumberCardModule, GaugeModule, BarChartModule, LineChartModule } from '@swimlane/ngx-charts';
+import { MatTabGroup, MatTab } from '@angular/material/tabs';
+import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatAutocompleteTrigger, MatAutocomplete } from '@angular/material/autocomplete';
+import { MatIcon } from '@angular/material/icon';
+import { AsyncPipe } from '@angular/common';
 
 
 
@@ -20,11 +26,12 @@ import { ScaleType } from '@swimlane/ngx-charts';
 
 
 @Component({
-  selector: 'app-metrics',
-  templateUrl: './metrics.component.html',
-  styleUrls: ['./metrics.component.scss'],
-  encapsulation: ViewEncapsulation.None
-
+    selector: 'app-metrics',
+    templateUrl: './metrics.component.html',
+    styleUrls: ['./metrics.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [NumberCardModule, GaugeModule, MatTabGroup, MatTab, FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatAutocompleteTrigger, MatAutocomplete, MatOption, MatSelect, BarChartModule, LineChartModule, MatIcon, MatSuffix, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatPaginator, AsyncPipe]
 })
 export class MetricsComponent {
 
@@ -201,7 +208,11 @@ export class MetricsComponent {
     }
 
 
-    let successRate: number = Number((((completedExchanges / totalExchanges) * 100).toFixed(2)));
+    // Guard against division by zero before any route has handled an exchange.
+    const successRate: number = totalExchanges > 0
+      ? Number((((completedExchanges / totalExchanges) * 100).toFixed(2)))
+      : 0;
+    const avgProcessingTime: number = totalExchanges > 0 ? totalProcessingTime / totalExchanges : 0;
 
     this.cardMetrics = [{
       "name": "Total Endpoints",
@@ -210,7 +221,7 @@ export class MetricsComponent {
 
     {
       "name": "Avg Processing Time",
-      "value": (totalProcessingTime / totalExchanges).toFixed(2) + "ms"
+      "value": avgProcessingTime.toFixed(2) + "ms"
     },
 
     {

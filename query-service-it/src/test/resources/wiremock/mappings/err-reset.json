@@ -1,0 +1,11 @@
+{
+  "name": "err-reset",
+  "priority": 1,
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/sparql/graphmart/urn%3Amock%3Areset.*"
+  },
+  "response": {
+    "fault": "CONNECTION_RESET_BY_PEER"
+  }
+}

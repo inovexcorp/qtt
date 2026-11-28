@@ -1,22 +1,22 @@
 package com.inovexcorp.queryservice.persistence.impl;
 
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.aries.jpa.template.JpaTemplate;
-import org.apache.aries.jpa.template.TransactionType;
-import org.osgi.service.component.annotations.Component;
-import org.osgi.service.component.annotations.Reference;
+import com.inovexcorp.queryservice.persistence.jpa.JpaTemplate;
+import com.inovexcorp.queryservice.persistence.jpa.TransactionType;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-@Component(immediate = true, service = RouteService.class)
+@ApplicationScoped
 public class RouteServiceImpl implements RouteService {
 
-    @Reference(target = "(osgi.unit.name=qtt-pu)")
-    private JpaTemplate jpa;
+    @Inject
+    JpaTemplate jpa;
 
 
     /**
@@ -69,6 +69,12 @@ public class RouteServiceImpl implements RouteService {
         jpa.tx(TransactionType.Required, em -> {
             CamelRouteTemplate camelRouteTemplate = em.find(CamelRouteTemplate.class, routeId);
             try {
+                // Unlink from the datasource's orphanRemoval collection first; otherwise the flush cascades an
+                // orphan delete of an instance that is already being removed (Hibernate 6+ rejects that).
+                if (camelRouteTemplate != null && camelRouteTemplate.getDatasources() != null
+                        && camelRouteTemplate.getDatasources().getCamelRouteTemplate() != null) {
+                    camelRouteTemplate.getDatasources().getCamelRouteTemplate().remove(camelRouteTemplate);
+                }
                 em.remove(camelRouteTemplate);
                 em.flush();
             } catch (Exception e) {

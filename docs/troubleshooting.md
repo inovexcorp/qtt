@@ -8,9 +8,9 @@ This guide covers monitoring, common issues, and performance tuning for QTT.
 
 **Automatic Checks:**
 
-- Default interval: Every 2 hours (configurable via `HEALTH_CHECK_INTERVAL_CRON`)
+- Default interval: Every 2 minutes (configurable via `HEALTH_CHECK_INTERVAL_CRON`)
 - Enabled by default (controllable via `HEALTH_CHECK_ENABLED`)
-- Configured in: `com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.cfg`
+- Configured by: `com.inovexcorp.queryservice.scheduler.DatasourceHealthCheck.*` properties
 - Auto-stop routes after N consecutive failures (configured via `HEALTH_CHECK_FAILURE_THRESHOLD`)
 
 **Health States:**
@@ -25,11 +25,10 @@ This guide covers monitoring, common issues, and performance tuning for QTT.
 
 Configure automatic route stopping after N failures:
 
-```properties
-# In DatasourceHealthCheck.cfg
-consecutiveFailureThreshold=5  # Stop routes after 5 consecutive failures
+```bash
+HEALTH_CHECK_FAILURE_THRESHOLD=5   # Stop routes after 5 consecutive failures
 # or
-consecutiveFailureThreshold=-1  # Disable automatic stopping
+HEALTH_CHECK_FAILURE_THRESHOLD=-1  # Disable automatic stopping
 ```
 
 **Manual Health Checks:**
@@ -58,7 +57,7 @@ Routes inherit health status from their datasource:
 
 ### Automatic Collection
 
-**Scheduler:** `com.inovexcorp.queryservice.scheduler.QueryMetrics.cfg`
+**Scheduler:** `com.inovexcorp.queryservice.scheduler.QueryMetrics.scheduler.expression`
 
 - Default: Every 1 minute
 - Collects via JMX from Apache Camel routes
@@ -72,7 +71,7 @@ Routes inherit health status from their datasource:
 
 ### Metrics Cleanup
 
-**Scheduler:** `com.inovexcorp.queryservice.scheduler.CleanMetrics.cfg`
+**Scheduler:** `com.inovexcorp.queryservice.scheduler.CleanMetrics.scheduler.expression`
 
 - Default: Every 1 minute
 - Removes metrics older than TTL (default: 30 minutes)
@@ -80,23 +79,24 @@ Routes inherit health status from their datasource:
 **Configuration:**
 
 ```properties
-minutesToLive=30  # Keep metrics for 30 minutes
+com.inovexcorp.queryservice.scheduler.CleanMetrics.minutesToLive=30  # Keep metrics for 30 minutes
 ```
 
-For longer retention:
+For longer retention, override it as a system property or environment variable (see the
+[Configuration Reference](configuration.md#application-properties)) and restart:
 
-```properties
+```bash
 # 24 hours
-minutesToLive=1440
+COM_INOVEXCORP_QUERYSERVICE_SCHEDULER_CLEANMETRICS_MINUTESTOLIVE=1440
 # 7 days
-minutesToLive=10080
+COM_INOVEXCORP_QUERYSERVICE_SCHEDULER_CLEANMETRICS_MINUTESTOLIVE=10080
 ```
 
 ## Log Management
 
-### Log Files
+### Log Output
 
-**Location (in container):** `/opt/qtt/data/log/karaf.log`
+QTT logs to the console (standard output); there are no log files in the container.
 
 **View logs:**
 
@@ -109,66 +109,78 @@ podman logs qtt
 
 # Follow logs
 docker logs -f qtt
-
-# Inside container
-docker exec -it qtt tail -f /opt/qtt/data/log/karaf.log
 ```
 
 ### Log Levels
 
 **Default:** INFO
 
-**Change log level (runtime):**
+**Change log level:**
 
-Connect to Karaf console:
+Log levels are set at startup with environment variables (or the equivalent `-Dquarkus.log...` system properties)
+and take effect after a restart:
 
 ```bash
-docker exec -it qtt bin/client
+docker run -d --name qtt \
+  -e QUARKUS_LOG_CATEGORY__COM_INOVEXCORP__LEVEL=DEBUG \
+  ...
 ```
-
-Set log levels:
 
 ```bash
 # Set specific package to DEBUG
-log:set DEBUG com.inovexcorp.queryservice
+QUARKUS_LOG_CATEGORY__COM_INOVEXCORP_QUERYSERVICE__LEVEL=DEBUG
 
 # Set Camel to WARN
-log:set WARN org.apache.camel
+QUARKUS_LOG_CATEGORY__ORG_APACHE_CAMEL__LEVEL=WARN
 
-# View current log levels
-log:list
-
-# Reset to default
-log:set INFO
+# Change the root level
+QUARKUS_LOG_LEVEL=DEBUG
 ```
 
-**Change log level (configuration):**
-
-Edit `org.ops4j.pax.logging.cfg`:
-
-```properties
-log4j2.logger.queryservice.level=DEBUG
-log4j2.logger.queryservice.name=com.inovexcorp.queryservice
-```
+Per-query log lines (Anzo query duration, cache hits) and the generated SPARQL are logged at DEBUG on
+`com.inovexcorp.queryservice`.
 
 ### Log Rotation
 
-**Policy:** Size-based (16MB per file)
-
-**Configuration in `org.ops4j.pax.logging.cfg`:**
-
-```properties
-log4j2.appender.rolling.policies.size.size=16MB
-```
+QTT does not write log files. Rotation and retention are handled by the container engine's log driver (or whatever
+collects the console output).
 
 ## Common Issues and Solutions
+
+### Issue: Route Returns 401 or 403
+
+**Symptoms:**
+
+```bash
+curl -k https://localhost:8443/query/my-route
+# 401 Unauthorized, WWW-Authenticate: Bearer realm="qtt"
+```
+
+**Causes and fixes:**
+
+- **401 without a credential**: the route's access is `authenticated` (or `default` with
+  `QUERY_AUTH_DEFAULT=authenticated`). Send `-H "Authorization: Bearer <token or API key>"`, or set the route to
+  `open`. A route that doesn't exist also answers anonymous callers with 401; check the route ID.
+- **401 with a credential**: the token is invalid or expired, was issued for another application (Keycloak needs the
+  audience mapper on the calling client), or the API key is wrong, expired or revoked. Bad credentials are refused even
+  on open routes. With sign-in off, OIDC tokens can't be checked at all; use an API key.
+- **403**: the credential is valid but lacks access: an OIDC token without `qtt-query` (admin doesn't include it), a
+  route's required role missing from the token, or an API key that doesn't name the route (a `*` key doesn't reach
+  routes with required roles). The response body says which: `missingRoles` lists the roles the token lacks. If a
+  role is listed that the user does have in the IdP, check its spelling on the route and the group mapping
+  (`OIDC_QUERY_GROUPS`, and the token's `groups` claim).
+- **503 with `Retry-After`** right after someone saved the route: the route is being replaced. Retry after the given
+  number of seconds; it serves again within about a second.
+- **The page returns QTT's HTML instead of data**: the client called `/<route-id>` or a proxy sent `/query/` to the
+  wrong place; the query URL is `/query/<route-id>`.
+- **A browser app gets a CORS error**: add its origin to `QUERY_CORS_ORIGINS`.
 
 ### Issue: Route Returns 404
 
 **Symptoms:**
 
 ```bash
-curl http://localhost:8888/my-route
+curl -k https://localhost:8443/query/my-route
 # 404 Not Found
 ```
 
@@ -190,7 +202,7 @@ curl http://localhost:8888/my-route
    curl -X POST http://localhost:8080/queryrest/api/routes/my-route/start
    ```
 
-4. **Check Karaf logs:**
+4. **Check QTT logs:**
    ```bash
    docker logs qtt | grep my-route
    ```
@@ -200,7 +212,7 @@ curl http://localhost:8888/my-route
 **Symptoms:**
 
 ```bash
-curl http://localhost:8888/my-route
+curl -k https://localhost:8443/query/my-route
 # 500 Internal Server Error
 ```
 
@@ -215,7 +227,7 @@ curl http://localhost:8888/my-route
     - Check SPARQL syntax
     - Use SPARQi to validate template
 
-3. **Check Karaf logs for errors:**
+3. **Check QTT logs for errors:**
    ```bash
    docker logs qtt | grep ERROR
    ```
@@ -267,8 +279,8 @@ curl http://localhost:8888/my-route
 
 1. **Verify SPARQi is enabled:**
    ```bash
-   docker exec -it qtt grep enableSparqi /opt/qtt/etc/com.inovexcorp.queryservice.sparqi.cfg
-   # Should show: enableSparqi=true
+   docker exec -it qtt env | grep SPARQI_
+   # Should show: SPARQI_ENABLED=true
    ```
 
 2. **Check LLM configuration:**
@@ -286,10 +298,26 @@ curl http://localhost:8888/my-route
      ...
    ```
 
-4. **Check Karaf logs:**
+4. **Check QTT logs:**
    ```bash
    docker logs qtt | grep -i sparqi
    ```
+
+### Issue: Sign-in Problems
+
+Sign-in problems are logged by `io.quarkus.oidc`; raise it to see details:
+`QUARKUS_LOG_CATEGORY__IO_QUARKUS_OIDC__LEVEL=DEBUG`.
+
+| Symptom | Cause and fix |
+|---|---|
+| The IdP shows "Invalid parameter: redirect_uri" | The client's valid redirect URIs don't match the URL QTT sends. Behind a TLS proxy QTT builds `http://` URLs: set `QTT_BEHIND_PROXY=true` (and `QTT_TRUSTED_PROXIES`), or `OIDC_FORCE_HTTPS_REDIRECT=true` |
+| Scripts get `401` with a valid token | The token isn't issued for QTT: the log shows `Audience (aud) claim ... doesn't contain an acceptable identifier`. Add an audience mapper for `qtt` to the calling client (Keycloak), or set `OIDC_TOKEN_AUDIENCE` |
+| `401` with `Issuer (iss) claim value ... doesn't match` | `OIDC_AUTH_SERVER_URL` differs from the issuer in the tokens (often `http` vs `https`, or an internal vs public host name). Use the public issuer URL; for Keycloak behind a proxy, set its `--hostname` |
+| Everyone sees "No access to QTT" | QTT finds no QTT role in the token. Check `OIDC_ROLES_CLAIM` / `OIDC_ROLES_SOURCE` for your IdP, and that names in `OIDC_*_GROUPS` match the token exactly (case-sensitive) |
+| A `400` or a blank page from the proxy after login | The session cookies are larger than the proxy's header limit. Allow at least 8 KB (nginx: `large_client_header_buffers 4 16k;`), and grant access with a few roles rather than many groups |
+| Startup fails with an SSL handshake error to the IdP | The IdP's certificate is from a private CA: set `OIDC_TRUSTSTORE_FILE` (see the Administration Guide) |
+| State-changing requests from your own scripts get `403` | They use a browser session cookie without `X-Requested-With`. Use a bearer token instead, or add the header |
+| Users are logged out of QTT but not of the IdP | The IdP doesn't support RP-initiated logout; only the QTT session ends |
 
 ### Issue: Query Performance Degradation
 
@@ -330,7 +358,7 @@ curl http://localhost:8888/my-route
 **Symptoms:**
 
 ```
-javax.persistence.PersistenceException: Unable to acquire connection
+jakarta.persistence.PersistenceException: Unable to acquire connection
 ```
 
 **Solutions:**
@@ -358,8 +386,8 @@ javax.persistence.PersistenceException: Unable to acquire connection
     - Ensure DB_USER and DB_PASSWORD match database
 
 5. **Check connection pool:**
-    - Edit `org.ops4j.datasource-qtt.cfg`
-    - Increase `jdbc.pool.maxTotal` if needed
+    - Increase `quarkus.datasource.<kind>.jdbc.max-size` (default 10) if needed; see
+      [Database Connection Pool](#database-connection-pool)
 
 ### Issue: Cache Not Available
 
@@ -396,7 +424,7 @@ javax.persistence.PersistenceException: Unable to acquire connection
    # Look for "connected": false
    ```
 
-4. **Review Karaf logs for cache errors:**
+4. **Review QTT logs for cache errors:**
    ```bash
    docker logs qtt | grep -i "cache\|redis"
    ```
@@ -442,54 +470,6 @@ javax.persistence.PersistenceException: Unable to acquire connection
    curl http://localhost:8080/queryrest/api/routes/cache/info | jq '.stats.evictions'
    ```
 
-## Karaf Console Commands
-
-Access the Karaf console for advanced troubleshooting:
-
-```bash
-docker exec -it qtt bin/client
-```
-
-**Useful commands:**
-
-```bash
-# List all bundles
-bundle:list
-
-# View bundle details
-bundle:info <bundle-id>
-
-# Check bundle status
-bundle:diag <bundle-id>
-
-# Restart a bundle
-bundle:restart <bundle-id>
-
-# List OSGi services
-service:list
-
-# List Camel routes
-camel:route-list
-
-# View route details
-camel:route-info <route-id>
-
-# Check configuration
-config:list
-
-# Edit configuration
-config:edit com.inovexcorp.queryservice.routebuilder
-
-# View property
-config:property-get templateLocation
-
-# Set property
-config:property-set templateLocation data/templates/
-
-# Save config changes
-config:update
-```
-
 ## Performance Tuning
 
 ### JVM Memory Settings
@@ -503,23 +483,18 @@ docker run -d \
   ...
 ```
 
-### Thread Pool Tuning
-
-**Edit `org.ops4j.pax.web.cfg`:**
-
-```properties
-org.ops4j.pax.web.server.maxThreads=400
-org.ops4j.pax.web.server.minThreads=20
-```
+The image's default `JAVA_OPTS` is `-XX:+UseSerialGC -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError`; setting
+`JAVA_OPTS` replaces it (include `-XX:+UseSerialGC` or choose another collector explicitly). SerialGC was chosen
+because it gave the same throughput and latency as G1 for QTT's workload with about a third less memory
+(docs/perf/phase7-experiments.md).
 
 ### Database Connection Pool
 
-**Edit `org.ops4j.datasource-qtt.cfg`:**
+The pool size defaults to 10 connections. Override it for the active database (`derby`, `postgresql` or `mssql`) at
+startup, e.g. for PostgreSQL:
 
-```properties
-jdbc.pool.maxTotal=20
-jdbc.pool.maxIdle=20
-jdbc.pool.minIdle=5
+```bash
+QUARKUS_DATASOURCE_POSTGRESQL_JDBC_MAX_SIZE=20
 ```
 
 ### Ontology Cache Optimization
@@ -541,33 +516,33 @@ ONTO_CACHE_QUERY_TIMEOUT=15
 
 **Connection Pool Tuning:**
 
-```properties
+```bash
 # High-traffic workload
-redis.pool.maxTotal=50
-redis.pool.maxIdle=25
-redis.pool.minIdle=10
+REDIS_POOL_MAX_TOTAL=50
+REDIS_POOL_MAX_IDLE=25
+REDIS_POOL_MIN_IDLE=10
 # Low-traffic workload
-redis.pool.maxTotal=10
-redis.pool.maxIdle=5
-redis.pool.minIdle=2
+REDIS_POOL_MAX_TOTAL=10
+REDIS_POOL_MAX_IDLE=5
+REDIS_POOL_MIN_IDLE=2
 ```
 
 **TTL Strategy:**
 
-```properties
+```bash
 # Static data - Long TTL
-cache.defaultTtlSeconds=86400  # 24 hours
+CACHE_DEFAULT_TTL=86400  # 24 hours
 # Slowly changing data - Medium TTL
-cache.defaultTtlSeconds=3600   # 1 hour (default)
+CACHE_DEFAULT_TTL=3600   # 1 hour (default)
 # Frequently updated data - Short TTL
-cache.defaultTtlSeconds=300    # 5 minutes
+CACHE_DEFAULT_TTL=300    # 5 minutes
 ```
 
 **Compression Trade-offs:**
 
-```properties
+```bash
 # Enable compression (recommended for large result sets > 10KB)
-cache.compressionEnabled=true
+CACHE_COMPRESSION_ENABLED=true
 # Disable compression (for small result sets, CPU-constrained systems)
-cache.compressionEnabled=false
+CACHE_COMPRESSION_ENABLED=false
 ```

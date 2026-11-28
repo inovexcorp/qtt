@@ -354,7 +354,7 @@ public class CamelRouteTemplateBuilderTest {
     }
 
     @Test
-    public void testConfigure_JettyEndpointFormat_OldParams() throws Exception {
+    public void testConfigure_QueryEndpointFormat_OldParams() throws Exception {
         // Arrange
         String routeId = "jettyOldFormat";
         String routeParams = "?httpMethodRestrict=GET,POST";
@@ -368,15 +368,13 @@ public class CamelRouteTemplateBuilderTest {
         FromDefinition fromDef = routeDef.getInput();
         String endpointUri = fromDef.getEndpointUri();
 
-        assertTrue("Should use jetty component", endpointUri.startsWith("jetty:"));
-        assertTrue("Should use port 8888", endpointUri.contains(":8888"));
-        assertTrue("Should include route ID", endpointUri.contains(routeId));
-        assertTrue("Should contain httpMethodRestrict", endpointUri.contains("httpMethodRestrict=GET,POST"));
+        assertEquals("platform-http:/query/" + routeId
+                + "?headerFilterStrategy=#class:" + QueryHeaderFilterStrategy.class.getName(), endpointUri);
         assertFalse("Should not have double '??'", endpointUri.contains("??"));
     }
 
     @Test
-    public void testConfigure_JettyEndpointFormat_NewParams() throws Exception {
+    public void testConfigure_QueryEndpointFormat_NewParams() throws Exception {
         // Arrange
         String routeId = "jettyNewFormat";
         String routeParams = "httpMethodRestrict=POST,PUT";
@@ -390,13 +388,14 @@ public class CamelRouteTemplateBuilderTest {
         FromDefinition fromDef = routeDef.getInput();
         String endpointUri = fromDef.getEndpointUri();
 
-        assertTrue("Should use jetty component", endpointUri.startsWith("jetty:"));
-        assertTrue("Should contain httpMethodRestrict", endpointUri.contains("httpMethodRestrict=POST,PUT"));
+        assertTrue("Should be served under /query", endpointUri.startsWith("platform-http:/query/" + routeId + "?"));
+        // The method restriction is enforced by the route (405), not by the endpoint (which would answer 404).
+        assertFalse("Should not pass httpMethodRestrict to platform-http", endpointUri.contains("httpMethodRestrict"));
         assertTrue("Should have exactly one '?'", endpointUri.indexOf('?') == endpointUri.lastIndexOf('?'));
     }
 
     @Test
-    public void testConfigure_JettyEndpointFormat_NullParams() throws Exception {
+    public void testConfigure_QueryEndpointFormat_NullParams() throws Exception {
         // Arrange
         String routeId = "jettyNullParams";
         CamelRouteTemplateBuilder builder = createBuilder(routeId, null, "template");
@@ -409,9 +408,8 @@ public class CamelRouteTemplateBuilderTest {
         FromDefinition fromDef = routeDef.getInput();
         String endpointUri = fromDef.getEndpointUri();
 
-        assertTrue("Should use jetty component", endpointUri.startsWith("jetty:"));
-        assertTrue("Should include route ID", endpointUri.contains(routeId));
-        // null params should result in "?null" which is handled by Camel
+        assertTrue("Should be served under /query", endpointUri.startsWith("platform-http:/query/" + routeId + "?"));
+        assertFalse("null params must not reach the URI", endpointUri.contains("null"));
     }
 
     @Test

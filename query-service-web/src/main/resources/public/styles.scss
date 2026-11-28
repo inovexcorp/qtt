@@ -1,30 +1,81 @@
 @use '@angular/material' as mat;
 
-@include mat.core();
-
-// Define a Material 3 theme
-$my-theme: mat.define-theme((
-  color: (
-    theme-type: light,
-    primary: mat.$violet-palette,
-    tertiary: mat.$blue-palette,
-  ),
-  typography: (
-    plain-family: 'Roboto, sans-serif',
-    brand-family: 'Roboto, sans-serif',
-  ),
-  density: (
-    scale: 0
-  )
-));
-
-// Apply the theme to all components - must be wrapped in html selector for M3
+// Material 3 theme: system tokens (--mat-sys-*) that every Material component reads.
 html {
-  @include mat.all-component-themes($my-theme);
+  color-scheme: light;
+  @include mat.theme((
+    color: (
+      primary: mat.$violet-palette,
+      tertiary: mat.$blue-palette,
+    ),
+    typography: Roboto,
+    density: 0,
+  ));
+}
+
+// Data tables float above their card. (--mat-sys-level4 is the shadow the old mat-elevation-z8 class drew; that class
+// draws nothing under mat.theme(), whose shadow tokens it doesn't read.)
+.elevated-table {
+  box-shadow: var(--mat-sys-level4);
 }
 
 body {
-  margin: 0px;
+  margin: 0;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  // Plain HTML (headings, paragraphs) uses the theme's font too, not the browser's default serif.
+  font-family: var(--mat-sys-body-medium-font), sans-serif;
 }
 
+// Snack bar variants (panelClass). Global, because snack bars render outside the component that opens them.
+.success-snackbar {
+  @include mat.snack-bar-overrides((
+    container-color: #2e7d32,
+    supporting-text-color: #fff,
+    button-color: #fff,
+  ));
+}
 
+.warning-snackbar {
+  @include mat.snack-bar-overrides((
+    container-color: #b45309,
+    supporting-text-color: #fff,
+    button-color: #fff,
+  ));
+}
+
+.error-snackbar {
+  @include mat.snack-bar-overrides((
+    container-color: #c62828,
+    supporting-text-color: #fff,
+    button-color: #fff,
+  ));
+}
+
+// Sections that slide open and closed (animate.enter / animate.leave in templates).
+@keyframes qtt-slide-down-in {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 40rem; }
+}
+
+@keyframes qtt-slide-down-out {
+  from { opacity: 1; max-height: 40rem; }
+  to { opacity: 0; max-height: 0; }
+}
+
+.slide-down-enter {
+  overflow: hidden;
+  animation: qtt-slide-down-in 300ms ease-out;
+}
+
+.slide-down-leave {
+  overflow: hidden;
+  animation: qtt-slide-down-out 300ms ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-down-enter,
+  .slide-down-leave {
+    animation: none;
+  }
+}

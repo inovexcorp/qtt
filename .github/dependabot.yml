@@ -1,0 +1,19 @@
+# Dependency update PRs for the web UI (query-service-web). Angular majors are upgraded with `ng update`, which runs
+# migrations, so Dependabot only proposes minor and patch updates for them.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /query-service-web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      angular:
+        patterns: ["@angular/*", "@angular-devkit/*", "@schematics/angular", "typescript", "zone.js"]
+      vitest:
+        patterns: ["vitest", "@vitest/*", "playwright"]
+    ignore:
+      - dependency-name: "@angular/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]

@@ -7,21 +7,23 @@ import { MatListModule } from '@angular/material/list';
 import { MatButtonModule } from '@angular/material/button';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NO_ERRORS_SCHEMA } from '@angular/core';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { AppComponent } from './app.component';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [
-        RouterTestingModule,
-        MatToolbarModule,
-        MatSidenavModule,
-        MatIconModule,
-        MatListModule,
-        MatButtonModule,
-        BrowserAnimationsModule
+          RouterTestingModule,
+          HttpClientTestingModule,
+          MatToolbarModule,
+          MatSidenavModule,
+          MatIconModule,
+          MatListModule,
+          MatButtonModule,
+          BrowserAnimationsModule,
+          AppComponent
       ],
-      declarations: [AppComponent],
       schemas: [NO_ERRORS_SCHEMA]
     }).compileComponents();
   });
