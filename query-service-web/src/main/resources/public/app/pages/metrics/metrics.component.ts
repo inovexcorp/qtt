@@ -20,11 +20,11 @@ import { ScaleType } from '@swimlane/ngx-charts';
 
 
 @Component({
-  selector: 'app-metrics',
-  templateUrl: './metrics.component.html',
-  styleUrls: ['./metrics.component.scss'],
-  encapsulation: ViewEncapsulation.None
-
+    selector: 'app-metrics',
+    templateUrl: './metrics.component.html',
+    styleUrls: ['./metrics.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    standalone: false
 })
 export class MetricsComponent {
 

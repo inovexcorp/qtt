@@ -40,21 +40,22 @@ import 'monaco-editor/esm/vs/editor/editor.all.js';
 
 
 @Component({
-  selector: 'app-config-route',
-  templateUrl: './config-route.component.html',
-  styleUrls: ['./config-route.component.scss'],
-  encapsulation: ViewEncapsulation.None,
-  animations: [
-    trigger('slideDown', [
-      transition(':enter', [
-        style({ height: 0, opacity: 0, overflow: 'hidden' }),
-        animate('300ms ease-out', style({ height: '*', opacity: 1 }))
-      ]),
-      transition(':leave', [
-        animate('300ms ease-in', style({ height: 0, opacity: 0, overflow: 'hidden' }))
-      ])
-    ])
-  ]
+    selector: 'app-config-route',
+    templateUrl: './config-route.component.html',
+    styleUrls: ['./config-route.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    animations: [
+        trigger('slideDown', [
+            transition(':enter', [
+                style({ height: 0, opacity: 0, overflow: 'hidden' }),
+                animate('300ms ease-out', style({ height: '*', opacity: 1 }))
+            ]),
+            transition(':leave', [
+                animate('300ms ease-in', style({ height: 0, opacity: 0, overflow: 'hidden' }))
+            ])
+        ])
+    ],
+    standalone: false
 })
 export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
 
@@ -1524,8 +1525,8 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
 
 // Confirmation Dialog Component for Cache Clearing
 @Component({
-  selector: 'cache-clear-confirm-dialog',
-  template: `
+    selector: 'cache-clear-confirm-dialog',
+    template: `
     <h2 mat-dialog-title>Clear Cache for Route?</h2>
     <mat-dialog-content>
       <p>Are you sure you want to clear all cached query results for route <strong>{{data.routeId}}</strong>?</p>
@@ -1539,7 +1540,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
       <button mat-raised-button color="warn" [mat-dialog-close]="true" cdkFocusInitial>Clear Cache</button>
     </mat-dialog-actions>
   `,
-  styles: [`
+    styles: [`
     .warning-text {
       display: flex;
       align-items: center;
@@ -1556,7 +1557,8 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     mat-dialog-content p {
       margin: 8px 0;
     }
-  `]
+  `],
+    standalone: false
 })
 export class CacheClearConfirmDialog {
   constructor(

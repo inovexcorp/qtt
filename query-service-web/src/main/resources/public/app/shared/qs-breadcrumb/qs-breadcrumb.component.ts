@@ -4,9 +4,10 @@ import { BreadcrumbService } from 'xng-breadcrumb';
 import { filter } from 'rxjs';
 
 @Component({
-  selector: 'app-qs-breadcrumb',
-  templateUrl: './qs-breadcrumb.component.html',
-  styleUrls: ['./qs-breadcrumb.component.scss']
+    selector: 'app-qs-breadcrumb',
+    templateUrl: './qs-breadcrumb.component.html',
+    styleUrls: ['./qs-breadcrumb.component.scss'],
+    standalone: false
 })
 export class QsBreadcrumbComponent implements OnInit {
 

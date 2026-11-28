@@ -14,9 +14,10 @@ import { SettingsService } from '../../core/services/settings.service';
 import { effectiveAccess, endpointUrl } from '../../shared/query-endpoint';
 
 @Component({
-  selector: 'app-routes',
-  templateUrl: './routes.component.html',
-  styleUrls: ['./routes.component.scss']
+    selector: 'app-routes',
+    templateUrl: './routes.component.html',
+    styleUrls: ['./routes.component.scss'],
+    standalone: false
 })
 export class RoutesComponent implements OnInit {
 

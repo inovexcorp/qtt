@@ -6,10 +6,11 @@ import {Datasources} from '../../core/models/datasources';
 import {DatasourceService} from "../../core/services/datasource.service";
 
 @Component({
-  selector: 'app-add-datasource',
-  templateUrl: './add-datasource.component.html',
-  styleUrls: ['./add-datasource.component.scss'],
-  encapsulation: ViewEncapsulation.None
+    selector: 'app-add-datasource',
+    templateUrl: './add-datasource.component.html',
+    styleUrls: ['./add-datasource.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    standalone: false
 })
 export class AddDatasourceComponent implements OnInit {
 

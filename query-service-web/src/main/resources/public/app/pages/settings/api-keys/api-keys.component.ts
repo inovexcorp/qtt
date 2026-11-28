@@ -9,9 +9,10 @@ import { saveErrorMessage } from '../../../core/services/template-validation.ser
  * API keys for the query routes (admin only): list, create (the key is shown once, with a copy button) and revoke.
  */
 @Component({
-  selector: 'app-api-keys',
-  templateUrl: './api-keys.component.html',
-  styleUrls: ['./api-keys.component.scss']
+    selector: 'app-api-keys',
+    templateUrl: './api-keys.component.html',
+    styleUrls: ['./api-keys.component.scss'],
+    standalone: false
 })
 export class ApiKeysComponent implements OnInit {
 

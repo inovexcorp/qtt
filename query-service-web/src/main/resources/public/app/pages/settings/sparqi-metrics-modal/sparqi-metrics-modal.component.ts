@@ -5,9 +5,10 @@ import { SparqiMetricRecord } from '../../../core/models/sparqi.models';
 import { ScaleType } from '@swimlane/ngx-charts';
 
 @Component({
-  selector: 'app-sparqi-metrics-modal',
-  templateUrl: './sparqi-metrics-modal.component.html',
-  styleUrls: ['./sparqi-metrics-modal.component.scss']
+    selector: 'app-sparqi-metrics-modal',
+    templateUrl: './sparqi-metrics-modal.component.html',
+    styleUrls: ['./sparqi-metrics-modal.component.scss'],
+    standalone: false
 })
 export class SparqiMetricsModalComponent implements OnInit {
 

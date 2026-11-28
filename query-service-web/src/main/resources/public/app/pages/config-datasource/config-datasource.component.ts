@@ -14,10 +14,11 @@ import {MatPaginator} from '@angular/material/paginator';
 import {MatSort} from '@angular/material/sort';
 
 @Component({
-  selector: 'app-config-datasource',
-  templateUrl: './config-datasource.component.html',
-  styleUrls: ['./config-datasource.component.scss'],
-  encapsulation: ViewEncapsulation.None
+    selector: 'app-config-datasource',
+    templateUrl: './config-datasource.component.html',
+    styleUrls: ['./config-datasource.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    standalone: false
 })
 export class ConfigDatasourceComponent implements OnInit, AfterViewInit {
   /** Who created and last changed this datasource. */

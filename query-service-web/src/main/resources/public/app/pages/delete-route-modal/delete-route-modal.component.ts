@@ -5,10 +5,11 @@ import { Router } from '@angular/router';
 
 
 @Component({
-  selector: 'app-delete-route-modal',
-  templateUrl: './delete-route-modal.component.html',
-  styleUrls: ['./delete-route-modal.component.scss'],
-  encapsulation: ViewEncapsulation.None
+    selector: 'app-delete-route-modal',
+    templateUrl: './delete-route-modal.component.html',
+    styleUrls: ['./delete-route-modal.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    standalone: false
 })
 export class DeleteRouteModalComponent implements OnInit {
 

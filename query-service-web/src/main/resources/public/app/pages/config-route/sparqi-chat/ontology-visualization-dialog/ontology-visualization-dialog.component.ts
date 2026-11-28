@@ -21,9 +21,10 @@ interface ElementStatistics {
 }
 
 @Component({
-  selector: 'app-ontology-visualization-dialog',
-  templateUrl: './ontology-visualization-dialog.component.html',
-  styleUrls: ['./ontology-visualization-dialog.component.scss']
+    selector: 'app-ontology-visualization-dialog',
+    templateUrl: './ontology-visualization-dialog.component.html',
+    styleUrls: ['./ontology-visualization-dialog.component.scss'],
+    standalone: false
 })
 export class OntologyVisualizationDialogComponent implements OnInit {
   routeId: string;

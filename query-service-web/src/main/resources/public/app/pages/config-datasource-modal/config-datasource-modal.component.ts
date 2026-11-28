@@ -6,10 +6,11 @@ import { DatasourceService } from '../../core/services/datasource.service';
 
 
 @Component({
-  selector: 'app-config-datasource-modal',
-  templateUrl: './config-datasource-modal.component.html',
-  styleUrls: ['./config-datasource-modal.component.scss'],
-  encapsulation: ViewEncapsulation.None
+    selector: 'app-config-datasource-modal',
+    templateUrl: './config-datasource-modal.component.html',
+    styleUrls: ['./config-datasource-modal.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    standalone: false
 })
 export class ConfigDatasourceModalComponent {
 

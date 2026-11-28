@@ -29,21 +29,22 @@ import { CacheInfo } from '../../core/models/cache-info';
 
 
 @Component({
-  selector: 'app-add-route',
-  templateUrl: './add-route.component.html',
-  styleUrls: ['./add-route.component.scss'],
-  encapsulation: ViewEncapsulation.None,
-  animations: [
-    trigger('slideDown', [
-      transition(':enter', [
-        style({ height: 0, opacity: 0, overflow: 'hidden' }),
-        animate('300ms ease-out', style({ height: '*', opacity: 1 }))
-      ]),
-      transition(':leave', [
-        animate('300ms ease-in', style({ height: 0, opacity: 0, overflow: 'hidden' }))
-      ])
-    ])
-  ]
+    selector: 'app-add-route',
+    templateUrl: './add-route.component.html',
+    styleUrls: ['./add-route.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    animations: [
+        trigger('slideDown', [
+            transition(':enter', [
+                style({ height: 0, opacity: 0, overflow: 'hidden' }),
+                animate('300ms ease-out', style({ height: '*', opacity: 1 }))
+            ]),
+            transition(':leave', [
+                animate('300ms ease-in', style({ height: 0, opacity: 0, overflow: 'hidden' }))
+            ])
+        ])
+    ],
+    standalone: false
 })
 export class AddRouteComponent implements OnInit, OnDestroy {
 

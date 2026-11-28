@@ -37,9 +37,8 @@ const SPARQI_REPLY = [
 ].join('\n');
 
 @Component({
-  standalone: true,
-  imports: [MarkdownComponent],
-  template: `<markdown [data]="text" class="markdown-content"></markdown>`
+    imports: [MarkdownComponent],
+    template: `<markdown [data]="text" class="markdown-content"></markdown>`
 })
 class MarkdownHost {
   text = SPARQI_REPLY;
@@ -95,9 +94,8 @@ const PURPLE: Color = {
 };
 
 @Component({
-  standalone: true,
-  imports: [NgxChartsModule],
-  template: `
+    imports: [NgxChartsModule],
+    template: `
     <ngx-charts-number-card id="cards" [results]="cards" [scheme]="scheme" [view]="[850,180]" cardColor="#4a148c">
     </ngx-charts-number-card>
     <ngx-charts-linear-gauge id="gauge" [value]="75" units="Average Success Rate" [view]="[350,150]">
@@ -161,16 +159,17 @@ describe('ngx-charts rendering (Metrics)', () => {
   });
 });
 
-@Component({ standalone: true, selector: 'test-section', template: '<router-outlet></router-outlet>', imports: [RouterOutlet] })
+@Component({
+    selector: 'test-section', template: '<router-outlet></router-outlet>', imports: [RouterOutlet]
+})
 class Section {}
 
 @Component({ standalone: true, selector: 'test-page', template: 'page' })
 class Page {}
 
 @Component({
-  standalone: true,
-  imports: [BreadcrumbComponent, RouterOutlet],
-  template: `<xng-breadcrumb separator="/"></xng-breadcrumb><router-outlet></router-outlet>`
+    imports: [BreadcrumbComponent, RouterOutlet],
+    template: `<xng-breadcrumb separator="/"></xng-breadcrumb><router-outlet></router-outlet>`
 })
 class BreadcrumbHost {}
 

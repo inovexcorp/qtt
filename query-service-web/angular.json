@@ -90,7 +90,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "query-service-ui:build"
+            "buildTarget": "query-service-ui:build"
           }
         },
         "test": {

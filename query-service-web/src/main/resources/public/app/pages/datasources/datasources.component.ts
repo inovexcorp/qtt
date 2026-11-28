@@ -9,9 +9,10 @@ import { filter } from 'rxjs';
 
 
 @Component({
-  selector: 'app-datasources',
-  templateUrl: './datasources.component.html',
-  styleUrls: ['./datasources.component.scss']
+    selector: 'app-datasources',
+    templateUrl: './datasources.component.html',
+    styleUrls: ['./datasources.component.scss'],
+    standalone: false
 })
 export class DatasourcesComponent implements OnInit {
 

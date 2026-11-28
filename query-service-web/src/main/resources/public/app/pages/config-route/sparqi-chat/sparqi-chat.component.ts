@@ -5,9 +5,10 @@ import { MatDialog } from '@angular/material/dialog';
 import { OntologyVisualizationDialogComponent } from './ontology-visualization-dialog/ontology-visualization-dialog.component';
 
 @Component({
-  selector: 'app-sparqi-chat',
-  templateUrl: './sparqi-chat.component.html',
-  styleUrls: ['./sparqi-chat.component.scss']
+    selector: 'app-sparqi-chat',
+    templateUrl: './sparqi-chat.component.html',
+    styleUrls: ['./sparqi-chat.component.scss'],
+    standalone: false
 })
 export class SparqiChatComponent implements OnInit, OnChanges, AfterViewChecked {
   @Input() routeId!: string;

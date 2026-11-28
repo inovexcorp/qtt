@@ -5,8 +5,8 @@ import { curlExample, endpointUrl } from '../query-endpoint';
 
 /** A route's endpoint URL and a curl command to call it, each with a copy button. */
 @Component({
-  selector: 'app-endpoint-panel',
-  template: `
+    selector: 'app-endpoint-panel',
+    template: `
     <div class="endpoint-panel">
       <h3>Endpoint</h3>
       <div class="endpoint-row">
@@ -24,12 +24,13 @@ import { curlExample, endpointUrl } from '../query-endpoint';
         Set <code>QTT_TOKEN</code> to an OIDC access token that carries <code>qtt-query</code>, or to a QTT API key (Settings › Query Access).
       </p>
     </div>`,
-  styles: [`
+    styles: [`
     .endpoint-panel { margin: 8px 0 16px; }
     .endpoint-row { display: flex; align-items: center; gap: 8px; }
     .endpoint-row code { flex: 1; overflow-x: auto; white-space: nowrap; padding: 6px 8px; background: rgba(0,0,0,0.05); border-radius: 4px; font-size: 13px; }
     .endpoint-hint { font-size: 12px; color: rgba(0,0,0,0.6); margin: 4px 0 0 32px; }
-  `]
+  `],
+    standalone: false
 })
 export class EndpointPanelComponent {
   @Input() baseUrl: string | null | undefined;

@@ -5,10 +5,11 @@ import { IfRoleDirective } from './if-role.directive';
 import { AuthService } from '../core/services/auth.service';
 
 @Component({
-  template: `
+    template: `
     <span id="viewer" *qttIfRole="'viewer'">v</span>
     <span id="editor" *qttIfRole="'editor'">e</span>
-    <span id="admin" *qttIfRole="'admin'">a</span>`
+    <span id="admin" *qttIfRole="'admin'">a</span>`,
+    standalone: false
 })
 class HostComponent {
 }

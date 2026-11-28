@@ -6,10 +6,11 @@ import { DatasourceService } from '../../core/services/datasource.service';
 
 
 @Component({
-  selector: 'app-confirm-dialog',
-  templateUrl: './delete-datasource-modal.component.html',
-  styleUrls: ['./delete-datasource-modal.component.scss'],
-  encapsulation: ViewEncapsulation.None
+    selector: 'app-confirm-dialog',
+    templateUrl: './delete-datasource-modal.component.html',
+    styleUrls: ['./delete-datasource-modal.component.scss'],
+    encapsulation: ViewEncapsulation.None,
+    standalone: false
 })
 export class DeleteDatasourceModalComponent implements OnInit {
  

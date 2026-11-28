@@ -8,8 +8,8 @@ import { effectiveAccess } from '../query-endpoint';
  * caller must also hold. Binds to the parent form's "accessPolicy" and "requiredRoles" controls.
  */
 @Component({
-  selector: 'app-route-access',
-  template: `
+    selector: 'app-route-access',
+    template: `
     <div class="route-access" [formGroup]="group">
       <h3>Access</h3>
       <mat-form-field appearance="outline" class="access-select">
@@ -30,12 +30,13 @@ import { effectiveAccess } from '../query-endpoint';
         <mat-icon>warning_amber</mat-icon> Anyone who can reach this server can run this query.
       </p>
     </div>`,
-  styles: [`
+    styles: [`
     .route-access { margin: 8px 0 16px; }
     .access-select, .roles-input { width: 100%; max-width: 640px; display: block; }
     .access-note { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8a6d00; margin: 0; }
     .access-note mat-icon { font-size: 18px; width: 18px; height: 18px; }
-  `]
+  `],
+    standalone: false
 })
 export class RouteAccessComponent implements OnInit {
   @Input() group!: FormGroup;
