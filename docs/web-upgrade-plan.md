@@ -8,7 +8,7 @@ Where execution differed from this plan:
 - **Monaco:** the ESM build is the one kept, with an in-house `app-code-editor` (decision updated during Phase 0; the plan below reflects it). Phases 2–3 carry a known regression in the test-body JSON editor (Monaco 0.52's AMD JSON worker); Monaco 0.55 fixed it in Phase 4, and Phase 6a removed the AMD build.
 - **Control flow:** Angular 21's `ng update` made the `@if`/`@for` migration mandatory, so it happened in Phase 4 rather than Phase 8.
 - **Monaco version:** 0.58 (not 0.56), once `ngx-monaco-editor-v2`, which pinned 0.56, was gone; 0.56's bundled DOMPurify had advisories.
-- **`@angular/animations`:** the app's own use is gone, but the package stays because ngx-charts 25 requires it. Revisit before Angular 23.
+- **`@angular/animations`:** the app's own use is gone, but the package stays because ngx-charts 25 requires it. **Decided 2026-11-28:** replace ngx-charts during the redesign: Chart.js 4 through ng2-charts 11 for the line, bar (stacked, grouped) and pie charts, with colors read from the theme's `--mat-sys-*` variables, and plain Angular components for the number cards and the gauge. Then remove `@angular/animations` and `provideAnimationsAsync()`, and rewrite the chart specs in `third-party-integration.spec.ts` and the Metrics checks in `ui_check.mjs`. This clears the way for Angular 23.
 - **Lazy loading:** added in Phase 8 (not in the draft): the route editor page and the add-route dialog load Monaco on demand, so the initial bundle went from 5.6 MB to 1.6 MB.
 - **Skipped optional items:** the `inject()`/signal-input migrations and angular-eslint (Phase 8, step 6–7).
 
