@@ -1,75 +1,165 @@
-@if (router.isActive('/datasources', true)) {
-  <div class="container-fluid">
-    <!-- Global Health Checks Disabled Banner -->
-    @if (!healthCheckEnabled) {
-      <div class="global-health-disabled-banner">
-        <mat-icon>warning</mat-icon>
-        <div class="banner-content">
-          <strong>Automated health checks are disabled.</strong>
-          <span>Datasource health statuses are not being monitored automatically.</span>
-        </div>
+@if (listActive()) {
+  <div class="qtt-page ds-list" [class.is-ready]="ready()">
+    <header class="qtt-page-header">
+      <div class="qtt-page-header__heading">
+        <h1 class="qtt-page-header__title">Datasources</h1>
+        <p class="qtt-page-header__subtitle">The Graph Studio servers your routes query, with their health as it is checked.</p>
+      </div>
+      <div class="qtt-page-header__actions">
+        <qtt-live-indicator [status]="live.status()" [text]="liveText()" [announcement]="liveAnnouncement()"
+          [landed]="live.updatedAt()" (togglePause)="togglePause()" (refresh)="live.refresh()"></qtt-live-indicator>
+        <a *qttIfRole="'admin'" mat-flat-button [routerLink]="['add-datasource']">
+          <mat-icon>add</mat-icon>
+          Add datasource
+        </a>
+      </div>
+    </header>
+
+    @if (live.failed()) {
+      <div class="qtt-banner qtt-banner--error" role="alert">
+        <mat-icon class="qtt-banner__icon">error_outline</mat-icon>
+        <p class="qtt-banner__text">
+          <strong>Couldn't load datasources.</strong>
+          Check that the service is reachable; the page keeps trying.
+        </p>
+        <button mat-stroked-button (click)="live.refresh()">Retry now</button>
       </div>
     }
-    <mat-toolbar class="datasource-toolbar">
-      <h2>QtT DataSources</h2>
-      <span class="flexExpand"></span>
-      <button *qttIfRole="'admin'" mat-raised-button color="primary" class="add-button" [routerLink]="['add-datasource']">Add
-      DataSource</button>
-    </mat-toolbar>
-    @for (datasource of datasources; track datasource) {
-      <mat-card appearance="outlined" class="example-card">
-        <mat-card-header class="card-header">
-          <mat-card-title>{{datasource.dataSourceId}}</mat-card-title>
-          <mat-card-subtitle class="card-subtitle">
-            <mat-icon class="ds-icon" svgIcon="anzo-logo"></mat-icon>GraphStudio
-          </mat-card-subtitle>
-          <span class="status-badge"
-            [class]="getStatusClass(datasource.status)"
-            [matTooltip]="getStatusTooltip(datasource)"
-            matTooltipPosition="right">
-            <mat-icon>{{getStatusIcon(datasource.status)}}</mat-icon>
-          </span>
-          <button mat-icon-button class="datasource-menu-icon"
-            [routerLink]="['config-datasource', datasource.dataSourceId]">
-            <mat-icon>menu</mat-icon>
-          </button>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="ds-info-row">
-            <strong>URL:</strong>
-            <a target="_blank" class="ds-url" href="{{datasource.url}}">{{datasource.url}}</a>
+
+    @if (!live.healthCheckEnabled()) {
+      <div class="qtt-banner qtt-banner--warn" role="status">
+        <mat-icon class="qtt-banner__icon">pause_circle</mat-icon>
+        <p class="qtt-banner__text">
+          <strong>Automated health checks are off.</strong>
+          Statuses stay as last checked; run a check from a datasource's page.
+        </p>
+      </div>
+    }
+
+    <!-- Every datasource at a glance: one sentence, the split by status, and filters. -->
+    @if (segments(); as segs) {
+      @if (live.datasources()!.length) {
+        <section class="qtt-card ds-fleet" aria-labelledby="fleet-title">
+          <div class="ds-fleet__head">
+            @for (text of [headline()]; track text) {
+              <h2 id="fleet-title" class="ds-fleet__headline" animate.enter="ds-swap-in">{{ text }}</h2>
+            }
+            <mat-form-field class="qtt-search" appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Find a datasource</mat-label>
+              <input matInput [value]="term()" (input)="term.set($any($event.target).value)">
+              <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
           </div>
-          <div class="ds-info-row">
-            <strong>Timeout:</strong>
-            <span>{{datasource.timeOutSeconds}}s</span>
+
+          <div class="ds-fleet__bar" aria-hidden="true">
+            @for (seg of segs; track seg.key) {
+              <span class="ds-fleet__seg" [attr.data-group]="seg.key" [class.is-empty]="seg.count === 0"
+                [style.flex-grow]="seg.count"></span>
+            }
           </div>
-          <div class="ds-info-row">
-            <strong>Max Query Header Length:</strong>
-            <span>{{datasource.maxQueryHeaderLength}}</span>
-          </div>
-          @if (datasource.lastHealthCheck) {
-            <div class="ds-info-row">
-              <strong>Last Health Check:</strong>
-              <span>{{datasource.lastHealthCheck | date:'short'}}</span>
-            </div>
+
+          <mat-button-toggle-group class="qtt-toggle ds-fleet__filter" [value]="group()" (change)="group.set($event.value)"
+            aria-label="Show datasources by status" hideSingleSelectionIndicator>
+            <mat-button-toggle value="all">All <span class="ds-count">{{ live.datasources()!.length }}</span></mat-button-toggle>
+            @for (seg of segs; track seg.key) {
+              <mat-button-toggle [value]="seg.key" [disabled]="seg.count === 0 && group() !== seg.key">
+                <span class="ds-key" [attr.data-group]="seg.key" aria-hidden="true"></span>{{ seg.label }}
+                <span class="ds-count">{{ seg.count }}</span>
+              </mat-button-toggle>
+            }
+          </mat-button-toggle-group>
+        </section>
+      }
+    }
+
+    <!-- The datasources -->
+    @if (live.datasources() === null) {
+      @if (!live.failed()) {
+        <ul class="ds-grid" aria-label="Loading datasources">
+          @for (i of skeletons; track i) {
+            <li class="ds-card ds-card--skeleton" aria-hidden="true">
+              <span class="ds-skel ds-skel--title qtt-shimmer"></span>
+              <span class="ds-skel ds-skel--line qtt-shimmer"></span>
+              <span class="ds-skel ds-skel--strip qtt-shimmer"></span>
+              <span class="ds-skel ds-skel--meta qtt-shimmer"></span>
+            </li>
           }
-          <mat-divider></mat-divider>
-          @if (datasource.consecutiveFailures && datasource.consecutiveFailures > 0) {
-            <div class="health-warning">
-              <mat-icon>warning</mat-icon>
-              <span>{{datasource.consecutiveFailures}} consecutive health check failure{{datasource.consecutiveFailures > 1 ? 's' : ''}}</span>
+        </ul>
+      }
+    } @else if (live.datasources()!.length === 0) {
+      <div class="qtt-card">
+        <div class="qtt-empty" role="status">
+          <mat-icon class="qtt-empty__icon">dns</mat-icon>
+          <p class="qtt-empty__title">No datasources yet</p>
+          <p class="qtt-empty__detail">A datasource connects QTT to a Graph Studio server. Add one, then build routes that query it.</p>
+          <a *qttIfRole="'admin'" mat-stroked-button [routerLink]="['add-datasource']">
+            <mat-icon>add</mat-icon>
+            Add datasource
+          </a>
+        </div>
+      </div>
+    } @else {
+      <ul class="ds-grid ds-grid--loaded">
+        @for (ds of visible(); track ds.dataSourceId) {
+          <li class="ds-card" [attr.data-tone]="tone(ds)" animate.enter="ds-card-in" animate.leave="ds-card-out">
+            <div class="ds-card__head">
+              <h3 class="ds-card__title">
+                <a class="ds-card__link" [routerLink]="['config-datasource', ds.dataSourceId]">{{ ds.dataSourceId }}</a>
+              </h3>
+              <qtt-health-pill [status]="ds.status"></qtt-health-pill>
             </div>
-          }
-          @if (datasource.status === 'DOWN' && datasource.lastHealthError) {
-            <div class="health-error">
-              <mat-icon>error_outline</mat-icon>
-              <span>{{datasource.lastHealthError}}</span>
+            <a class="ds-card__url" [href]="ds.url" target="_blank" rel="noopener" [matTooltip]="ds.url"
+              [attr.aria-label]="'Open ' + ds.url + ' in a new tab'">
+              <span class="ds-card__host">{{ host(ds) }}</span>
+              <mat-icon class="ds-card__url-icon" aria-hidden="true">open_in_new</mat-icon>
+            </a>
+
+            <div class="ds-card__checks">
+              <qtt-check-history [checks]="ds.recentChecks" [dimmed]="ds.status === 'DISABLED'"></qtt-check-history>
+              <div class="ds-card__checks-meta">
+                <span>{{ ds.recentChecks.length ? 'Last ' + ds.recentChecks.length + ' checks' : 'No checks yet' }}</span>
+                @if (average(ds); as avg) {
+                  <span><span [qttTweenNumber]="avg" [format]="formatMs"></span> ms average</span>
+                }
+              </div>
             </div>
-          }
-        </mat-card-content>
-        <mat-card-footer>
-        </mat-card-footer>
-      </mat-card>
+
+            @if (ds.status === 'DOWN' && ds.lastHealthError) {
+              <p class="ds-card__error" animate.enter="ds-swap-in" animate.leave="ds-collapse">
+                <mat-icon class="ds-card__error-icon" aria-hidden="true">error_outline</mat-icon>
+                <span class="ds-card__error-text" [matTooltip]="ds.lastHealthError">{{ ds.lastHealthError }}</span>
+              </p>
+            }
+
+            <p class="ds-card__meta">
+              @switch (ds.status) {
+                @case ('DISABLED') { <span>Disabled · health checks don't run</span> }
+                @case ('UNKNOWN') { <span>Waiting for its first check</span> }
+                @case ('CHECKING') { <span>Checking now…</span> }
+                @default {
+                  @if (checked(ds)) { <span>Checked {{ checked(ds) }}</span> }
+                }
+              }
+              <span>{{ ds.routeCount }} {{ ds.routeCount === 1 ? 'route' : 'routes' }}</span>
+              @if (ds.consecutiveFailures > 1 && ds.status === 'DOWN') {
+                <span class="ds-card__failures" animate.leave="ds-fade-out">{{ ds.consecutiveFailures }} failed checks in a row</span>
+              }
+            </p>
+          </li>
+        } @empty {
+          <li class="ds-none">
+            <div class="qtt-empty" role="status">
+              <mat-icon class="qtt-empty__icon">filter_alt_off</mat-icon>
+              <p class="qtt-empty__title">No datasources match</p>
+              <p class="qtt-empty__detail">
+                @if (term()) { Nothing matches “{{ term() }}”@if (group() !== 'all') { with this status}. }
+                @else { None has this status right now. }
+              </p>
+              <button mat-stroked-button (click)="clearFilters()">Show all datasources</button>
+            </div>
+          </li>
+        }
+      </ul>
     }
   </div>
 }

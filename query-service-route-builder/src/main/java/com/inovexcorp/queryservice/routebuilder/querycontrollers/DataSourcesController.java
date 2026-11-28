@@ -21,6 +21,8 @@ import com.inovexcorp.queryservice.persistence.RouteService;
 import com.inovexcorp.queryservice.routebuilder.CamelKarafComponent;
 import com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates;
 import com.inovexcorp.queryservice.health.HealthCheckConfigService;
+import com.inovexcorp.queryservice.routebuilder.events.DatasourcesChanged;
+import jakarta.enterprise.event.Event;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 
@@ -93,6 +95,10 @@ public class DataSourcesController {
     @Inject
     HealthCheckConfigService healthCheckConfigService;
 
+    /** Tells live views (the datasources event topic) to rescan now. */
+    @Inject
+    Event<DatasourcesChanged> datasourcesChanged;
+
 
 
     /**
@@ -135,6 +141,7 @@ public class DataSourcesController {
         } else {
             dataSourceService.add(datasource);
         }
+        notifyChanged(dataSourceId);
         res = "{\"uri\": \"" + datasource.getUrl() + "\"}";
         return Response.status(Response.Status.CREATED).entity(res).type(MediaType.APPLICATION_JSON)
                 .header("Location", "/datasources/" + dataSourceId).build();
@@ -157,6 +164,7 @@ public class DataSourcesController {
                     .build();
         }
         dataSourceService.delete(dataSourceId);
+        notifyChanged(dataSourceId);
         return Response.status(Response.Status.NO_CONTENT).build();
 
     }
@@ -197,6 +205,7 @@ public class DataSourcesController {
         // A blank password keeps the stored one.
         dataSourceService.update(datasource);
         reinstantiateRoutes(dataSourceId);
+        notifyChanged(dataSourceId);
 
         return Response.status(Response.Status.OK).entity(dataSourceService.getDataSource(dataSourceId))
                 .type(MediaType.APPLICATION_JSON).build();
@@ -324,6 +333,7 @@ public class DataSourcesController {
 
         try {
             healthChecker.checkDatasourceHealth(dataSourceId);
+            notifyChanged(dataSourceId);
             Datasources datasource = dataSourceService.getDataSource(dataSourceId);
             Map<String, Object> response = new HashMap<>();
             response.put("dataSourceId", dataSourceId);
@@ -439,6 +449,7 @@ public class DataSourcesController {
         try {
             dataSourceService.updateDatasourceStatus(dataSourceId, DatasourceStatus.DISABLED, null);
             log.info("Datasource {} has been disabled", dataSourceId);
+            notifyChanged(dataSourceId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("dataSourceId", dataSourceId);
@@ -478,6 +489,7 @@ public class DataSourcesController {
             // Set status to UNKNOWN so the next health check will evaluate it
             dataSourceService.updateDatasourceStatus(dataSourceId, DatasourceStatus.UNKNOWN, null);
             log.info("Datasource {} has been enabled", dataSourceId);
+            notifyChanged(dataSourceId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("dataSourceId", dataSourceId);
@@ -491,6 +503,13 @@ public class DataSourcesController {
                     .entity(Map.of("error", "Failed to enable datasource: " + e.getMessage()))
                     .type(MediaType.APPLICATION_JSON)
                     .build();
+        }
+    }
+
+    /** Fires {@link DatasourcesChanged} asynchronously, so live views update without delaying this response. */
+    private void notifyChanged(String dataSourceId) {
+        if (datasourcesChanged != null) {
+            datasourcesChanged.fireAsync(new DatasourcesChanged(dataSourceId));
         }
     }
 

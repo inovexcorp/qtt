@@ -329,9 +329,8 @@ Sign-in problems are logged by `io.quarkus.oidc`; raise it to see details:
 **Solutions:**
 
 1. **Check metrics trends:**
-    - Navigate to Metrics → Trends tab
-    - Select "Mean Processing Time"
-    - Identify when degradation started
+    - Open the Metrics page and switch the per-minute trend to **Avg time**
+    - Identify when degradation started (the trend covers the last 30 minutes)
 
 2. **Review query complexity:**
     - Check if template was recently modified

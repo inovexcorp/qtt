@@ -1,273 +1,209 @@
-import { Component, ViewChild, ViewEncapsulation, ChangeDetectionStrategy } from '@angular/core';
-import { MetricsService } from '../../core/services/metrics.service';
-import { RouteMetric, RouteMetricsResponse } from '../../core/models/metric-data';
-import { DatasourceService } from '../../core/services/datasource.service';
-import { Datasources } from '../../core/models/datasources';
-import { Observable } from 'rxjs/internal/Observable';
-import { FormGroup, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { map, startWith } from 'rxjs/operators';
-import { MatSelectChange, MatOption, MatSelect } from '@angular/material/select';
-import { MatTableDataSource, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow } from '@angular/material/table';
-import { MetricTableData } from '../../core/models/metric-table-data';
-import { MatPaginator } from '@angular/material/paginator';
-import { LineGraph } from '../../core/models/persisted-interfaces/line-graph';
-import { LineGraphObject } from '../../core/models/persisted-interfaces/line-graph-object';
-import { ScaleType, NumberCardModule, GaugeModule, BarChartModule, LineChartModule } from '@swimlane/ngx-charts';
-import { MatTabGroup, MatTab } from '@angular/material/tabs';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, untracked, viewChild,
+  ViewEncapsulation } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { catchError, interval, map, of } from 'rxjs';
 import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatOption, MatSelect } from '@angular/material/select';
 import { MatInput } from '@angular/material/input';
-import { MatAutocompleteTrigger, MatAutocomplete } from '@angular/material/autocomplete';
 import { MatIcon } from '@angular/material/icon';
-import { AsyncPipe } from '@angular/common';
+import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatTooltip } from '@angular/material/tooltip';
+import { MatCell, MatCellDef, MatColumnDef, MatHeaderCell, MatHeaderCellDef, MatHeaderRow, MatHeaderRowDef, MatNoDataRow,
+  MatRow, MatRowDef, MatTable, MatTableDataSource } from '@angular/material/table';
+import { MatSort, MatSortHeader } from '@angular/material/sort';
+import { MatPaginator } from '@angular/material/paginator';
+import { DecimalPipe } from '@angular/common';
+import { RouteMetric } from '../../core/models/metric-data';
+import { DatasourceService } from '../../core/services/datasource.service';
+import { MetricsLiveService } from '../../core/services/metrics-live.service';
+import { inScope, RouteRow, summarize, toRow } from './metrics-derive';
+import { prefersReducedMotion } from './chart-theme';
+import { MetricsStatusComponent } from './metrics-status.component';
+import { TrendCardComponent } from './trend-card.component';
+import { ExchangesCardComponent } from './exchanges-card.component';
+import { LatencyCardComponent } from './latency-card.component';
+import { TweenNumberDirective } from '../../shared/tween-number.directive';
 
 
-
-
-
-
+/**
+ * The metrics dashboard: summary tiles, a per-minute trend, exchanges and processing time by route, and the routes
+ * table, all scoped by one filter row (datasource, routes) and kept live by {@link MetricsLiveService}.
+ */
 @Component({
-    selector: 'app-metrics',
-    templateUrl: './metrics.component.html',
-    styleUrls: ['./metrics.component.scss'],
-    encapsulation: ViewEncapsulation.None,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    imports: [NumberCardModule, GaugeModule, MatTabGroup, MatTab, FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatAutocompleteTrigger, MatAutocomplete, MatOption, MatSelect, BarChartModule, LineChartModule, MatIcon, MatSuffix, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef, MatHeaderRow, MatRowDef, MatRow, MatPaginator, AsyncPipe]
+  selector: 'app-metrics',
+  templateUrl: './metrics.component.html',
+  styleUrls: ['./metrics.component.scss'],
+  encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [MetricsLiveService],
+  imports: [MatFormField, MatLabel, MatSuffix, MatSelect, MatOption, MatInput, MatIcon, MatButton, MatIconButton,
+    MatTooltip, MatTable, MatColumnDef, MatHeaderCellDef, MatHeaderCell, MatCellDef, MatCell, MatHeaderRowDef,
+    MatHeaderRow, MatRowDef, MatRow, MatNoDataRow, MatSort, MatSortHeader, MatPaginator, DecimalPipe,
+    MetricsStatusComponent, TrendCardComponent, ExchangesCardComponent, LatencyCardComponent, TweenNumberDirective],
 })
 export class MetricsComponent {
+  protected readonly live = inject(MetricsLiveService);
 
-  constructor(private metricsService: MetricsService, private datasourceService: DatasourceService) {
-  }
-  persistedMetric: string = 'totalExchanges'
-  persistedData : LineGraphObject[]=[];
-  exchangeData: any[] = [];
-  latencyData: any[]=[];
-  latencyDisplay: any[]=[];
-  exchangeDisplay: any[] = [];
-  cardMetrics: any[] = [];
-  datasources: Datasources[] = [];
-  filteredDatasources!: Observable<Datasources[]> | undefined;
-  cardColor = '#4a148c';
-  units: string = 'Average Success Rate'
-  gaugeMetric: number = 0;
+  protected readonly datasources = toSignal(
+    inject(DatasourceService).getDatasources().pipe(catchError(() => of([]))), { initialValue: [] });
+  protected readonly datasource = signal('');
+  protected readonly selectedRoutes = signal<string[]>([]);
 
-  // Custom purple color scheme matching the app's purple motif
-  purpleColorScheme = {
-    name: 'purple',
-    selectable: true,
-    group: ScaleType.Ordinal,
-    domain: ['#4a148c', '#6a1b9a', '#7b1fa2', '#8e24aa', '#9c27b0', '#ab47bc', '#ba68c8', '#ce93d8']
-  };
-  dataSource = new MatTableDataSource<MetricTableData>;
-  displayedColumns: string[] = ['Name','Processing Time','Successful Exchanges','Failed Exchanges','State','Uptime'];
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  /** Route names in the current datasource scope, for the route filter. */
+  protected readonly routeNames = computed(() => (this.live.routes() ?? []).map(r => r.route).sort());
 
+  /** Routes after both filters; null until loaded. */
+  protected readonly scoped = computed<RouteMetric[] | null>(() => {
+    const routes = this.live.routes();
+    return routes ? inScope(routes, this.selectedRoutes()) : null;
+  });
 
-
-
-  metrics = new FormGroup({
-    exchangeDatasourceId: new FormControl(''),
-    latencyDatasourceId: new FormControl(''),
-    routeId: new FormControl('')
-  })
-  get exchangeDatasourceId() { return this.metrics.get('datasourceId') };
-  get routeId() { return this.metrics.get('routeId') };
-  get latencyDatasourceId() { return this.metrics.get('datasourceId') };
-
-
-
-  ngOnInit(): void {
-    this.fetchRouteMetrics();
-    this.getDatasources();
-    this.getPersistedMetrics("totalProcessingTime");
-  }
-
-  getPersistedMetrics(property: keyof RouteMetric): void {
-    this.persistedData=[];
-
-    this.metricsService.getPersistedMetrics().subscribe({
-      next: (response: RouteMetricsResponse) => {
-        const mapping : {[routeId: string]: LineGraph[]} = {};
-        for (const entry of response.metrics) {
-          const {route, timeStamp} = entry;
-          const value = entry[property];
-          if (!mapping[route]){
-            mapping[route]=[];
-          }
-          mapping[route].push({ value: value, name: timeStamp.substring(11,16)})
-        }
-        this.persistedData = Object.entries(mapping).map(([name, series])=> ({name,series}));
-        this.persistedData.forEach((entry: any) => {
-          entry.series.sort(this.sortByTimestamp);
-        });
-      }
-    })
-  }
-
-  fetchRouteMetrics(): void {
-    this.metricsService.getRouteMetrics().subscribe({
-      next: (response: RouteMetricsResponse) => {
-        this.populateBarCharts(response)
-        this.generateCustomMetrics(response)
-        this.populateTableData(response);
-      },
-      error: (error: any) => {
-        console.error('Failed to fetch route metrics:', error);
-      }
-    });
-  }
-
-  fetchDatasourceSpecificMetrics(datasource: any): void {
-    if (!datasource) {
-      this.fetchRouteMetrics();
-    } else {
-
-      this.metricsService.getDatasourceRouteMetrics(datasource).subscribe({
-        next: (response: RouteMetricsResponse) => {
-          this.populateBarCharts(response)
-        },
-        error: (error: any) => {
-          console.error('Failed to fetch route metrics:', error);
-        }
-
-      })
+  /** The history is for all routes; narrow it to the routes in scope (null = no narrowing). */
+  protected readonly historyScope = computed<string[] | null>(() => {
+    if (this.selectedRoutes().length > 0) {
+      return this.selectedRoutes();
     }
-  }
+    return this.datasource() && this.live.routes() ? this.routeNames() : null;
+  });
 
-  getDatasources(): void {
-    this.datasourceService.getDatasources()
-      .subscribe(datasources => {
-        this.datasources = datasources;
-        this.filteredDatasources = this.metrics.get('exchangeDatasourceId')?.valueChanges.pipe(
-          startWith(''),
-          map(value => this.filterDatasources(value || '')),
-        )
-      });
-  }
+  protected readonly summary = computed(() => {
+    const routes = this.scoped();
+    return routes ? summarize(routes) : null;
+  });
 
-  populateBarCharts(response: RouteMetricsResponse): void {
-    this.exchangeData = response.metrics.map((metric: RouteMetric) => ({
-      name: metric.route,
-      series: [
-        { name: 'Failed Exchanges', value: metric.exchangesFailed },
-        { name: 'Successful Exchanges', value: metric.exchangesCompleted },
-      ]
-    }));
-    this.latencyData = response.metrics.map((metric: RouteMetric) => ({
-      name: metric.route,
-      series: [
-        { name: 'Max Processing Time', value: metric.maxProcessingTime },
-        { name: 'Avg Processing Time', value: metric.meanProcessingTime },
-        { name: 'Min Processing Time', value: metric.minProcessingTime }
-      ]
-    })).sort((a, b) => b.series[0].value - a.series[0].value);
-    this.exchangeDisplay = this.exchangeData;
-    this.latencyDisplay=this.latencyData;
-  }
+  protected readonly stopped = computed(() => (this.scoped() ?? []).filter(r => r.state !== 'Started').length);
 
-  populateTableData(response: RouteMetricsResponse): void {
-    let tableData = response.metrics.map((value: RouteMetric)=>{
-      return <MetricTableData>{
-        name: value.route,
-        minProcessingTime: value.minProcessingTime,
-        maxProcessingTime: value.maxProcessingTime,
-        averageProcessingTime: value.meanProcessingTime,
-        successfulExchanges: value.exchangesCompleted,
-        failedExchanges: value.exchangesFailed,
-        state: value.state,
-        uptime: value.uptime
-      }
-    })
-    this.dataSource= new MatTableDataSource(tableData);
-    this.dataSource.paginator = this.paginator;
-  }
-
-
-  filterByRoutes(event: MatSelectChange): void {
-    let selectedOptions: string[] = event.value;
-    this.exchangeDisplay = this.exchangeData.filter(item => selectedOptions.includes(item.name));
-    this.latencyDisplay = this.latencyData.filter(item => selectedOptions.includes(item.name));
-  }
-
-  generateCustomMetrics(response: RouteMetricsResponse): void {
-    let totalExchanges = 0;
-    let completedExchanges = 0;
-    let totalProcessingTime = 0;
-    let busiestRoute = null;
-
-    for (const metric of response.metrics) {
-      totalExchanges += metric.exchangesTotal;
-      completedExchanges += metric.exchangesCompleted;
-      totalProcessingTime += metric.totalProcessingTime;
-      const currentRoute = metric;
-
-      if (busiestRoute === null || currentRoute.exchangesTotal > busiestRoute.exchangesTotal) {
-        busiestRoute = currentRoute;
-      }
-
-
+  /** Why a summary value is missing. */
+  protected readonly missingReason = computed(() => {
+    if (this.live.routesFailed()) {
+      return 'Unavailable';
     }
+    return this.summary()?.endpoints ? 'No exchanges yet' : 'No routes yet';
+  });
 
-
-    // Guard against division by zero before any route has handled an exchange.
-    const successRate: number = totalExchanges > 0
-      ? Number((((completedExchanges / totalExchanges) * 100).toFixed(2)))
-      : 0;
-    const avgProcessingTime: number = totalExchanges > 0 ? totalProcessingTime / totalExchanges : 0;
-
-    this.cardMetrics = [{
-      "name": "Total Endpoints",
-      "value": response.metrics.length
-    },
-
-    {
-      "name": "Avg Processing Time",
-      "value": avgProcessingTime.toFixed(2) + "ms"
-    },
-
-    {
-      "name": "Busiest Route",
-      "value": busiestRoute?.route
+  protected readonly avgParts = computed(() => {
+    const ms = this.summary()?.avgProcessingMs;
+    if (ms == null) {
+      return null;
     }
-    ]
+    return ms >= 1000 ? { value: ms / 1000, unit: 's' } : { value: ms, unit: 'ms' };
+  });
 
-    this.gaugeMetric = successRate
+  protected readonly busiestShare = computed(() => {
+    const summary = this.summary();
+    const busiest = this.scoped()?.find(r => r.route === summary?.busiestRoute);
+    if (!summary || !busiest || summary.totalExchanges === 0) {
+      return null;
+    }
+    return { exchanges: busiest.exchangesTotal, share: (busiest.exchangesTotal / summary.totalExchanges) * 100 };
+  });
 
-  }
+  protected readonly failedTotal = computed(() =>
+    (this.scoped() ?? []).reduce((sum, r) => sum + r.exchangesFailed, 0));
 
+  // --- Live status ---------------------------------------------------------------------------------------------
 
-  filterDatasources(searchTerm: string): Datasources[] {
-    const filteredOptions = this.datasources.filter(datasource => {
-      return datasource.dataSourceId.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-    return filteredOptions;
-  }
+  private readonly now = toSignal(interval(1000).pipe(map(() => Date.now())), { initialValue: Date.now() });
 
-  yAxisTickFormatting(value: number): string {
-
-    if (Number.isInteger(value)) {
-      return Math.round(value).toString();
-    } else {
+  protected readonly updatedAgo = computed(() => {
+    const at = this.live.updatedAt();
+    if (at === null) {
       return '';
     }
-  }
-
-  percentageFormat(data:any): string {
-    return data+'%'
-  }
-
-  verticalGroupedTickFormat(data:any): string {
-    return data+'ms';
-  }
-
-    //On key press, update the table based on search
-    applyFilter(filterValue: string) {
-      this.dataSource.filter = filterValue.trim();
+    const seconds = Math.max(0, Math.round((this.now() - at) / 1000));
+    if (seconds < 5) {
+      return 'just now';
     }
+    return seconds < 60 ? `${seconds}s ago` : `${Math.floor(seconds / 60)} min ago`;
+  });
 
-    sortByTimestamp = (a: any, b: any) => {
-      const timeA = new Date(`2023-07-31T${a.name}`).getTime();
-      const timeB = new Date(`2023-07-31T${b.name}`).getTime();
-      return timeA - timeB;
+  protected readonly statusText = computed(() => {
+    switch (this.live.status()) {
+      case 'connecting':
+        return this.live.routesFailed() ? 'Not connected · retrying' : 'Connecting…';
+      case 'live':
+        return `Live · updated ${this.updatedAgo()}`;
+      case 'stale':
+        return `Couldn't refresh · last update ${this.updatedAgo()}`;
+      case 'paused':
+        return this.live.updatedAt() === null ? 'Paused' : `Paused · updated ${this.updatedAgo()}`;
+    }
+  });
+
+  /** For screen readers: announced when the connection state changes, not on every tick of the clock. */
+  protected readonly statusAnnouncement = computed(() => ({
+    connecting: 'Connecting to metrics', live: 'Metrics are live', stale: 'Metrics could not refresh; retrying',
+    paused: 'Live updates paused',
+  })[this.live.status()]);
+
+  private readonly ping = viewChild<ElementRef<HTMLElement>>('ping');
+
+  // --- Table ---------------------------------------------------------------------------------------------------
+
+  protected readonly columns = ['route', 'state', 'completed', 'failed', 'successRate', 'mean', 'range', 'uptime'];
+  protected readonly table = new MatTableDataSource<RouteRow>([]);
+  protected readonly tableMode = computed<'loading' | 'error' | 'empty' | null>(() => {
+    const routes = this.scoped();
+    if (routes === null) {
+      return this.live.routesFailed() ? 'error' : 'loading';
+    }
+    return routes.length > 0 ? null : 'empty';
+  });
+
+  private readonly sort = viewChild(MatSort);
+  private readonly paginator = viewChild(MatPaginator);
+
+  constructor() {
+    this.table.filterPredicate = (row, filter) => row.route.toLowerCase().includes(filter);
+    this.table.sortingDataAccessor = (row, column) => {
+      const value = row[column === 'range' ? 'max' : column as keyof RouteRow];
+      return value === null ? -1 : value;
     };
 
+    effect(() => {
+      this.table.data = (this.scoped() ?? []).map(toRow);
+    });
+    effect(() => {
+      this.table.sort = this.sort() ?? null;
+      this.table.paginator = this.paginator() ?? null;
+    });
+    // One ping of the live dot when new data lands.
+    effect(() => {
+      const at = this.live.updatedAt();
+      const ping = untracked(this.ping);
+      if (at !== null && ping && !prefersReducedMotion()) {
+        ping.nativeElement.animate(
+          [{ transform: 'scale(1)', opacity: 0.6 }, { transform: 'scale(2.8)', opacity: 0 }],
+          { duration: 900, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' });
+      }
+    });
+  }
+
+  protected selectDatasource(datasource: string): void {
+    this.datasource.set(datasource);
+    this.selectedRoutes.set([]);
+    this.live.setDatasource(datasource);
+  }
+
+  protected togglePause(): void {
+    if (this.live.status() === 'paused') {
+      this.live.resume();
+    } else {
+      this.live.pause();
+    }
+  }
+
+  protected search(term: string): void {
+    this.table.filter = term.trim().toLowerCase();
+    this.table.paginator?.firstPage();
+  }
+
+  // Fixed precision, so a figure doesn't change width or drop its decimal while it counts to a new value.
+  /** One decimal under 100 (70.7, 10.0), whole numbers from 100 (1,250). */
+  protected readonly formatOneDecimal = (v: number) =>
+    v.toLocaleString(undefined, v >= 100 ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  /** One decimal (97.9, 75.0), never rounded up to a perfect 100 it isn't; exactly 100 is "100". */
+  protected readonly formatPercent = (v: number) => v === 100 ? '100'
+    : Math.min(v, 99.9).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  protected readonly formatInteger = (v: number) => Math.round(v).toLocaleString();
 }

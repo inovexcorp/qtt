@@ -484,6 +484,26 @@ If TLS ends at a proxy, QTT sees plain-HTTP requests and builds `http://` redire
 Proxies must allow request headers of at least 8 KB: the session is kept in encrypted cookies, split one per
 token.
 
+### Live updates through a reverse proxy
+
+The datasource pages get health changes over a long-lived server-sent events stream
+(`/queryrest/api/events`). QTT sends `X-Accel-Buffering: no`, a `: keep-alive` comment every 20 s
+(`QTT_EVENTS_KEEP_ALIVE`) and ends each stream after 10 minutes (`QTT_EVENTS_MAX_AGE`). The proxy must pass the
+stream through unbuffered and keep idle connections open longer than the keep-alive interval. With nginx:
+
+```nginx
+location /queryrest/api/events {
+    proxy_pass https://qtt:8443;
+    proxy_http_version 1.1;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 60s;   # above the 20 s keep-alive
+}
+```
+
+Don't compress `text/event-stream` responses at the proxy (compression buffers them). If the stream can't get
+through, the UI falls back to polling, so pages still update, only more slowly.
+
 ### Identity provider with a private CA
 
 ```bash

@@ -1,15 +1,19 @@
 import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { ActivatedRoute } from '@angular/router';
-import { of } from 'rxjs';
-import { NO_ERRORS_SCHEMA } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { of, Subject } from 'rxjs';
+import { signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 
 import { ConfigDatasourceComponent } from './config-datasource.component';
 import { DatasourceService } from '../../core/services/datasource.service';
+import { DatasourceLiveService } from '../../core/services/datasource-live.service';
 import { MetricsService } from '../../core/services/metrics.service';
 import { Datasources } from '../../core/models/datasources';
+import { DatasourceHealth } from '../../core/models/datasource-health';
+import { SaveDatasourceDialogData } from '../config-datasource-modal/config-datasource-modal.component';
 import { QuickActionsService } from '../../shared/quick-actions/quick-actions.service';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 
@@ -17,7 +21,11 @@ describe('ConfigDatasourceComponent', () => {
   let component: ConfigDatasourceComponent;
   let fixture: ComponentFixture<ConfigDatasourceComponent>;
   let datasourceService: MockedObject<DatasourceService>;
-  let dialog: MockedObject<MatDialog>;
+  let dialog: { open: ReturnType<typeof vi.fn> };
+  let afterClosed: Subject<boolean>;
+  let live: ReturnType<typeof fakeLive>;
+  // The component's template-facing members are protected.
+  const c = () => component as any;
 
   // As returned by GET /api/datasources/{id}: no password
   const stored = {
@@ -27,127 +35,196 @@ describe('ConfigDatasourceComponent', () => {
     maxQueryHeaderLength: '8192',
     username: 'mock-user',
     validateCertificate: true,
-    camelRouteTemplateNames: [],
-    status: 'UP'
+    camelRouteTemplateNames: ['orders', 'customers'],
+    status: 'UP',
   } as unknown as Datasources;
+
+  const health: DatasourceHealth = {
+    dataSourceId: 'ds1', url: 'http://anzo:8080', status: 'DOWN', lastHealthCheck: new Date().toISOString(),
+    lastHealthError: 'Connection refused', consecutiveFailures: 3, routeCount: 2,
+    recentChecks: [{ status: 'DOWN', responseTimeMs: null, errorMessage: 'Connection refused', checkTime: new Date().toISOString() }],
+  };
+
+  function fakeLive() {
+    return {
+      datasources: signal<DatasourceHealth[] | null>([health]),
+      healthCheckEnabled: signal(true),
+      status: signal('live'),
+      transport: signal<'stream' | 'polling'>('stream'),
+      failed: signal(false),
+      updatedAt: signal<number | null>(null),
+      patch: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      refresh: vi.fn(),
+    };
+  }
 
   beforeEach(async () => {
     datasourceService = {
-      getDatasource: vi.fn().mockName('DatasourceService.getDatasource'),
-      getHealthCheckConfig: vi.fn().mockName('DatasourceService.getHealthCheckConfig'),
-      testDatasource: vi.fn().mockName('DatasourceService.testDatasource'),
-      disableDatasource: vi.fn().mockName('DatasourceService.disableDatasource'),
-      modifyDatasource: vi.fn().mockName('DatasourceService.modifyDatasource')
+      getDatasource: vi.fn().mockReturnValue(of(stored)),
+      testDatasource: vi.fn().mockReturnValue(of({ status: 'success' })),
+      triggerHealthCheck: vi.fn().mockReturnValue(of({ status: 'UP' })),
+      enableDatasource: vi.fn().mockReturnValue(of({})),
+      disableDatasource: vi.fn().mockReturnValue(of({})),
     } as unknown as MockedObject<DatasourceService>;
-    datasourceService.getDatasource.mockReturnValue(of(stored));
-    datasourceService.getHealthCheckConfig.mockReturnValue(of({ enabled: true, available: true }));
-    datasourceService.testDatasource.mockReturnValue(of({ status: 'success' }));
-    dialog = {
-      open: vi.fn().mockName('MatDialog.open')
-    } as unknown as MockedObject<MatDialog>;
+    afterClosed = new Subject<boolean>();
+    dialog = { open: vi.fn().mockReturnValue({ afterClosed: () => afterClosed }) };
+    live = fakeLive();
     const metricsService = {
-      getDatasourceRouteMetrics: vi.fn().mockName('MetricsService.getDatasourceRouteMetrics')
+      getDatasourceRouteMetrics: vi.fn().mockReturnValue(of({ metrics: [] })),
+      getRouteMetrics: vi.fn().mockReturnValue(of({ metrics: [] })),
+      getPersistedMetrics: vi.fn().mockReturnValue(of({ metrics: [] })),
     };
-    metricsService.getDatasourceRouteMetrics.mockReturnValue(of({ metrics: [] }));
 
     await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, ConfigDatasourceComponent],
+      imports: [ConfigDatasourceComponent],
       providers: [
-          { provide: ActivatedRoute, useValue: { params: of({ dataSourceId: 'ds1' }), snapshot: { params: { dataSourceId: 'ds1' } } } },
-          { provide: DatasourceService, useValue: datasourceService },
-          { provide: MetricsService, useValue: metricsService },
-          { provide: MatDialog, useValue: dialog }
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ dataSourceId: 'ds1' })) } },
+        { provide: DatasourceService, useValue: datasourceService },
+        { provide: DatasourceLiveService, useValue: live },
+        { provide: MetricsService, useValue: metricsService },
+        { provide: MatDialog, useValue: dialog },
       ],
-      schemas: [NO_ERRORS_SCHEMA]
-    })
-      .compileComponents();
+    }).compileComponents();
 
     fixture = TestBed.createComponent(ConfigDatasourceComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
+  it('shows the pushed health: status, how long it has been down, and the error', () => {
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('3 failed checks in a row');
+    expect(text).toContain('Failing');
+    expect(text).toContain('Connection refused');
+    expect(c().status()).toBe('DOWN');
   });
 
   it('does not pre-fill the password and accepts the form without one', () => {
-    expect(component.configDatasource.value['password']).toBe('');
-    expect(component.configDatasource.valid).toBe(true);
+    expect(c().form.value.password).toBe('');
+    expect(c().form.valid).toBe(true);
+    expect(c().changes()).toEqual([]);
   });
 
-  it('saves without a password so the stored one is kept', () => {
-    component.config('ds1');
+  it('confirms a save with the changes and the routes that use the datasource; no password means keep it', () => {
+    c().form.controls.timeOutSeconds.setValue('60');
+    c().save();
 
-    const sent = (vi.mocked(dialog.open).mock.lastCall![1] as any).data.datasource as Datasources;
-    expect(sent.password).toBeUndefined();
-    expect(sent.url).toBe('http://anzo:8080');
+    const data = vi.mocked(dialog.open).mock.lastCall![1].data as SaveDatasourceDialogData;
+    expect(data.datasource.password).toBeUndefined();
+    expect(data.datasource.timeOutSeconds).toBe('60');
+    expect(data.changes).toEqual([{ label: 'Timeout', from: '30', to: '60' }]);
+    expect(data.associatedRoutes).toEqual(['orders', 'customers']);
   });
 
-  it('sends a newly entered password', () => {
-    component.configDatasource.controls['password'].setValue('new-password');
-    component.config('ds1');
+  it('lists a newly entered password as changed without showing it', () => {
+    c().form.controls.password.setValue('new-password');
+    c().save();
 
-    const sent = (vi.mocked(dialog.open).mock.lastCall![1] as any).data.datasource as Datasources;
-    expect(sent.password).toBe('new-password');
+    const data = vi.mocked(dialog.open).mock.lastCall![1].data as SaveDatasourceDialogData;
+    expect(data.datasource.password).toBe('new-password');
+    expect(data.changes).toEqual([{ label: 'Password', from: null, to: null }]);
+  });
+
+  it('does not open the confirmation without changes', () => {
+    c().save();
+    expect(dialog.open).not.toHaveBeenCalled();
   });
 
   it('requires the password when the URL changes', () => {
-    component.configDatasource.controls['url'].setValue('https://other-anzo:8443');
+    c().form.controls.url.setValue('https://other-anzo:8443');
 
-    expect(component.password?.hasError('requiredForChange')).toBe(true);
-    expect(component.configDatasource.valid).toBe(false);
-    component.config('ds1');
+    expect(c().form.controls.password.hasError('requiredForChange')).toBe(true);
+    expect(c().form.valid).toBe(false);
+    c().save();
     expect(dialog.open).not.toHaveBeenCalled();
 
-    component.configDatasource.controls['password'].setValue('new-password');
-    expect(component.configDatasource.valid).toBe(true);
+    c().form.controls.password.setValue('new-password');
+    expect(c().form.valid).toBe(true);
   });
 
   it('requires the password when the username changes, and not after changing it back', () => {
-    component.configDatasource.controls['username'].setValue('someone-else');
-    expect(component.configDatasource.valid).toBe(false);
+    c().form.controls.username.setValue('someone-else');
+    expect(c().form.valid).toBe(false);
 
-    component.configDatasource.controls['username'].setValue('mock-user');
-    expect(component.configDatasource.valid).toBe(true);
+    c().form.controls.username.setValue('mock-user');
+    expect(c().form.valid).toBe(true);
   });
 
-  it('tests the connection without a password so the server uses the stored one', () => {
-    component.test();
+  it('rejects a timeout that is not a whole number', () => {
+    c().form.controls.timeOutSeconds.setValue('30s');
+    expect(c().form.valid).toBe(false);
+  });
+
+  it('after saving, reloads the settings so the form is clean again', () => {
+    c().form.controls.timeOutSeconds.setValue('60');
+    c().save();
+    afterClosed.next(true);
+
+    expect(datasourceService.getDatasource).toHaveBeenCalledTimes(2);
+    expect(c().changes()).toEqual([]);
+  });
+
+  it('tests the connection without a password so the server uses the stored one, and shows the result', () => {
+    c().runTest();
 
     const sent = vi.mocked(datasourceService.testDatasource).mock.lastCall![0];
     expect(sent.password).toBeUndefined();
     expect(sent.dataSourceId).toBe('ds1');
+    expect(c().test().state).toBe('success');
   });
 
-  it('asks before disabling, and disables only when confirmed', () => {
-    datasourceService.disableDatasource.mockReturnValue(of({}));
-    (component as any).associatedRoutes = ['r1', 'r2'];
-    dialog.open.mockReturnValue({ afterClosed: () => of(false) } as any);
-    component.disableDatasource();
-    const [dialogType, config] = vi.mocked(dialog.open).mock.lastCall! as any[];
-    expect(dialogType).toBe(ConfirmDialogComponent);
-    expect(config.data.title).toBe('Disable ds1?');
-    expect(config.data.message[0]).toContain('All 2 routes');
-    expect(datasourceService.disableDatasource).not.toHaveBeenCalled();
+  it('shows the reason a connection test failed', () => {
+    datasourceService.testDatasource.mockReturnValue(of({ status: 'error', message: 'Unauthorized' }));
+    c().runTest();
+    expect(c().test()).toEqual({ state: 'error', message: 'Unauthorized' });
+  });
 
-    dialog.open.mockReturnValue({ afterClosed: () => of(true) } as any);
-    component.disableDatasource();
+  it('shows "checking" at once when a check is run, then the result', () => {
+    c().checkNow();
+    expect(live.patch).toHaveBeenNthCalledWith(1, 'ds1', { status: 'CHECKING' });
+    expect(live.patch).toHaveBeenNthCalledWith(2, 'ds1', { status: 'UP', lastHealthError: null });
+    expect(c().busy()).toBeNull();
+  });
+
+  it('disables the datasource and shows it disabled before the server confirms', () => {
+    c().setEnabled(false);
+    expect(live.patch).toHaveBeenCalledWith('ds1', { status: 'DISABLED' });
     expect(datasourceService.disableDatasource).toHaveBeenCalledWith('ds1');
   });
 
-  it('adds its actions to the quick actions bar while open, by role and state', () => {
-    const labels = () => TestBed.inject(QuickActionsService).actions()
-      .filter(a => a.group === 'page' && (!a.visible || a.visible())).map(a => a.label);
-    // Status UP: enable is not offered.
-    expect(labels()).toEqual(['Save datasource', 'Test connection', 'Run health check', 'Disable datasource',
-      'Delete datasource', 'Show usage']);
-    component.datasourceStatus = 'DISABLED';
-    expect(labels()).toContain('Enable datasource');
-    expect(labels()).not.toContain('Disable datasource');
-    const health = TestBed.inject(QuickActionsService).actions().find(a => a.id === 'datasource:health')!;
-    expect(health.disabledReason!()).toBe('The datasource is disabled');
-    fixture.destroy();
-    expect(TestBed.inject(QuickActionsService).actions().filter(a => a.group === 'page')).toEqual([]);
+  describe('quick actions bar', () => {
+    const actions = () => TestBed.inject(QuickActionsService).actions().filter(a => a.group === 'page');
+    const shown = () => actions().filter(a => !a.visible || a.visible()).map(a => a.label);
+    const action = (id: string) => actions().find(a => a.id === id)!;
+
+    it('adds the page\'s actions while it is open, and removes them when it closes', () => {
+      expect(shown()).toEqual(['Save datasource', 'Test connection', 'Run health check', 'Disable datasource',
+        'Delete datasource', 'Show usage']);
+      fixture.destroy();
+      expect(actions()).toEqual([]);
+    });
+
+    it('says why an action cannot run, as the buttons do', () => {
+      expect(action('datasource:save').disabledReason!()).toBe('Nothing has changed');
+      c().form.controls.timeOutSeconds.setValue('ten');
+      expect(action('datasource:save').disabledReason!()).toBe('Some connection settings are invalid');
+      live.healthCheckEnabled.set(false);
+      expect(action('datasource:health').disabledReason!()).toBe('Automated health checks are off on the server');
+    });
+
+    it('asks before disabling, naming how many routes stop, and disables only when confirmed', () => {
+      action('datasource:disable').run();
+      const [type, config] = dialog.open.mock.lastCall as any[];
+      expect(type).toBe(ConfirmDialogComponent);
+      expect(config.data.message[0]).toBe('All 2 routes using it stop answering queries until it is enabled again.');
+      expect(datasourceService.disableDatasource).not.toHaveBeenCalled();
+      afterClosed.next(true);
+      expect(datasourceService.disableDatasource).toHaveBeenCalledWith('ds1');
+    });
   });
 });

@@ -1,13 +1,50 @@
-<h2 class="modal-text">Are you sure you'd like to configure Datasource: {{data.datasource.dataSourceId}}?</h2>
-@if (data.associatedRoutes.length>0) {
-  <div class="associated-routes">
-    <div>These are the associated routes:</div>
-    @for (route of data.associatedRoutes; track route) {
-      <div><strong>{{route}}</strong></div>
+<div class="qtt-dialog">
+  <h2 mat-dialog-title>Save changes to {{ data.datasource.dataSourceId }}?</h2>
+  <mat-dialog-content>
+    <ul class="qtt-dialog__changes">
+      @for (change of data.changes; track change.label) {
+        <li>
+          <span class="qtt-dialog__field">{{ change.label }}</span>
+          @if (change.from === null) {
+            <span class="qtt-dialog__to">Changed</span>
+          } @else {
+            <span class="qtt-dialog__from">{{ change.from }}</span>
+            <mat-icon class="qtt-dialog__arrow" aria-label="to">arrow_forward</mat-icon>
+            <span class="qtt-dialog__to">{{ change.to }}</span>
+          }
+        </li>
+      }
+    </ul>
+
+    @if (routes.length) {
+      <p class="qtt-dialog__note">
+        {{ routes.length === 1 ? 'This route uses' : 'These ' + routes.length + ' routes use' }} the datasource and will query it with the new settings:
+      </p>
+      <ul class="qtt-dialog__chips" aria-label="Routes using this datasource">
+        @for (route of routes; track route) {
+          <li>{{ route }}</li>
+        }
+      </ul>
+    } @else {
+      <p class="qtt-dialog__note">No routes use this datasource yet.</p>
     }
-  </div>
-}
-<div class="btn-sec">
-  <button mat-raised-button type="submit" class="close-btn" (click)="closeDialog()">Cancel</button>
-  <button mat-raised-button type="button" class="confirm-btn" color="primary" (click)="configDatasource()">Confirm</button>
+
+    @if (error()) {
+      <p class="qtt-dialog__error" role="alert">
+        <mat-icon aria-hidden="true">error_outline</mat-icon>
+        <span><strong>Couldn't save.</strong> {{ error() }}</span>
+      </p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button [mat-dialog-close]="false" [disabled]="saving()">Cancel</button>
+    <button mat-flat-button (click)="save()" [disabled]="saving()" cdkFocusInitial>
+      @if (saving()) {
+        <mat-progress-spinner mode="indeterminate" diameter="18" aria-label="Saving"></mat-progress-spinner>
+        Saving…
+      } @else {
+        Save changes
+      }
+    </button>
+  </mat-dialog-actions>
 </div>
