@@ -166,7 +166,11 @@ curl -k https://localhost:8443/query/my-route
   on open routes. With sign-in off, OIDC tokens can't be checked at all; use an API key.
 - **403**: the credential is valid but lacks access: an OIDC token without `qtt-query` (admin doesn't include it), a
   route's required role missing from the token, or an API key that doesn't name the route (a `*` key doesn't reach
-  routes with required roles).
+  routes with required roles). The response body says which: `missingRoles` lists the roles the token lacks. If a
+  role is listed that the user does have in the IdP, check its spelling on the route and the group mapping
+  (`OIDC_QUERY_GROUPS`, and the token's `groups` claim).
+- **503 with `Retry-After`** right after someone saved the route: the route is being replaced. Retry after the given
+  number of seconds; it serves again within about a second.
 - **The page returns QTT's HTML instead of data**: the client called `/<route-id>` or a proxy sent `/query/` to the
   wrong place; the query URL is `/query/<route-id>`.
 - **A browser app gets a CORS error**: add its origin to `QUERY_CORS_ORIGINS`.

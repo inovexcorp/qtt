@@ -60,7 +60,8 @@ class ApiKeyIT {
     void aKeyCallsItsRoutesOnly() {
         String key = createKey(List.of(routeA));
         query().auth().oauth2(key).get("/" + routeA).then().statusCode(200).body(containsString("@id"));
-        query().auth().oauth2(key).get("/" + routeB).then().statusCode(403);
+        query().auth().oauth2(key).get("/" + routeB).then().statusCode(403)
+                .body("message", equalTo("This API key's scope doesn't include this route"));
     }
 
     @Test

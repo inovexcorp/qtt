@@ -548,7 +548,8 @@ What callers get back:
 | Open route                                                                      | 200                                       |
 | Authenticated route, no credential                                              | 401 with `WWW-Authenticate: Bearer` (never a redirect to the sign-in page) |
 | Invalid, expired or revoked token or key, on any route (open ones too)          | 401                                       |
-| Valid credential without access to the route                                    | 403                                       |
+| Valid credential without access to the route                                    | 403, the body naming the missing roles (`missingRoles`) or the API key's scope |
+| Route being changed right now (a save in the UI or API, or its datasource changed) | 503 with `Retry-After: 1`, for callers the route's access setting admits |
 | Route that doesn't exist: anonymous caller / caller with a valid credential     | 401 / 404 (anonymous callers can't tell a missing route from a protected one) |
 | A method the route doesn't accept                                               | 405 with `Allow`                          |
 

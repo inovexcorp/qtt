@@ -12,6 +12,7 @@ import com.inovexcorp.queryservice.persistence.LayerAssociations;
 import com.inovexcorp.queryservice.persistence.LayerService;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import com.inovexcorp.queryservice.routebuilder.CamelKarafComponent;
+import com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.spi.RouteController;
@@ -45,6 +46,9 @@ public class RouteManagementServiceImpl implements RouteManagementService {
 
     @Inject
     ContextManager contextManager;
+
+    @Inject
+    QueryRouteUpdates routeUpdates;
 
 
 
@@ -152,13 +156,21 @@ public class RouteManagementServiceImpl implements RouteManagementService {
         String roles = accessPolicy != null || requiredRoles != null ? requiredRoles
                 : existing == null ? null : existing.getRequiredRoles();
 
-        // Delete route in memory to then recreate it
-        routeService.delete(routeId);
+        // Callers get 503 "try again" instead of 404 while the Camel route is replaced.
+        routeUpdates.begin(routeId, existing == null ? null : existing.getAccessPolicy(),
+                existing == null ? null : existing.getRequiredRoles());
+        CamelRouteTemplate modified;
+        try {
+            // Delete route in memory to then recreate it
+            routeService.delete(routeId);
 
-        // Recreate the route with new parameters
-        CamelRouteTemplate modified = createRoute(routeId, routeParams, dataSourceId, description,
-                                                  graphMartUri, freemarker, layers, cacheEnabled,
-                                                  cacheTtlSeconds, cacheKeyStrategy, access, roles, audit);
+            // Recreate the route with new parameters
+            modified = createRoute(routeId, routeParams, dataSourceId, description,
+                                   graphMartUri, freemarker, layers, cacheEnabled,
+                                   cacheTtlSeconds, cacheKeyStrategy, access, roles, audit);
+        } finally {
+            routeUpdates.end(routeId);
+        }
 
         log.info("Successfully modified route: {}", routeId);
         return modified;
@@ -171,17 +183,22 @@ public class RouteManagementServiceImpl implements RouteManagementService {
         CamelRouteTemplate template = routeService.getRoute(routeId);
         template.setTemplateContent(freemarker);
 
-        // Delete and recreate the route with the new template
-        routeService.delete(routeId);
-
         String layers = String.join(",", layerService.getLayerUris(template));
-        CamelRouteTemplate modified = createRoute(routeId, template.getRouteParams(),
-                                                  template.getDatasources().getDataSourceId(),
-                                                  template.getDescription(), template.getGraphMartUri(),
-                                                  freemarker, layers, template.getCacheEnabled(),
-                                                  template.getCacheTtlSeconds(), template.getCacheKeyStrategy(),
-                                                  template.getAccessPolicy(), template.getRequiredRoles(),
-                                                  template.getAudit());
+        routeUpdates.begin(routeId, template.getAccessPolicy(), template.getRequiredRoles());
+        CamelRouteTemplate modified;
+        try {
+            // Delete and recreate the route with the new template
+            routeService.delete(routeId);
+            modified = createRoute(routeId, template.getRouteParams(),
+                                   template.getDatasources().getDataSourceId(),
+                                   template.getDescription(), template.getGraphMartUri(),
+                                   freemarker, layers, template.getCacheEnabled(),
+                                   template.getCacheTtlSeconds(), template.getCacheKeyStrategy(),
+                                   template.getAccessPolicy(), template.getRequiredRoles(),
+                                   template.getAudit());
+        } finally {
+            routeUpdates.end(routeId);
+        }
 
         log.info("Successfully modified template for route: {}", routeId);
         return modified;

@@ -18,6 +18,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
+import org.mockito.Spy;
+import com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
@@ -69,6 +71,9 @@ public class RouteManagementServiceImplTest {
 
     @Mock
     private Route route;
+
+    @Spy
+    private QueryRouteUpdates routeUpdates = new QueryRouteUpdates();
 
     @InjectMocks
     private RouteManagementServiceImpl routeManagementService;
@@ -242,6 +247,46 @@ public class RouteManagementServiceImplTest {
         verify(routeService).add(templateCaptor.capture());
         CamelRouteTemplate captured = templateCaptor.getValue();
         assertEquals(routeId, captured.getRouteId());
+    }
+
+    @Test
+    public void testModifyRoute_MarksTheRouteAsUpdatingWhileItIsReplaced() throws Exception {
+        String routeId = "testRoute";
+        testTemplate.setAccessPolicy("authenticated");
+        testTemplate.setRequiredRoles("finance-apps");
+        when(dataSourceService.getDataSource(anyString())).thenReturn(testDatasource);
+        when(routeService.routeExists(routeId)).thenReturn(false);
+        when(routeService.getRoute(routeId)).thenReturn(testTemplate);
+        List<QueryRouteUpdates.Pending> seen = new java.util.ArrayList<>();
+        org.mockito.Mockito.doAnswer(inv -> {
+            seen.add(routeUpdates.pending(routeId).orElse(null));
+            return null;
+        }).when(camelContext).addRoutes(any(RouteBuilder.class));
+
+        routeManagementService.modifyRoute(routeId, "", "test-ds", "d", "http://test", "new template", "layer1",
+                null, null, null, "open", null);
+
+        // While the Camel route is replaced, the setting from before the change applies.
+        assertEquals(List.of(new QueryRouteUpdates.Pending("authenticated", "finance-apps")), seen);
+        assertFalse(routeUpdates.isUpdating(routeId));
+    }
+
+    @Test
+    public void testModifyRoute_EndsTheUpdateWhenItFails() throws Exception {
+        String routeId = "testRoute";
+        when(dataSourceService.getDataSource(anyString())).thenReturn(testDatasource);
+        when(routeService.getRoute(routeId)).thenReturn(testTemplate);
+        org.mockito.Mockito.doThrow(new IllegalStateException("boom")).when(camelContext)
+                .addRoutes(any(RouteBuilder.class));
+
+        try {
+            routeManagementService.modifyRoute(routeId, "", "test-ds", "d", "http://test", "t", "layer1",
+                    null, null, null);
+            fail("expected the failure to propagate");
+        } catch (IllegalStateException expected) {
+            // the modify failed
+        }
+        assertFalse(routeUpdates.isUpdating(routeId));
     }
 
     // ========================================

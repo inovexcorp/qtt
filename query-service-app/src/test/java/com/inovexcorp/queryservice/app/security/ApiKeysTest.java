@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.everyItem;
@@ -73,7 +74,9 @@ class ApiKeysTest {
     void aKeyCallsTheRoutesInItsScopeOnly() {
         String key = create("app A", List.of("ak-a", "ak-fin"));
         given().auth().oauth2(key).when().get("/query/ak-a").then().statusCode(200);
-        given().auth().oauth2(key).when().get("/query/ak-b").then().statusCode(403);
+        given().auth().oauth2(key).when().get("/query/ak-b").then().statusCode(403)
+                .body("message", equalTo("This API key's scope doesn't include this route"))
+                .body("missingRoles", nullValue());
         // A route that requires roles accepts a key that names it.
         given().auth().oauth2(key).when().get("/query/ak-fin").then().statusCode(200);
         // Open routes take any valid key.
@@ -87,7 +90,9 @@ class ApiKeysTest {
         String key = create("everything", List.of("*"));
         given().auth().oauth2(key).when().get("/query/ak-a").then().statusCode(200);
         given().auth().oauth2(key).when().get("/query/ak-b").then().statusCode(200);
-        given().auth().oauth2(key).when().get("/query/ak-fin").then().statusCode(403);
+        given().auth().oauth2(key).when().get("/query/ak-fin").then().statusCode(403)
+                .body("message", containsString("must name the route"))
+                .body("requiredRoles", contains("finance-apps"));
     }
 
     @Test

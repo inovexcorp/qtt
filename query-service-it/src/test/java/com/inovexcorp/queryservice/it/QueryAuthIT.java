@@ -110,7 +110,11 @@ class QueryAuthIT {
     void requiredRolesAreEnforced() {
         assumeTrue(OIDC, "stack with sign-in");
         as("qtt-finance").get("/" + finance).then().statusCode(200);
-        as("qtt-reader").get("/" + finance).then().statusCode(403);
+        as("qtt-reader").get("/" + finance).then().statusCode(403)
+                .body("missingRoles", contains("finance-apps"))
+                .body("requiredRoles", contains("qtt-query", "finance-apps"));
+        as("qtt-ci").get("/" + auth).then().statusCode(403)
+                .body("message", equalTo("Missing required role: qtt-query"));
     }
 
     @Test

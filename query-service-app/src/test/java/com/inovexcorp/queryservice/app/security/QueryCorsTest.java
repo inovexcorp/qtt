@@ -78,6 +78,13 @@ class QueryCorsTest {
         // A browser app can read the 401 and send its user to sign in.
         given().header("Origin", APP).when().get("/query/cors-auth").then().statusCode(401)
                 .header("Access-Control-Allow-Origin", equalTo(APP));
+        // ...and the 403 that says what its credential lacks.
+        String key = given().contentType("application/json")
+                .body(Map.of("name", "cors key", "routes", java.util.List.of("cors-open")))
+                .when().post("/queryrest/api/apikeys").then().statusCode(201).extract().path("key");
+        given().header("Origin", APP).auth().oauth2(key).when().get("/query/cors-auth").then().statusCode(403)
+                .header("Access-Control-Allow-Origin", equalTo(APP))
+                .body("error", equalTo("Forbidden"));
     }
 
     @Test

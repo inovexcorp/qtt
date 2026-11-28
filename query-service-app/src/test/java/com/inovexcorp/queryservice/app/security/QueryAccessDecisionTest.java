@@ -12,7 +12,10 @@ import java.util.Set;
 import static com.inovexcorp.queryservice.QueryAccess.AUTHENTICATED;
 import static com.inovexcorp.queryservice.QueryAccess.DEFAULT;
 import static com.inovexcorp.queryservice.QueryAccess.OPEN;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class QueryAccessDecisionTest {
@@ -84,5 +87,41 @@ class QueryAccessDecisionTest {
         assertFalse(permits(null, OPEN, ANONYMOUS));
         assertTrue(permits(null, OPEN, user()), "authenticated callers get through to the 404");
         assertTrue(permits(null, OPEN, apiKey()));
+    }
+
+    @Test
+    void refusedOidcCallersAreToldWhichRolesTheyLack() {
+        QueryAccessDecision.Denial denial = QueryAccessDecision.check(
+                route(AUTHENTICATED, "finance-apps", "eu"), OPEN, user("qtt-query", "eu"));
+        assertEquals(List.of("qtt-query", "finance-apps", "eu"), denial.requiredRoles());
+        assertEquals(List.of("finance-apps"), denial.missingRoles());
+        assertEquals("Missing required role: finance-apps", denial.message());
+
+        denial = QueryAccessDecision.check(route(AUTHENTICATED, "finance-apps"), OPEN, user("qtt-admin"));
+        assertEquals(List.of("qtt-query", "finance-apps"), denial.missingRoles());
+        assertEquals("Missing required roles: qtt-query, finance-apps", denial.message());
+
+        // qtt-query listed by the route too is not repeated.
+        denial = QueryAccessDecision.check(route(AUTHENTICATED, "qtt-query"), OPEN, user());
+        assertEquals(List.of("qtt-query"), denial.requiredRoles());
+    }
+
+    @Test
+    void refusedApiKeysAreToldAboutTheirScopeNotRoles() {
+        QueryAccessDecision.Denial denial = QueryAccessDecision.check(route(AUTHENTICATED), OPEN, apiKey("r2"));
+        assertEquals("This API key's scope doesn't include this route", denial.message());
+        assertTrue(denial.requiredRoles().isEmpty());
+        assertTrue(denial.missingRoles().isEmpty());
+
+        denial = QueryAccessDecision.check(route(AUTHENTICATED, "finance-apps"), OPEN, apiKey("*"));
+        assertEquals(List.of("finance-apps"), denial.requiredRoles());
+        assertTrue(denial.missingRoles().isEmpty());
+    }
+
+    @Test
+    void anonymousCallersGetNoDetails() {
+        assertSame(QueryAccessDecision.ANONYMOUS, QueryAccessDecision.check(route(AUTHENTICATED), OPEN, ANONYMOUS));
+        assertSame(QueryAccessDecision.ANONYMOUS, QueryAccessDecision.check(null, OPEN, ANONYMOUS));
+        assertNull(QueryAccessDecision.check(route(OPEN), OPEN, ANONYMOUS));
     }
 }

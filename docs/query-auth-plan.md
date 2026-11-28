@@ -106,7 +106,16 @@ A named `HttpSecurityPolicy`, `RouteAccessPolicy` (`quarkus.http.auth.permission
 - no credential on an authenticated route or a route that doesn't exist → 401 (the same answer, so anonymous callers can't probe for route names);
 - a valid credential on a route that doesn't exist → 404, from `QueryPathFallback`;
 - a stopped route → 404 for everyone allowed to call it (the Camel route exists but serves nothing);
-- a credential without access → 403.
+- a credential without access → 403, with a JSON body saying what is missing. `RouteAccessPolicy` leaves the `QueryAccessDecision.Denial` on the request, and `QueryDenialResponder`, a failure handler on `/query/*` that runs before Quarkus's own, writes it: for an OIDC token `requiredRoles` (`qtt-query` first) and `missingRoles`; for an API key a message about its scope. Anonymous callers still get only the 401 and challenge;
+- a route being replaced right now → 503 with `Retry-After: 1` for callers its previous access setting admits (see below).
+
+Changing a route replaces its Camel route: Camel stops the old route gracefully (the consumer is suspended and answers 503 while in-flight requests finish) and starts the new one. In between, the path has no route, and callers used to get 401 or 404, plus the occasional empty 500 from a request the old route accepted just as it stopped (`RejectedExecutionException`). `QueryRouteUpdates` now marks a route as being replaced, holding its access setting from before the change; modify, template-only modify and the datasource-change rebuild wrap the replacement in `begin`/`end`. While it is marked:
+
+- `RouteAccessPolicy` uses the held setting when the Camel route is missing, so the access check is the same as before the change;
+- a handler on `/query/*` at route order -50 (after Quarkus's authorization filter at -100, before the Camel routes) answers 503 when the route isn't running, and gives every `/query` 503 a `Retry-After`; a 500 from the stopping route becomes a 503 too;
+- `QueryPathFallback` answers 503 rather than 404, also for a route that started after the request arrived (the router matches a request against the routes it had at that moment).
+
+The window is a few milliseconds, or about a second when a request is in flight as the old route stops (Camel's shutdown strategy checks in-flight exchanges once a second, a fixed interval). `RouteUpdateIT` keeps four clients calling a route while it is changed six times and requires every answer to be 200, or 503 with `Retry-After`; against the build before this change it saw 401, 404 and 500 as well.
 
 The access setting is sent as a pair on modify. With `accessPolicy` given, `requiredRoles` is taken as given, and absent means none. With neither given, both are kept, so old clients and template-only changes don't reset them. The first draft used an empty `requiredRoles` to clear the list, but an empty query parameter arrives as null, so a list could never have been cleared that way. Modify, template-only modify, clone and the datasource-change rebuild all carry the setting across.
 
@@ -350,8 +359,8 @@ Keycloak sign-in, plus restart, UI, TLS and encryption checks) before the next b
 |---|---|---|
 | Two mechanisms on `Authorization: Bearer` | Quarkus picks OIDC for a `qtt_` key, or refuses the configuration | Resolved: `QueryAuthMechanism` (priority 1500) claims `qtt_` tokens on `/query` and leaves the rest to OIDC; covered by `ApiKeysOnTest` and `ApiKeyIT` on the Keycloak stack |
 | Routes stay open by default | People assume SSO now protects their data, as they did before the OIDC work | Startup WARN with the open-route count; a globe on open routes in the routes list and a warning on the route page; the Settings page shows the open-route count; the administration guide says routes are open until closed |
-| Per-route `requiredRoles` | Typos in role names silently lock callers out | Open: the 403 doesn't name the missing role (Quarkus's denial has no body) and the route page doesn't list the known roles yet. The Settings page shows the group mappings |
+| Per-route `requiredRoles` | Typos in role names silently lock callers out | Mitigated: the 403 names the required and missing roles (`QueryDenialResponder`), and the Settings page shows the group mappings. Still open: the route page doesn't list the known roles |
 | Query and admin traffic share one server | A query surge slows the UI, and port-level network separation is gone | Measured no regression at 8 clients (Spike results, Finished build); proxy path rules documented ("Exposing only the query routes") |
 | Proxies or clients hard-coded to 8888 | Breakage on upgrade | Migration table in the administration guide; startup WARN when `API_BASE_URL` is set |
 | Templates relying on credential headers | A template that read `Authorization` or `Cookie` would now see nothing | Documented in the administration guide (what templates can see) |
-| A route change is a delete and re-create | During the change the route is briefly missing: callers get 401 (anonymous) or 404 | Not new (the same window existed on 8888); `ui_check.mjs` tolerates it |
+| A route change is a delete and re-create | During the change the route is briefly missing: callers got 401 (anonymous), 404 or an empty 500 | Resolved: callers get 503 with `Retry-After: 1` under the route's previous access setting (`QueryRouteUpdates`); covered by `RouteUpdateIT` |

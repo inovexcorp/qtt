@@ -62,6 +62,10 @@ public class DataSourcesControllerTest {
     @Mock
     private CamelContext camelContext;
 
+    @org.mockito.Spy
+    private com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates routeUpdates =
+            new com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates();
+
     @InjectMocks
     private DataSourcesController dataSourcesController;
 
@@ -152,6 +156,10 @@ public class DataSourcesControllerTest {
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
         verify(routeService).add(route);
         verify(camelContext).addRoutes(any());
+        // ...and callers were told to retry (503) while it was replaced.
+        verify(routeUpdates).begin("route1", null, null);
+        verify(routeUpdates).end("route1");
+        org.junit.Assert.assertFalse(routeUpdates.isUpdating("route1"));
     }
 
     @Test

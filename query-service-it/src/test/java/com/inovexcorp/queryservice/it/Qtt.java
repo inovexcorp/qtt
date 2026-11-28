@@ -56,6 +56,9 @@ public final class Qtt {
             LIMIT 25""";
 
     static {
+        // For the JDK's HTTP client (Browser, RouteUpdateIT): the stack's certificate is self-signed and not issued for
+        // "localhost". The JDK reads this once, when its client is first used, so it is set here, ahead of any test.
+        System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
         RestAssured.config = RestAssuredConfig.config()
                 .sslConfig(SSLConfig.sslConfig().relaxedHTTPSValidation().allowAllHostnames())
                 .httpClient(HttpClientConfig.httpClientConfig()

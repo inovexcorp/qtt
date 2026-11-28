@@ -4,7 +4,9 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
+import com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates;
 import io.restassured.response.Response;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,7 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -33,6 +36,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @QuarkusTest
 @TestProfile(SecurityTestProfiles.SignInOff.class)
 class QueryEndpointTest {
+
+    @Inject
+    QueryRouteUpdates updates;
 
     static final String RDF = "<?xml version=\"1.0\"?><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" "
             + "xmlns:rdfs=\"http://www.w3.org/2000/01/rdf-schema#\"><rdf:Description rdf:about=\"urn:x\">"
@@ -68,7 +74,12 @@ class QueryEndpointTest {
     }
 
     static Response createRoute(String routeId, String datasource, String methods, String template) {
-        return given().queryParam("routeParams", "httpMethodRestrict=" + methods)
+        return createRoute(routeId, datasource, methods, template, java.util.Map.of());
+    }
+
+    static Response createRoute(String routeId, String datasource, String methods, String template,
+                                java.util.Map<String, String> access) {
+        return given().queryParams(access).queryParam("routeParams", "httpMethodRestrict=" + methods)
                 .queryParam("dataSourceId", datasource)
                 .queryParam("description", "test route")
                 .queryParam("graphMartUri", "urn:graphmart")
@@ -191,5 +202,69 @@ class QueryEndpointTest {
         datasource("qe-ds6");
         createRoute("bad%20id", "qe-ds6", "GET", "SELECT 1").then().statusCode(400)
                 .body("error", equalTo("Invalid route ID"));
+    }
+
+    @Test
+    void aRouteBeingUpdatedAsksCallersToRetry() {
+        updates.begin("qe-upd", "open", null);
+        try {
+            given().when().get("/query/qe-upd").then().statusCode(503)
+                    .header("Retry-After", equalTo("1"))
+                    .contentType("application/json")
+                    .body("error", equalTo("Service Unavailable"))
+                    .body("message", containsString("Try again"));
+        } finally {
+            updates.end("qe-upd");
+        }
+        given().redirects().follow(false).when().get("/query/qe-upd").then().statusCode(401);
+
+        // The access setting from before the change still applies: no 503 for callers it would refuse.
+        updates.begin("qe-upd", "authenticated", null);
+        try {
+            given().redirects().follow(false).when().get("/query/qe-upd").then().statusCode(401);
+        } finally {
+            updates.end("qe-upd");
+        }
+    }
+
+    @Test
+    void aStoppedRouteIsStill404() {
+        datasource("qe-ds7");
+        createRoute("qe-stopped", "qe-ds7", "GET", "SELECT 1").then().statusCode(201);
+        given().contentType("text/plain").body("Stopped").when().patch("/queryrest/api/routes/qe-stopped")
+                .then().statusCode(lessThan(300));
+        given().when().get("/query/qe-stopped").then().statusCode(404);
+
+        // While it is being replaced and not running, callers are asked to retry...
+        updates.begin("qe-stopped", null, null);
+        try {
+            given().when().get("/query/qe-stopped").then().statusCode(503).header("Retry-After", equalTo("1"));
+        } finally {
+            updates.end("qe-stopped");
+        }
+        // ...and a running route keeps serving until its replacement stops it.
+        given().contentType("text/plain").body("Started").when().patch("/queryrest/api/routes/qe-stopped")
+                .then().statusCode(lessThan(300));
+        updates.begin("qe-stopped", null, null);
+        try {
+            given().when().get("/query/qe-stopped").then().statusCode(200);
+        } finally {
+            updates.end("qe-stopped");
+        }
+    }
+
+    @Test
+    void theRetryCheckComesAfterTheAccessCheck() {
+        datasource("qe-ds8");
+        createRoute("qe-locked", "qe-ds8", "GET", "SELECT 1", java.util.Map.of("accessPolicy", "authenticated"))
+                .then().statusCode(201);
+        given().contentType("text/plain").body("Stopped").when().patch("/queryrest/api/routes/qe-locked")
+                .then().statusCode(lessThan(300));
+        updates.begin("qe-locked", "authenticated", null);
+        try {
+            given().redirects().follow(false).when().get("/query/qe-locked").then().statusCode(401);
+        } finally {
+            updates.end("qe-locked");
+        }
     }
 }

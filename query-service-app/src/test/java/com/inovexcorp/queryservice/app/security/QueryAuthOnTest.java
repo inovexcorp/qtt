@@ -5,7 +5,9 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.oidc.server.OidcWiremockTestResource;
+import com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates;
 import io.restassured.specification.RequestSpecification;
+import jakarta.inject.Inject;
 import io.smallrye.jwt.build.Jwt;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -16,6 +18,8 @@ import java.util.Set;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 
@@ -26,6 +30,9 @@ import static org.hamcrest.Matchers.nullValue;
 class QueryAuthOnTest {
 
     static WireMockServer anzo;
+
+    @Inject
+    QueryRouteUpdates updates;
 
     @BeforeAll
     static void startAnzo() {
@@ -90,6 +97,44 @@ class QueryAuthOnTest {
         as("fin", "qtt-query", "finance-apps").when().get("/query/qo3-fin").then().statusCode(200);
         as("app", "qtt-query").when().get("/query/qo3-fin").then().statusCode(403);
         as("fin-only", "finance-apps").when().get("/query/qo3-fin").then().statusCode(403);
+    }
+
+    @Test
+    void refusedCallersAreToldWhichRolesTheyLack() {
+        routes("qo6");
+        as("app", "qtt-query").when().get("/query/qo6-fin").then().statusCode(403)
+                .contentType("application/json")
+                .body("error", equalTo("Forbidden"))
+                .body("message", equalTo("Missing required role: finance-apps"))
+                .body("requiredRoles", contains("qtt-query", "finance-apps"))
+                .body("missingRoles", contains("finance-apps"));
+        as("fin-only", "finance-apps").when().get("/query/qo6-fin").then().statusCode(403)
+                .body("missingRoles", contains("qtt-query"));
+        as("ops", "qtt-admin").when().get("/query/qo6-auth").then().statusCode(403)
+                .body("requiredRoles", contains("qtt-query"))
+                .body("missingRoles", contains("qtt-query"));
+        // Anonymous callers still get the bare challenge, with nothing about the route.
+        given().redirects().follow(false).when().get("/query/qo6-fin").then().statusCode(401)
+                .body(not(containsString("finance-apps")));
+        // The management API's 403s are unchanged.
+        as("viewer", "qtt-viewer").when().delete("/queryrest/api/routes/qo6-fin").then().statusCode(403)
+                .body(not(containsString("missingRoles")));
+    }
+
+    @Test
+    void aRouteBeingUpdatedKeepsItsAccessAndAsksCallersToRetry() {
+        updates.begin("qo7-upd", "authenticated", "finance-apps");
+        try {
+            given().redirects().follow(false).when().get("/query/qo7-upd").then().statusCode(401);
+            as("app", "qtt-query").when().get("/query/qo7-upd").then().statusCode(403)
+                    .body("missingRoles", contains("finance-apps"));
+            as("fin", "qtt-query", "finance-apps").when().get("/query/qo7-upd").then().statusCode(503)
+                    .header("Retry-After", equalTo("1"))
+                    .body("error", equalTo("Service Unavailable"));
+        } finally {
+            updates.end("qo7-upd");
+        }
+        as("fin", "qtt-query", "finance-apps").when().get("/query/qo7-upd").then().statusCode(404);
     }
 
     @Test

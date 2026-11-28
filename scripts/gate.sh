@@ -60,7 +60,7 @@ podman logs qtt-it-app > "$LOGS/app-derby-oidc.log" 2>&1
 # QUERY_AUTH_DEFAULT=authenticated: routes left at "default" are closed. The rest of the suite calls routes
 # anonymously, so only the query-access suites run here.
 QTT_EXTRA_ENV="-e QUERY_AUTH_DEFAULT=authenticated" SUITE_TAG=closed run_suite derby false \
-  -Dit.test=QueryAuthIT,ApiKeyIT -Dqtt.queryAuthDefault=authenticated -Dit.excludedGroups=slow,restart-setup,restart-verify
+  -Dit.test=QueryAuthIT,ApiKeyIT,RouteUpdateIT -Dqtt.queryAuthDefault=authenticated -Dit.excludedGroups=slow,restart-setup,restart-verify
 "$STACK" down
 
 # Derby + Redis: full suite including slow tests, then restart, UI and real-Anzo checks on the same stack.

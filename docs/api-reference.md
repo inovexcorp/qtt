@@ -584,10 +584,28 @@ Errors are JSON objects with `error` and `message` (and `status` where shown).
 | 502 | | Anzo returned a server error |
 | 503 | `DISABLED` | The route's datasource is disabled (takes effect on running routes immediately) |
 | 503 | | Anzo could not be reached, timed out or rejected the credentials |
+| 503 | | The route is being changed right now (a few milliseconds, up to about a second while in-flight requests finish); comes with `Retry-After: 1`. Retry the request |
 | 401 | | No credential on an authenticated route or a route that doesn't exist, or an invalid, expired or revoked token or key (`WWW-Authenticate: Bearer`) |
-| 403 | | A valid credential without access to this route (no `qtt-query`, a missing required role, or an API key that doesn't name the route) |
+| 403 | | A valid credential without access to this route (no `qtt-query`, a missing required role, or an API key that doesn't name the route). The body says what is missing; see below |
 | 404 | | No such route (callers with a valid credential), or the route is stopped |
 | 405 | | The route doesn't accept this method; `Allow` lists the methods it accepts |
+
+A 403 names what the caller lacks. For an OIDC token, `requiredRoles` lists every role the route needs (`qtt-query`
+first) and `missingRoles` the ones the token doesn't carry:
+
+```json
+{"error": "Forbidden", "message": "Missing required role: finance-apps",
+ "requiredRoles": ["qtt-query", "finance-apps"], "missingRoles": ["finance-apps"]}
+```
+
+For an API key, `message` says the key's scope doesn't include the route; a `*` key on a route with required roles also
+gets `requiredRoles` (such a route must be named in the key's scope). Only callers with a valid credential get these
+details: anonymous callers get the bare 401.
+
+While a route is being changed (a modify, a template change, or a change to its datasource), its callers get `503` with
+`Retry-After: 1` and `{"error": "Service Unavailable", "message": "This query route is being updated. Try again
+shortly."}`. The route's access setting from before the change still applies, so callers it would refuse get 401/403
+as usual, never the 503.
 
 Template errors never call Anzo. Responses don't echo request headers; the `anzo.query`, `anzo.query_duration` and
 `anzo.graphmart` headers are returned only with `QUERY_DEBUG_HEADERS=true`.

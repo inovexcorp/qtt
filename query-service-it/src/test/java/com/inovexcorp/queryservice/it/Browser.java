@@ -27,7 +27,7 @@ final class Browser {
 
     static {
         // The stack's certificate is self-signed and not issued for "localhost"; read once, when the JDK's HTTP
-        // client is first used.
+        // client is first used. Qtt sets it too, so that whichever test uses the client first, it is already set.
         System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
     }
 

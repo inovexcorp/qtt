@@ -19,6 +19,7 @@ import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.LayerService;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import com.inovexcorp.queryservice.routebuilder.CamelKarafComponent;
+import com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates;
 import com.inovexcorp.queryservice.health.HealthCheckConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
@@ -79,6 +80,9 @@ public class DataSourcesController {
 
     @Inject
     CamelKarafComponent camelKarafComponent;
+
+    @Inject
+    QueryRouteUpdates routeUpdates;
 
     @Inject
     HealthChecker healthChecker;
@@ -208,15 +212,21 @@ public class DataSourcesController {
                         // Save route params to route object
                         CamelRouteTemplate currentRoute = routeService.getRoute(route);
                         log.warn("Re-instantiating route: {} after modification to data source", currentRoute);
-                        camelContext.removeRoute(route);
-                        routeService.delete(route);
                         String layerUris = "";
                         List<String> layerList = layerService.getLayerUris(currentRoute);
                         if (!layerList.isEmpty()) {
                             layerUris = String.join(",", layerService.getLayerUris(currentRoute));
                         }
-                        camelContext.addRoutes(camelKarafComponent.routeBuilder(currentRoute, layerUris));
-                        routeService.add(currentRoute);
+                        // Callers get 503 "try again" instead of 404 while the Camel route is replaced.
+                        routeUpdates.begin(route, currentRoute.getAccessPolicy(), currentRoute.getRequiredRoles());
+                        try {
+                            camelContext.removeRoute(route);
+                            routeService.delete(route);
+                            camelContext.addRoutes(camelKarafComponent.routeBuilder(currentRoute, layerUris));
+                            routeService.add(currentRoute);
+                        } finally {
+                            routeUpdates.end(route);
+                        }
                     } catch (Exception e) {
                         log.error("Error re-instantiating route: {} after modification to data source", route, e);
                     }
