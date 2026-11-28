@@ -1,35 +1,30 @@
+import type { MockedObject } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { SparqiService } from './sparqi.service';
-import {
-  SparqiSession,
-  SparqiMessage,
-  SparqiContext,
-  HealthResponse,
-  SessionResponse,
-  MessageResponse,
-  SparqiMetricsSummary,
-  SparqiMetricRecord
-} from '../models/sparqi.models';
+import { SparqiSession, SparqiMessage, SparqiContext, HealthResponse, SessionResponse, MessageResponse, SparqiMetricsSummary, SparqiMetricRecord } from '../models/sparqi.models';
 
 describe('SparqiService', () => {
   let service: SparqiService;
   let httpMock: HttpTestingController;
-  let localStorageSpy: jasmine.SpyObj<Storage>;
+  let localStorageSpy: MockedObject<Storage>;
 
   beforeEach(() => {
-    const storage: { [key: string]: string } = {};
-    localStorageSpy = jasmine.createSpyObj('localStorage', ['getItem', 'setItem', 'removeItem', 'clear']);
-    localStorageSpy.getItem.and.callFake((key: string) => storage[key] || null);
-    localStorageSpy.setItem.and.callFake((key: string, value: string) => {
-      storage[key] = value;
-    });
-    localStorageSpy.removeItem.and.callFake((key: string) => {
-      delete storage[key];
-    });
-    localStorageSpy.clear.and.callFake(() => {
-      Object.keys(storage).forEach(key => delete storage[key]);
-    });
+    const storage: {
+      [key: string]: string;
+    } = {};
+    localStorageSpy = {
+      getItem: vi.fn((key: string) => storage[key] || null).mockName('localStorage.getItem'),
+      setItem: vi.fn((key: string, value: string) => {
+        storage[key] = value;
+      }).mockName('localStorage.setItem'),
+      removeItem: vi.fn((key: string) => {
+        delete storage[key];
+      }).mockName('localStorage.removeItem'),
+      clear: vi.fn(() => {
+        Object.keys(storage).forEach(key => delete storage[key]);
+      }).mockName('localStorage.clear')
+    } as unknown as MockedObject<Storage>;
 
     Object.defineProperty(window, 'localStorage', { value: localStorageSpy, writable: true });
 
@@ -85,10 +80,8 @@ describe('SparqiService', () => {
         expect(session.welcomeMessage).toBe('Welcome to SPARQi!');
       });
 
-      const req = httpMock.expectOne((request) =>
-        request.url.includes('/queryrest/api/sparqi/session') &&
-        request.url.includes(`routeId=${encodeURIComponent(routeId)}`)
-      );
+      const req = httpMock.expectOne((request) => request.url.includes('/queryrest/api/sparqi/session') &&
+        request.url.includes(`routeId=${encodeURIComponent(routeId)}`));
       expect(req.request.method).toBe('POST');
       req.flush(mockSessionResponse);
     });
@@ -145,10 +138,8 @@ describe('SparqiService', () => {
       const historyReq = httpMock.expectOne(`/queryrest/api/sparqi/session/${sessionId}/history`);
       historyReq.error(new ProgressEvent('error'), { status: 404, statusText: 'Not Found' });
 
-      const createReq = httpMock.expectOne((request) =>
-        request.url.includes('/queryrest/api/sparqi/session') &&
-        request.url.includes(`routeId=${encodeURIComponent(routeId)}`)
-      );
+      const createReq = httpMock.expectOne((request) => request.url.includes('/queryrest/api/sparqi/session') &&
+        request.url.includes(`routeId=${encodeURIComponent(routeId)}`));
       createReq.flush(mockNewSessionResponse);
     });
   });
@@ -179,13 +170,10 @@ describe('SparqiService', () => {
       const sessionId = 'session-123';
       const message = 'Test message';
 
-      service.sendMessage(sessionId, message).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-          expect(error.message).toContain('error');
-        }
-      );
+      service.sendMessage(sessionId, message).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+        expect(error.message).toContain('error');
+      });
 
       const req = httpMock.expectOne(`/queryrest/api/sparqi/session/${sessionId}/message`);
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });
@@ -270,12 +258,9 @@ describe('SparqiService', () => {
 
       localStorage.setItem(`sparqi-session-${routeId}`, JSON.stringify(storedSession));
 
-      service.clearSession(routeId).subscribe(
-        () => fail('should have failed'),
-        () => {
-          expect(localStorage.getItem(`sparqi-session-${routeId}`)).toBeNull();
-        }
-      );
+      service.clearSession(routeId).subscribe(() => expect.fail('should have failed'), () => {
+        expect(localStorage.getItem(`sparqi-session-${routeId}`)).toBeNull();
+      });
 
       const req = httpMock.expectOne(`/queryrest/api/sparqi/session/${sessionId}`);
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });
@@ -410,12 +395,9 @@ describe('SparqiService', () => {
     it('should handle client-side errors', () => {
       const sessionId = 'session-123';
 
-      service.getSessionContext(sessionId).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error.message).toBe('Unable to connect to SPARQi service');
-        }
-      );
+      service.getSessionContext(sessionId).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error.message).toBe('Unable to connect to SPARQi service');
+      });
 
       const req = httpMock.expectOne(`/queryrest/api/sparqi/session/${sessionId}/context`);
       req.error(new ProgressEvent('error'), { status: 0 });
@@ -424,12 +406,9 @@ describe('SparqiService', () => {
     it('should handle 404 errors with appropriate message', () => {
       const sessionId = 'session-123';
 
-      service.getSessionHistory(sessionId).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error.message).toBe('Session not found or expired');
-        }
-      );
+      service.getSessionHistory(sessionId).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error.message).toBe('Session not found or expired');
+      });
 
       const req = httpMock.expectOne(`/queryrest/api/sparqi/session/${sessionId}/history`);
       req.error(new ProgressEvent('error'), { status: 404, statusText: 'Not Found' });
@@ -439,12 +418,9 @@ describe('SparqiService', () => {
       // Use terminateSession instead of checkHealth since it uses catchError
       const sessionId = 'session-123';
 
-      service.terminateSession(sessionId).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error.message).toBe('SPARQi service error');
-        }
-      );
+      service.terminateSession(sessionId).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error.message).toBe('SPARQi service error');
+      });
 
       const req = httpMock.expectOne(`/queryrest/api/sparqi/session/${sessionId}`);
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Internal Server Error' });

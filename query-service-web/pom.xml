@@ -50,7 +50,7 @@
             </goals>
             <phase>prepare-package</phase>
             <configuration>
-              <arguments>test -- --watch=false --browsers=ChromeHeadless --code-coverage</arguments>
+              <arguments>test -- --watch=false --coverage</arguments>
             </configuration>
           </execution>
           <execution>

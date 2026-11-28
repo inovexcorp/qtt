@@ -15,7 +15,8 @@ class Host {
   control = new FormControl<string | null>('first');
   options: monaco.editor.IStandaloneEditorConstructionOptions = { language: 'json' };
   editor?: monaco.editor.IStandaloneCodeEditor;
-  @ViewChild(CodeEditorComponent) component!: CodeEditorComponent;
+  @ViewChild(CodeEditorComponent)
+  component!: CodeEditorComponent;
 }
 
 describe('CodeEditorComponent', () => {
@@ -34,7 +35,7 @@ describe('CodeEditorComponent', () => {
     expect(host.editor).toBeDefined();
     expect(fixture.nativeElement.querySelectorAll('.monaco-editor').length).toBe(1);
     expect(host.editor!.getModel()!.getLanguageId()).toBe('json');
-    expect(host.editor!.getOption(monaco.editor.EditorOption.scrollBeyondLastLine)).toBeFalse();
+    expect(host.editor!.getOption(monaco.editor.EditorOption.scrollBeyondLastLine)).toBe(false);
   });
 
   it('shows the form value, and follows later values', () => {
@@ -50,22 +51,22 @@ describe('CodeEditorComponent', () => {
     host.control.valueChanges.subscribe(() => inZone = NgZone.isInAngularZone());
     host.editor!.setValue('typed');
     expect(host.control.value).toBe('typed');
-    expect(inZone).toBeTrue();
-    expect(host.control.dirty).toBeTrue();
+    expect(inZone).toBe(true);
+    expect(host.control.dirty).toBe(true);
   });
 
   it('does not echo a value written by the form back as a change', () => {
     host.control.setValue('quiet', { emitEvent: false });
     host.control.markAsPristine();
     expect(host.editor!.getValue()).toBe('quiet');
-    expect(host.control.dirty).toBeFalse();
+    expect(host.control.dirty).toBe(false);
   });
 
   it('is read-only while the control is disabled', () => {
     host.control.disable();
-    expect(host.editor!.getOption(monaco.editor.EditorOption.readOnly)).toBeTrue();
+    expect(host.editor!.getOption(monaco.editor.EditorOption.readOnly)).toBe(true);
     host.control.enable();
-    expect(host.editor!.getOption(monaco.editor.EditorOption.readOnly)).toBeFalse();
+    expect(host.editor!.getOption(monaco.editor.EditorOption.readOnly)).toBe(false);
   });
 
   it('applies changed options, including the language', () => {
@@ -78,7 +79,7 @@ describe('CodeEditorComponent', () => {
   it('disposes the editor with the component', () => {
     const model = host.editor!.getModel()!;
     fixture.destroy();
-    expect(model.isDisposed()).toBeTrue();
+    expect(model.isDisposed()).toBe(true);
   });
 });
 

@@ -37,9 +37,9 @@ const SPARQI_REPLY = [
 ].join('\n');
 
 @Component({
-    imports: [MarkdownComponent],
-    changeDetection: ChangeDetectionStrategy.Eager,
-    template: `<markdown [data]="text" class="markdown-content"></markdown>`
+  imports: [MarkdownComponent],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  template: `<markdown [data]="text" class="markdown-content"></markdown>`
 })
 class MarkdownHost {
   text = SPARQI_REPLY;
@@ -95,9 +95,9 @@ const PURPLE: Color = {
 };
 
 @Component({
-    imports: [NgxChartsModule],
-    changeDetection: ChangeDetectionStrategy.Eager,
-    template: `
+  imports: [NgxChartsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  template: `
     <ngx-charts-number-card id="cards" [results]="cards" [scheme]="scheme" [view]="[850,180]" cardColor="#4a148c">
     </ngx-charts-number-card>
     <ngx-charts-linear-gauge id="gauge" [value]="75" units="Average Success Rate" [view]="[350,150]">
@@ -149,8 +149,8 @@ describe('ngx-charts rendering (Metrics)', () => {
   it('renders stacked and grouped bars, one per data point, in the scheme colors', () => {
     for (const id of ['stacked', 'grouped']) {
       const bars = chart(id).querySelectorAll('path.bar');
-      expect(bars.length).withContext(id).toBe(4);
-      expect(PURPLE.domain).withContext(id).toContain(bars[0].getAttribute('fill')!);
+      expect(bars.length, id).toBe(4);
+      expect(PURPLE.domain, id).toContain(bars[0].getAttribute('fill')!);
     }
     expect(chart('stacked').querySelector('.chart-legend')?.textContent).toContain('Completed');
   });
@@ -162,38 +162,40 @@ describe('ngx-charts rendering (Metrics)', () => {
 });
 
 @Component({
-    selector: 'test-section', template: '<router-outlet></router-outlet>', changeDetection: ChangeDetectionStrategy.Eager,
- imports: [RouterOutlet]
+  selector: 'test-section', template: '<router-outlet></router-outlet>', changeDetection: ChangeDetectionStrategy.Eager,
+  imports: [RouterOutlet]
 })
-class Section {}
+class Section {
+}
 
 @Component({ standalone: true, selector: 'test-page', changeDetection: ChangeDetectionStrategy.Eager,
- template: 'page' })
-class Page {}
+  template: 'page' })
+class Page {
+}
 
 @Component({
-    imports: [BreadcrumbComponent, RouterOutlet],
-    changeDetection: ChangeDetectionStrategy.Eager,
-    template: `<xng-breadcrumb separator="/"></xng-breadcrumb><router-outlet></router-outlet>`
+  imports: [BreadcrumbComponent, RouterOutlet],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  template: `<xng-breadcrumb separator="/"></xng-breadcrumb><router-outlet></router-outlet>`
 })
-class BreadcrumbHost {}
+class BreadcrumbHost {
+}
 
 describe('xng-breadcrumb (app toolbar)', () => {
   // The same shape as app-routing.module.ts: labels come from route data.
   const routes = [
     { path: '', component: BreadcrumbHost, children: [
-      { path: 'routes', component: Section, data: { breadcrumb: 'Routes' }, children: [
-        { path: 'config-route/:routeId', component: Page, data: { breadcrumb: 'Config-Route' } }
-      ] },
-      { path: 'datasources', component: Section, data: { breadcrumb: 'DataSources' }, children: [
-        { path: 'config-datasource/:dataSourceId', component: Page, data: { breadcrumb: 'Config-Datasource' } }
-      ] },
-      { path: 'metrics', component: Page, data: { breadcrumb: 'Metrics' } }
-    ] }
+        { path: 'routes', component: Section, data: { breadcrumb: 'Routes' }, children: [
+            { path: 'config-route/:routeId', component: Page, data: { breadcrumb: 'Config-Route' } }
+          ] },
+        { path: 'datasources', component: Section, data: { breadcrumb: 'DataSources' }, children: [
+            { path: 'config-datasource/:dataSourceId', component: Page, data: { breadcrumb: 'Config-Datasource' } }
+          ] },
+        { path: 'metrics', component: Page, data: { breadcrumb: 'Metrics' } }
+      ] }
   ];
 
-  const crumbs = (root: Element) =>
-    Array.from(root.querySelectorAll('.xng-breadcrumb-item')).map(i => i.textContent?.trim());
+  const crumbs = (root: Element) => Array.from(root.querySelectorAll('.xng-breadcrumb-item')).map(i => i.textContent?.trim());
 
   beforeEach(() => TestBed.configureTestingModule({ providers: [provideRouter(routes)] }));
 

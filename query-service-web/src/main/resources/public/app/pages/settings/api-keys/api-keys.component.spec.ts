@@ -49,19 +49,19 @@ describe('ApiKeysComponent', () => {
 
   it('keeps the create form folded away until asked for, and closes it after creating', () => {
     http.expectOne('/queryrest/api/apikeys').flush([]);
-    expect(component.showForm).toBeFalse();
+    expect(component.showForm).toBe(false);
     component.openForm();
-    expect(component.showForm).toBeTrue();
+    expect(component.showForm).toBe(true);
     component.form.setValue({ name: 'r', description: '', routes: 'p', expiresInDays: null });
     component.create();
     http.expectOne({ method: 'POST', url: '/queryrest/api/apikeys' })
       .flush({ id: 'k', name: 'r', key: 'qtt_k_s', routes: ['p'], status: 'active' });
     http.expectOne('/queryrest/api/apikeys').flush([]);
-    expect(component.showForm).toBeFalse();
+    expect(component.showForm).toBe(false);
     component.openForm();
     component.form.patchValue({ name: 'typed' });
     component.closeForm();
-    expect(component.showForm).toBeFalse();
+    expect(component.showForm).toBe(false);
     expect(component.form.value.name).toBeNull();
   });
 

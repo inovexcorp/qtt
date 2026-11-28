@@ -74,6 +74,16 @@
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
+            },
+            "testing": {
+              "aot": false,
+              "optimization": false,
+              "extractLicenses": false,
+              "polyfills": [
+                "zone.js",
+                "zone.js/testing",
+                "@angular/localize/init"
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -100,34 +110,29 @@
           }
         },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "main": "src/main/resources/public/test.ts",
-            "polyfills": [
-              "zone.js",
-              "zone.js/testing",
-              "@angular/localize/init"
-            ],
             "tsConfig": "tsconfig.spec.json",
-            "webWorkerTsConfig": "tsconfig.worker.json",
-            "karmaConfig": "karma.conf.js",
-            "inlineStyleLanguage": "scss",
-            "loader": {
-              ".css": "empty"
+            "reporters": [
+              "default",
+              "junit"
+            ],
+            "coverageReporters": [
+              "html",
+              "text-summary"
+            ],
+            "coverageThresholds": {
+              "statements": 53,
+              "branches": 39,
+              "functions": 49,
+              "lines": 52,
+              "perFile": false
             },
-            "assets": [
-              "src/main/resources/public/favicon.ico",
-              "src/main/resources/public/assets"
-            ],
-            "styles": [
-              {
-                "input": "node_modules/monaco-editor/min/vs/editor/editor.main.css",
-                "bundleName": "monaco-editor",
-                "inject": false
-              },
-              "src/main/resources/public/styles.scss"
-            ],
-            "scripts": []
+            "buildTarget": ":build:testing",
+            "runner": "vitest",
+            "providersFile": "src/main/resources/public/test-providers.ts",
+            "runnerConfig": "vitest-base.config.mts",
+            "outputFile": "target/test-reports/vitest-junit.xml"
           }
         }
       }

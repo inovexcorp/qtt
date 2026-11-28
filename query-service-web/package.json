@@ -38,16 +38,12 @@
     "@types/d3-scale": "^4.0.8",
     "@types/d3-selection": "^3.0.10",
     "@types/d3-shape": "^3.1.6",
-    "@types/jasmine": "~5.1.0",
+    "@vitest/browser-playwright": "^5.1.2",
+    "@vitest/coverage-v8": "^5.1.2",
     "baseline-browser-mapping": "^2.9.11",
-    "istanbul-lib-instrument": "^6.0.3",
-    "jasmine-core": "~5.1.0",
-    "karma": "~6.4.0",
-    "karma-chrome-launcher": "~3.2.0",
-    "karma-coverage": "~2.2.0",
-    "karma-jasmine": "~5.1.0",
-    "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~6.0.3"
+    "playwright": "^1.65.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=26.13.1 <27"
@@ -57,6 +53,7 @@
     "fsevents": false,
     "lmdb": false,
     "msgpackr-extract": false,
-    "nice-napi": false
+    "nice-napi": false,
+    "@parcel/watcher": false
   }
 }

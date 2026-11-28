@@ -1,3 +1,4 @@
+import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
@@ -10,12 +11,17 @@ import { NO_ERRORS_SCHEMA } from '@angular/core';
 describe('SparqiMetricsModalComponent', () => {
   let component: SparqiMetricsModalComponent;
   let fixture: ComponentFixture<SparqiMetricsModalComponent>;
-  let mockDialogRef: jasmine.SpyObj<MatDialogRef<SparqiMetricsModalComponent>>;
-  let mockSparqiService: jasmine.SpyObj<SparqiService>;
+  let mockDialogRef: MockedObject<MatDialogRef<SparqiMetricsModalComponent>>;
+  let mockSparqiService: MockedObject<SparqiService>;
 
   beforeEach(async () => {
-    mockDialogRef = jasmine.createSpyObj('MatDialogRef', ['close']);
-    mockSparqiService = jasmine.createSpyObj('SparqiService', ['getMetricsHistory', 'getTokensByRoute']);
+    mockDialogRef = {
+      close: vi.fn().mockName('MatDialogRef.close')
+    } as unknown as MockedObject<MatDialogRef<SparqiMetricsModalComponent>>;
+    mockSparqiService = {
+      getMetricsHistory: vi.fn().mockName('SparqiService.getMetricsHistory'),
+      getTokensByRoute: vi.fn().mockName('SparqiService.getTokensByRoute')
+    } as unknown as MockedObject<SparqiService>;
 
     await TestBed.configureTestingModule({
       declarations: [SparqiMetricsModalComponent],
@@ -55,8 +61,8 @@ describe('SparqiMetricsModalComponent', () => {
     ];
     const mockTokensByRoute = new Map([['route-1', 1000]]);
 
-    mockSparqiService.getMetricsHistory.and.returnValue(of(mockHistory));
-    mockSparqiService.getTokensByRoute.and.returnValue(of(mockTokensByRoute));
+    mockSparqiService.getMetricsHistory.mockReturnValue(of(mockHistory));
+    mockSparqiService.getTokensByRoute.mockReturnValue(of(mockTokensByRoute));
 
     component.ngOnInit();
 
@@ -69,10 +75,10 @@ describe('SparqiMetricsModalComponent', () => {
 
   it('should handle error when loading metrics history', () => {
     const mockTokensByRoute = new Map([['route-1', 1000]]);
-    mockSparqiService.getMetricsHistory.and.returnValue(throwError(() => new Error('Failed to load')));
-    mockSparqiService.getTokensByRoute.and.returnValue(of(mockTokensByRoute));
+    mockSparqiService.getMetricsHistory.mockReturnValue(throwError(() => new Error('Failed to load')));
+    mockSparqiService.getTokensByRoute.mockReturnValue(of(mockTokensByRoute));
 
-    spyOn(console, 'error');
+    vi.spyOn(console, 'error').mockReturnValue(undefined);
 
     component.ngOnInit();
 
@@ -82,10 +88,10 @@ describe('SparqiMetricsModalComponent', () => {
 
   it('should handle error when loading tokens by route', () => {
     const mockHistory: SparqiMetricRecord[] = [];
-    mockSparqiService.getMetricsHistory.and.returnValue(of(mockHistory));
-    mockSparqiService.getTokensByRoute.and.returnValue(throwError(() => new Error('Failed to load')));
+    mockSparqiService.getMetricsHistory.mockReturnValue(of(mockHistory));
+    mockSparqiService.getTokensByRoute.mockReturnValue(throwError(() => new Error('Failed to load')));
 
-    spyOn(console, 'error');
+    vi.spyOn(console, 'error').mockReturnValue(undefined);
 
     component.ngOnInit();
 

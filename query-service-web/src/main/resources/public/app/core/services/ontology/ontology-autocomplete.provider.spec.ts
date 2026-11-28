@@ -1,3 +1,4 @@
+import type { MockedObject } from 'vitest';
 import { of, throwError } from 'rxjs';
 import * as monaco from 'monaco-editor';
 import { OntologyAutocompleteProvider } from './ontology-autocomplete.provider';
@@ -5,7 +6,10 @@ import { OntologyService } from './ontology.service';
 import { OntologyElement } from '../../models/ontology/ontology-element';
 
 /** A one-line Monaco text model, enough for the provider: the cursor sits at `|` in `line`. */
-function modelAt(lineWithCursor: string): { model: any; position: any } {
+function modelAt(lineWithCursor: string): {
+  model: any;
+  position: any;
+} {
   const column = lineWithCursor.indexOf('|') + 1;
   const line = lineWithCursor.replace('|', '');
   const model = {
@@ -26,12 +30,14 @@ const KNOWS: OntologyElement = { uri: 'http://example.org/onto#knows', label: 'k
 const ALICE: OntologyElement = { uri: 'http://example.org/people/alice', label: 'Alice', type: 'individual' };
 
 describe('OntologyAutocompleteProvider', () => {
-  let ontology: jasmine.SpyObj<OntologyService>;
+  let ontology: MockedObject<OntologyService>;
   let provider: OntologyAutocompleteProvider;
 
   beforeEach(() => {
-    ontology = jasmine.createSpyObj('OntologyService', ['searchOntologyElements']);
-    ontology.searchOntologyElements.and.returnValue(of([PERSON, KNOWS, ALICE]));
+    ontology = {
+      searchOntologyElements: vi.fn().mockName('OntologyService.searchOntologyElements')
+    } as unknown as MockedObject<OntologyService>;
+    ontology.searchOntologyElements.mockReturnValue(of([PERSON, KNOWS, ALICE]));
     provider = new OntologyAutocompleteProvider(ontology, 'route-1');
   });
 
@@ -52,7 +58,7 @@ describe('OntologyAutocompleteProvider', () => {
     expect(person.label).toBe('Person');
     expect(person.insertText).toBe('<http://example.org/onto#Person>');
     expect(person.detail).toBe(PERSON.uri);
-    expect(person.range).toEqual(jasmine.objectContaining({ startColumn: 6, endColumn: 10 }));
+    expect(person.range).toEqual(expect.objectContaining({ startColumn: 6, endColumn: 10 }));
     expect(person.sortText).toBe('0Person');
     expect(person.filterText).toBe('Person');
   });
@@ -62,14 +68,14 @@ describe('OntologyAutocompleteProvider', () => {
     expect(ontology.searchOntologyElements).toHaveBeenCalledWith('route-1', 'http://example.org/on', 'all', 50);
     const person = list!.suggestions[0];
     expect(person.insertText).toBe('http://example.org/onto#Person>');
-    expect(person.range).toEqual(jasmine.objectContaining({ startColumn: 7, endColumn: 30 }));
+    expect(person.range).toEqual(expect.objectContaining({ startColumn: 7, endColumn: 30 }));
   });
 
   it('after prefix: inserts only the local name and keeps the prefix', async () => {
     const list = await complete('?s a ex:Per|');
     expect(ontology.searchOntologyElements).toHaveBeenCalledWith('route-1', 'Per', 'all', 50);
     expect(list!.suggestions.map(s => s.insertText)).toEqual(['Person', 'knows', 'alice']);
-    expect(list!.suggestions[0].range).toEqual(jasmine.objectContaining({ startColumn: 9, endColumn: 12 }));
+    expect(list!.suggestions[0].range).toEqual(expect.objectContaining({ startColumn: 9, endColumn: 12 }));
   });
 
   it('with an empty local part searches by the prefix', async () => {
@@ -94,18 +100,17 @@ describe('OntologyAutocompleteProvider', () => {
   });
 
   it('marks the list incomplete when the search hit its limit', async () => {
-    ontology.searchOntologyElements.and.returnValue(of(Array.from({ length: 50 }, (_, i) =>
-      ({ uri: `http://e/x${i}`, label: `x${i}`, type: 'class' } as OntologyElement))));
-    expect((await complete('?s a xx|'))!.incomplete).toBeTrue();
-    ontology.searchOntologyElements.and.returnValue(of([PERSON]));
-    expect((await complete('?s a xx|'))!.incomplete).toBeFalse();
+    ontology.searchOntologyElements.mockReturnValue(of(Array.from({ length: 50 }, (_, i) => ({ uri: `http://e/x${i}`, label: `x${i}`, type: 'class' } as OntologyElement))));
+    expect((await complete('?s a xx|'))!.incomplete).toBe(true);
+    ontology.searchOntologyElements.mockReturnValue(of([PERSON]));
+    expect((await complete('?s a xx|'))!.incomplete).toBe(false);
   });
 
   it('returns no suggestions when nothing matches or the search fails', async () => {
-    ontology.searchOntologyElements.and.returnValue(of([]));
+    ontology.searchOntologyElements.mockReturnValue(of([]));
     expect((await complete('?s a Zz|'))!.suggestions).toEqual([]);
-    spyOn(console, 'error');
-    ontology.searchOntologyElements.and.returnValue(throwError(() => new Error('down')));
+    vi.spyOn(console, 'error').mockReturnValue(undefined);
+    ontology.searchOntologyElements.mockReturnValue(throwError(() => new Error('down')));
     expect((await complete('?s a Zz|'))!.suggestions).toEqual([]);
   });
 

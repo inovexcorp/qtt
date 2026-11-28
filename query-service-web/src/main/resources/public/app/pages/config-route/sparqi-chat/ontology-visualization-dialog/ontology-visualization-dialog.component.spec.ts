@@ -1,3 +1,4 @@
+import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -11,9 +12,9 @@ import { NO_ERRORS_SCHEMA } from '@angular/core';
 describe('OntologyVisualizationDialogComponent', () => {
   let component: OntologyVisualizationDialogComponent;
   let fixture: ComponentFixture<OntologyVisualizationDialogComponent>;
-  let mockDialogRef: jasmine.SpyObj<MatDialogRef<OntologyVisualizationDialogComponent>>;
-  let mockOntologyService: jasmine.SpyObj<OntologyService>;
-  let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
+  let mockDialogRef: MockedObject<MatDialogRef<OntologyVisualizationDialogComponent>>;
+  let mockOntologyService: MockedObject<OntologyService>;
+  let mockSnackBar: MockedObject<MatSnackBar>;
 
   const mockData = {
     routeId: 'test-route',
@@ -21,12 +22,16 @@ describe('OntologyVisualizationDialogComponent', () => {
   };
 
   beforeEach(async () => {
-    mockDialogRef = jasmine.createSpyObj('MatDialogRef', ['close']);
-    mockOntologyService = jasmine.createSpyObj('OntologyService', [
-      'getOntologyElements',
-      'refreshOntologyCache'
-    ]);
-    mockSnackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
+    mockDialogRef = {
+      close: vi.fn().mockName('MatDialogRef.close')
+    } as unknown as MockedObject<MatDialogRef<OntologyVisualizationDialogComponent>>;
+    mockOntologyService = {
+      getOntologyElements: vi.fn().mockName('OntologyService.getOntologyElements'),
+      refreshOntologyCache: vi.fn().mockName('OntologyService.refreshOntologyCache')
+    } as unknown as MockedObject<OntologyService>;
+    mockSnackBar = {
+      open: vi.fn().mockName('MatSnackBar.open')
+    } as unknown as MockedObject<MatSnackBar>;
 
     await TestBed.configureTestingModule({
       declarations: [OntologyVisualizationDialogComponent],
@@ -60,7 +65,7 @@ describe('OntologyVisualizationDialogComponent', () => {
         { uri: 'http://example.org/Property1', label: 'Property 1', type: 'objectProperty' }
       ];
 
-      mockOntologyService.getOntologyElements.and.returnValue(of(mockElements));
+      mockOntologyService.getOntologyElements.mockReturnValue(of(mockElements));
 
       component.ngOnInit();
 
@@ -81,7 +86,7 @@ describe('OntologyVisualizationDialogComponent', () => {
         { uri: 'http://example.org/Property1', label: 'Property 1', type: 'objectProperty' }
       ];
 
-      mockOntologyService.getOntologyElements.and.returnValue(of(mockElements));
+      mockOntologyService.getOntologyElements.mockReturnValue(of(mockElements));
 
       component.ngOnInit();
 
@@ -97,7 +102,7 @@ describe('OntologyVisualizationDialogComponent', () => {
         { uri: 'http://example.org/Individual1', label: 'Individual 1', type: 'individual' }
       ];
 
-      mockOntologyService.getOntologyElements.and.returnValue(of(mockElements));
+      mockOntologyService.getOntologyElements.mockReturnValue(of(mockElements));
 
       component.ngOnInit();
 
@@ -116,26 +121,20 @@ describe('OntologyVisualizationDialogComponent', () => {
       }));
 
       component.elementCount = 1500;
-      mockOntologyService.getOntologyElements.and.returnValue(of(mockElements));
+      mockOntologyService.getOntologyElements.mockReturnValue(of(mockElements));
 
-      spyOn(console, 'warn');
+      vi.spyOn(console, 'warn').mockReturnValue(undefined);
 
       component.ngOnInit();
 
       expect(console.warn).toHaveBeenCalled();
-      expect(mockSnackBar.open).toHaveBeenCalledWith(
-        'Showing first 1000 of 1500 elements',
-        'OK',
-        { duration: 5000 }
-      );
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Showing first 1000 of 1500 elements', 'OK', { duration: 5000 });
     });
 
     it('should handle error when loading elements', () => {
-      mockOntologyService.getOntologyElements.and.returnValue(
-        throwError(() => new Error('Failed to load'))
-      );
+      mockOntologyService.getOntologyElements.mockReturnValue(throwError(() => new Error('Failed to load')));
 
-      spyOn(console, 'error');
+      vi.spyOn(console, 'error').mockReturnValue(undefined);
 
       component.ngOnInit();
 
@@ -187,9 +186,7 @@ describe('OntologyVisualizationDialogComponent', () => {
     });
 
     it('should apply both type and search filters', () => {
-      component.elements.push(
-        { uri: 'http://example.org/Animal', label: 'Animal', type: 'class' }
-      );
+      component.elements.push({ uri: 'http://example.org/Animal', label: 'Animal', type: 'class' });
       component.selectedType = 'class';
       component.searchTerm = 'Person';
       component.applyFilters();
@@ -213,36 +210,26 @@ describe('OntologyVisualizationDialogComponent', () => {
         { uri: 'http://example.org/Class1', label: 'Class 1', type: 'class' }
       ];
 
-      mockOntologyService.refreshOntologyCache.and.returnValue(of({ success: true }));
-      mockOntologyService.getOntologyElements.and.returnValue(of(mockElements));
+      mockOntologyService.refreshOntologyCache.mockReturnValue(of({ success: true }));
+      mockOntologyService.getOntologyElements.mockReturnValue(of(mockElements));
 
       component.refreshCache();
 
       expect(component.isLoading).toBe(false);
       expect(mockOntologyService.refreshOntologyCache).toHaveBeenCalledWith('test-route');
-      expect(mockSnackBar.open).toHaveBeenCalledWith(
-        'Cache refreshed successfully',
-        'OK',
-        { duration: 3000 }
-      );
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Cache refreshed successfully', 'OK', { duration: 3000 });
     });
 
     it('should handle refresh cache error', () => {
-      mockOntologyService.refreshOntologyCache.and.returnValue(
-        throwError(() => new Error('Refresh failed'))
-      );
+      mockOntologyService.refreshOntologyCache.mockReturnValue(throwError(() => new Error('Refresh failed')));
 
-      spyOn(console, 'error');
+      vi.spyOn(console, 'error').mockReturnValue(undefined);
 
       component.refreshCache();
 
       expect(component.error).toBe('Failed to refresh cache');
       expect(component.isLoading).toBe(false);
-      expect(mockSnackBar.open).toHaveBeenCalledWith(
-        'Failed to refresh cache',
-        'OK',
-        { duration: 3000 }
-      );
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Failed to refresh cache', 'OK', { duration: 3000 });
       expect(console.error).toHaveBeenCalled();
     });
   });
@@ -251,9 +238,9 @@ describe('OntologyVisualizationDialogComponent', () => {
     it('should copy URI to clipboard', async () => {
       const uri = 'http://example.org/Class1';
       const mockEvent = new Event('click');
-      spyOn(mockEvent, 'stopPropagation');
+      vi.spyOn(mockEvent, 'stopPropagation').mockReturnValue(undefined);
 
-      const writeTextSpy = jasmine.createSpy('writeText').and.returnValue(Promise.resolve());
+      const writeTextSpy = vi.fn().mockName('writeText').mockResolvedValue(undefined);
       Object.defineProperty(navigator, 'clipboard', {
         value: { writeText: writeTextSpy },
         writable: true,
@@ -264,27 +251,21 @@ describe('OntologyVisualizationDialogComponent', () => {
 
       expect(mockEvent.stopPropagation).toHaveBeenCalled();
       expect(writeTextSpy).toHaveBeenCalledWith(uri);
-      expect(mockSnackBar.open).toHaveBeenCalledWith(
-        'URI copied to clipboard',
-        '',
-        { duration: 2000 }
-      );
+      expect(mockSnackBar.open).toHaveBeenCalledWith('URI copied to clipboard', '', { duration: 2000 });
     });
 
     it('should handle clipboard copy error', async () => {
       const uri = 'http://example.org/Class1';
       const mockEvent = new Event('click');
 
-      const writeTextSpy = jasmine.createSpy('writeText').and.returnValue(
-        Promise.reject(new Error('Copy failed'))
-      );
+      const writeTextSpy = vi.fn().mockName('writeText').mockRejectedValue(new Error('Copy failed'));
       Object.defineProperty(navigator, 'clipboard', {
         value: { writeText: writeTextSpy },
         writable: true,
         configurable: true
       });
 
-      spyOn(console, 'error');
+      vi.spyOn(console, 'error').mockReturnValue(undefined);
 
       component.copyUri(uri, mockEvent);
 
@@ -292,11 +273,7 @@ describe('OntologyVisualizationDialogComponent', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(console.error).toHaveBeenCalled();
-      expect(mockSnackBar.open).toHaveBeenCalledWith(
-        'Failed to copy URI',
-        'OK',
-        { duration: 2000 }
-      );
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Failed to copy URI', 'OK', { duration: 2000 });
     });
   });
 

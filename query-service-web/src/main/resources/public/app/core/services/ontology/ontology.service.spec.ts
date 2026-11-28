@@ -1,11 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { OntologyService } from './ontology.service';
-import {
-  OntologyElement,
-  OntologyMetadata,
-  CacheStatistics
-} from '../../models/ontology/ontology-element';
+import { OntologyElement, OntologyMetadata, CacheStatistics } from '../../models/ontology/ontology-element';
 
 describe('OntologyService', () => {
   let service: OntologyService;
@@ -114,17 +110,13 @@ describe('OntologyService', () => {
       const prefix = 'http://example.org';
 
       service.getOntologyElements({ routeId, type: 'all', prefix }).subscribe();
-      const req1 = httpMock.expectOne(request =>
-        request.url.includes('/queryrest/api/ontology/test-route') &&
-        request.params.get('prefix') === prefix
-      );
+      const req1 = httpMock.expectOne(request => request.url.includes('/queryrest/api/ontology/test-route') &&
+        request.params.get('prefix') === prefix);
       req1.flush([]);
 
       service.getOntologyElements({ routeId, type: 'all', prefix }).subscribe();
-      const req2 = httpMock.expectOne(request =>
-        request.url.includes('/queryrest/api/ontology/test-route') &&
-        request.params.get('prefix') === prefix
-      );
+      const req2 = httpMock.expectOne(request => request.url.includes('/queryrest/api/ontology/test-route') &&
+        request.params.get('prefix') === prefix);
       expect(req2.request.method).toBe('GET');
       req2.flush([]);
     });
@@ -154,11 +146,9 @@ describe('OntologyService', () => {
         expect(elements[0].label).toBe('Person');
       });
 
-      const req = httpMock.expectOne(request =>
-        request.url.includes('/queryrest/api/ontology/test-route') &&
+      const req = httpMock.expectOne(request => request.url.includes('/queryrest/api/ontology/test-route') &&
         request.params.get('prefix') === prefix &&
-        request.params.get('limit') === '50'
-      );
+        request.params.get('limit') === '50');
       req.flush(mockElements);
     });
 
@@ -205,12 +195,9 @@ describe('OntologyService', () => {
     it('should throw error on metadata fetch failure', () => {
       const routeId = 'test-route';
 
-      service.getOntologyMetadata(routeId).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getOntologyMetadata(routeId).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne(`/queryrest/api/ontology/${routeId}/metadata`);
       req.error(new ProgressEvent('error'), { status: 404, statusText: 'Not Found' });

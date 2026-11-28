@@ -51,12 +51,9 @@ describe('CacheService', () => {
     });
 
     it('should handle cache info request errors', () => {
-      service.getCacheInfo().subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getCacheInfo().subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne('/queryrest/api/routes/cache/info');
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });
@@ -79,12 +76,9 @@ describe('CacheService', () => {
     it('should handle errors when clearing route cache', () => {
       const routeId = 'test-route-123';
 
-      service.clearRouteCache(routeId).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.clearRouteCache(routeId).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne(`/queryrest/api/routes/${routeId}/cache`);
       req.error(new ProgressEvent('error'), { status: 404, statusText: 'Not Found' });
@@ -103,12 +97,9 @@ describe('CacheService', () => {
     });
 
     it('should handle errors when clearing all cache', () => {
-      service.clearAllCache().subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.clearAllCache().subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne('/queryrest/api/routes/cache/all');
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });
@@ -148,12 +139,9 @@ describe('CacheService', () => {
     it('should handle errors when getting route cache stats', () => {
       const routeId = 'test-route-123';
 
-      service.getRouteCacheStats(routeId).subscribe(
-        () => fail('should have failed'),
-        error => {
-          expect(error).toBeTruthy();
-        }
-      );
+      service.getRouteCacheStats(routeId).subscribe(() => expect.fail('should have failed'), error => {
+        expect(error).toBeTruthy();
+      });
 
       const req = httpMock.expectOne(`/queryrest/api/routes/${routeId}/cache/stats`);
       req.error(new ProgressEvent('error'), { status: 404, statusText: 'Not Found' });
