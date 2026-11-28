@@ -25,7 +25,7 @@ import { DatePipe } from '@angular/common';
         }
       </p>
     }`,
-    styles: [`.audit-line { margin: 4px 0 8px; font-size: 12px; color: rgba(0, 0, 0, 0.6); }`],
+    styles: [`.audit-line { margin: 0; font: var(--mat-sys-body-small); color: var(--mat-sys-on-surface-variant); }`],
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [DatePipe]
 })

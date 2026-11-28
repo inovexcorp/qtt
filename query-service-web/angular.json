@@ -33,6 +33,9 @@
             "loader": {
               ".css": "empty"
             },
+            "externalDependencies": [
+              "marked-katex-extension"
+            ],
             "assets": [
               "src/main/resources/public/favicon.ico",
               "src/main/resources/public/assets"
