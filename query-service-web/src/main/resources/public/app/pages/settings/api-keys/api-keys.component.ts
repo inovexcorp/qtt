@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormControl, FormGroup, FormGroupDirective, Validators } from '@angular/forms';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -21,6 +21,8 @@ export class ApiKeysComponent implements OnInit {
   /** The key just created; its secret is shown until the admin dismisses it, and never again. */
   created: CreatedApiKey | null = null;
   creating = false;
+  /** The create form stays folded away behind "New API key" until it is wanted. */
+  showForm = false;
 
   form = new FormGroup({
     name: new FormControl('', [Validators.required, Validators.maxLength(100)]),
@@ -31,6 +33,7 @@ export class ApiKeysComponent implements OnInit {
 
   /** Reset through the directive too, so the cleared required fields aren't shown as errors after a submit. */
   @ViewChild(FormGroupDirective) private formDirective?: FormGroupDirective;
+  @ViewChild('nameInput') private nameInput?: ElementRef<HTMLInputElement>;
 
   constructor(private apiKeys: ApiKeysService, private clipboard: Clipboard, private snackBar: MatSnackBar) {}
 
@@ -47,6 +50,22 @@ export class ApiKeysComponent implements OnInit {
 
   get visibleKeys(): ApiKey[] {
     return this.showRevoked ? this.keys : this.keys.filter(k => k.status !== 'revoked');
+  }
+
+  /** The "Show revoked" toggle only appears when there is something to show. */
+  get hasRevoked(): boolean {
+    return this.keys.some(k => k.status === 'revoked');
+  }
+
+  openForm(): void {
+    this.showForm = true;
+    setTimeout(() => this.nameInput?.nativeElement.focus());
+  }
+
+  /** Hides the create form and clears what was typed. */
+  closeForm(): void {
+    this.showForm = false;
+    this.form.reset();
   }
 
   /** "people, places" or "*" → ["people", "places"]. */
@@ -69,6 +88,7 @@ export class ApiKeysComponent implements OnInit {
       next: key => {
         this.created = key;
         this.creating = false;
+        this.showForm = false;
         if (this.formDirective) {
           this.formDirective.resetForm();
         } else {

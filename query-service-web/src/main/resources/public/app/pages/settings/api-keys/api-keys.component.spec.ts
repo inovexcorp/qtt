@@ -47,6 +47,24 @@ describe('ApiKeysComponent', () => {
     expect(component.created).toBeNull();
   });
 
+  it('keeps the create form folded away until asked for, and closes it after creating', () => {
+    http.expectOne('/queryrest/api/apikeys').flush([]);
+    expect(component.showForm).toBeFalse();
+    component.openForm();
+    expect(component.showForm).toBeTrue();
+    component.form.setValue({ name: 'r', description: '', routes: 'p', expiresInDays: null });
+    component.create();
+    http.expectOne({ method: 'POST', url: '/queryrest/api/apikeys' })
+      .flush({ id: 'k', name: 'r', key: 'qtt_k_s', routes: ['p'], status: 'active' });
+    http.expectOne('/queryrest/api/apikeys').flush([]);
+    expect(component.showForm).toBeFalse();
+    component.openForm();
+    component.form.patchValue({ name: 'typed' });
+    component.closeForm();
+    expect(component.showForm).toBeFalse();
+    expect(component.form.value.name).toBeNull();
+  });
+
   it('parses route lists', () => {
     http.expectOne('/queryrest/api/apikeys').flush([]);
     expect(ApiKeysComponent.parseRoutes('a, b  c,,')).toEqual(['a', 'b', 'c']);

@@ -1,264 +1,484 @@
-.settings-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 16px;
+// Settings: a section list on the left, one section at a time on the right.
+// Colours come from the app's Material 3 theme (violet); status colours are tuned for 4.5:1 on white.
+:host {
+  --s-primary: #7d00fa;
+  --s-primary-tint: #f1e7ff;
+  --s-text: #1d1b1e;
+  --s-text-muted: #49454e;
+  --s-border: #e4dfe7;
+  --s-border-strong: #cbc4cf;
+  --s-surface: #ffffff;
+  --s-surface-alt: #faf7fc;
+  --s-ok: #1b7a3a;
+  --s-ok-tint: #eaf6ee;
+  --s-warn: #9a4f00;
+  --s-warn-tint: #fff3e3;
+  --s-off: #6f6975;
+
+  display: block;
+  color: var(--s-text);
+  font-family: Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-.settings-card {
-  flex: 1 1 calc(50% - 16px);
-  min-width: 300px;
-}
-
-.mat-mdc-card-header {
-  margin-bottom: 16px;
-  text-decoration: underline;
-}
-
-.cache-stats-grid {
+.settings {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 16px;
+  grid-template-columns: 208px minmax(0, 1fr);
+  gap: 40px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+// ---- Section nav ------------------------------------------------------------------------------------------------------
+
+.section-nav {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.section-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 12px 0 14px;
+  border-radius: 20px;
+  color: var(--s-text-muted);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .section-label {
+    flex: 1;
+  }
+
+  .attention {
+    color: var(--s-warn);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    background: rgba(29, 27, 30, 0.05);
+    color: var(--s-text);
+  }
+
+  &.active {
+    background: var(--s-primary-tint);
+    color: var(--s-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--s-primary);
+    outline-offset: 2px;
+  }
+}
+
+// ---- Section content ----------------------------------------------------------------------------------------------------
+
+.section-body {
+  max-width: 880px;
+  min-width: 0;
+}
+
+.section-head {
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
 
   p {
-    margin: 4px 0;
+    margin: 0;
+    color: var(--s-text-muted);
   }
 }
 
-/* Query access card (with the API keys table): full width */
-.query-access-card {
-  flex: 1 1 100%;
-
-  mat-card-title mat-icon { vertical-align: middle; }
-
-  h4 {
-    margin: 16px 0 8px;
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: rgba(0, 0, 0, 0.6);
-  }
-}
-
-/* Single sign-on card: full width, details in two columns */
-.sso-card {
-  flex: 1 1 100%;
-
-  .sso-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 8px 24px;
-
-    h4 {
-      margin: 0 0 8px;
-      font-size: 13px;
-      font-weight: 500;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: rgba(0, 0, 0, 0.6);
-    }
-
-    p {
-      margin: 4px 0;
-      overflow-wrap: anywhere;
-    }
-  }
-
-  .sso-banner {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    border-radius: 4px;
-
-    mat-icon {
-      flex: 0 0 auto;
-    }
-
-    &.sso-on {
-      background-color: rgba(76, 175, 80, 0.1);
-      border-left: 3px solid #4caf50;
-
-      mat-icon {
-        color: #388e3c;
-      }
-    }
-
-    &.sso-off {
-      background-color: rgba(255, 152, 0, 0.12);
-      border-left: 3px solid #ff9800;
-
-      mat-icon {
-        color: #e65100;
-      }
-    }
-  }
-
-  .sso-note {
-    margin: 12px 0 0;
-    font-size: 13px;
-    color: rgba(0, 0, 0, 0.6);
-  }
-}
-
-/* Align header title text and logo on one line */
-.mat-mdc-card-title {
-  display: inline-flex;
+.section-head-logo {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
+
+  .sparqi-logo {
+    width: 48px;
+    height: auto;
+    flex: 0 0 auto;
+  }
 }
 
-/* Size and align the Redis logo specifically when used in the title */
-.mat-mdc-card-title .redis-logo {
-  height: 1.75em; /* scales with header font-size */
-  width: auto;
-  flex: 0 0 auto;
-  vertical-align: middle;
-  text-decoration: none;
+.panel {
+  background: var(--s-surface);
+  border: 1px solid var(--s-border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
 }
 
-/* SPARQi metrics card styling */
-.sparqi-metrics-card {
-  flex: 1 1 100%;
-  min-width: 300px;
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
 
-  .metrics-content {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
+  .panel-title {
+    margin-bottom: 0;
   }
 
-  .metrics-grid {
+  .period {
+    margin-left: auto;
+    font-size: 13px;
+  }
+}
+
+.panel-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.group-title {
+  margin: 24px 0 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--s-text-muted);
+}
+
+.panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.panel-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: start;
+
+  .panel {
+    margin-bottom: 0;
+  }
+}
+
+// ---- Key/value rows ---------------------------------------------------------------------------------------------------
+
+.kv {
+  margin: 0;
+
+  > div {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px 16px;
-
-    .metric-item {
-      padding: 8px;
-      background-color: rgba(0, 0, 0, 0.02);
-      border-radius: 4px;
-
-      strong {
-        display: block;
-        margin-bottom: 4px;
-        font-size: 0.9em;
-        color: rgba(0, 0, 0, 0.6);
-      }
-
-      &.cost-highlight {
-        background-color: rgba(76, 175, 80, 0.1);
-        border-left: 3px solid #4caf50;
-      }
-    }
-  }
-
-  .sparqi-loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
+    grid-template-columns: minmax(150px, 34%) minmax(0, 1fr);
     gap: 16px;
+    padding: 10px 0;
+    border-top: 1px solid var(--s-border);
 
-    p {
-      margin: 0;
-      color: rgba(0, 0, 0, 0.6);
-      font-size: 14px;
+    &:first-child {
+      border-top: 0;
     }
   }
 
-  .sparqi-disabled {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    text-align: center;
-
-    .disabled-icon {
-      font-size: 64px;
-      width: 64px;
-      height: 64px;
-      color: rgba(0, 0, 0, 0.26);
-      margin-bottom: 16px;
-    }
-
-    h3 {
-      margin: 0 0 8px 0;
-      font-size: 18px;
-      font-weight: 500;
-      color: rgba(0, 0, 0, 0.7);
-    }
-
-    p {
-      margin: 0;
-      color: rgba(0, 0, 0, 0.5);
-      font-size: 14px;
-    }
+  dt {
+    color: var(--s-text-muted);
   }
 
-  .sparqi-no-data {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    text-align: center;
-
-    .no-data-icon {
-      font-size: 48px;
-      width: 48px;
-      height: 48px;
-      color: rgba(0, 0, 0, 0.26);
-      margin-bottom: 12px;
-    }
-
-    p {
-      margin: 4px 0;
-      color: rgba(0, 0, 0, 0.6);
-      font-size: 14px;
-
-      &.info-text {
-        font-size: 13px;
-        color: rgba(0, 0, 0, 0.5);
-      }
-    }
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
   }
 
-  .metrics-actions {
-    margin-top: 24px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  .sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--s-text-muted);
+  }
+
+  .with-action {
     display: flex;
-    justify-content: center;
-
-    .view-charts-button {
-      padding: 0 32px;
-      height: 48px;
-      font-size: 15px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      transition: all 0.3s ease;
-
-      mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-      }
-
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-      }
-    }
+    align-items: baseline;
+    gap: 16px;
   }
 }
 
-.sparqi-logo {
-  width: 75px;
+// Narrow panels (the two caches side by side): label left, number right.
+.kv-compact > div {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 8px 0;
+
+  dd.num {
+    text-align: right;
+  }
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.mono,
+code {
+  font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(29, 27, 30, 0.06);
+}
+
+.tokens {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.muted {
+  color: var(--s-text-muted);
+}
+
+.kv .warn-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--s-warn);
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.inline-link {
+  color: var(--s-primary);
+  font-weight: 500;
+  text-decoration: none;
+  text-underline-offset: 3px;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--s-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+.footnote {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--s-text-muted);
+}
+
+// ---- Status list (overview) -------------------------------------------------------------------------------------------
+
+.status-list {
+  list-style: none;
+  margin: 0 -12px;
+  padding: 0;
+
+  li + li {
+    border-top: 1px solid var(--s-border);
+  }
+}
+
+.status-row {
+  display: grid;
+  grid-template-columns: 24px minmax(120px, 160px) minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 150ms ease-out;
+
+  .status-label {
+    font-weight: 500;
+  }
+
+  .status-text {
+    color: var(--s-text-muted);
+  }
+
+  .chevron {
+    color: var(--s-off);
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover {
+    background: var(--s-surface-alt);
+
+    .chevron {
+      color: var(--s-primary);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--s-primary);
+    outline-offset: -2px;
+  }
+}
+
+.tone {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.tone-ok { color: var(--s-ok); }
+.tone-warn { color: var(--s-warn); }
+.tone-off,
+.tone-pending { color: var(--s-off); }
+
+// ---- Callouts, pills, empty and loading states ------------------------------------------------------------------------
+
+.callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  border: 1px solid;
+
+  mat-icon {
+    flex: 0 0 auto;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+  }
+
+  &.callout-ok {
+    background: var(--s-ok-tint);
+    border-color: rgba(27, 122, 58, 0.25);
+
+    mat-icon { color: var(--s-ok); }
+  }
+
+  &.callout-warn {
+    background: var(--s-warn-tint);
+    border-color: rgba(154, 79, 0, 0.3);
+
+    mat-icon { color: var(--s-warn); }
+  }
+}
+
+.pill {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+
+  &.pill-ok {
+    background: var(--s-ok-tint);
+    color: var(--s-ok);
+  }
+
+  &.pill-warn {
+    background: var(--s-warn-tint);
+    color: var(--s-warn);
+  }
+}
+
+.empty {
+  padding: 8px 0 4px;
+
+  p {
+    margin: 0 0 4px;
+  }
+}
+
+.loading-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--s-text-muted);
+}
+
+// ---- Small screens: the section list becomes a scrolling row of tabs ---------------------------------------------------
+
+@media (max-width: 760px) {
+  .settings {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 16px 16px 48px;
+  }
+
+  .section-nav {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+    margin: 0 -16px;
+    padding: 0 16px 4px;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .section-link {
+    flex: 0 0 auto;
+    height: 36px;
+    padding: 0 14px;
+    gap: 8px;
+    border: 1px solid var(--s-border-strong);
+
+    &.active {
+      border-color: transparent;
+    }
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .kv > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .kv-compact > div {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+
+  .status-row {
+    grid-template-columns: 24px minmax(0, 1fr) 20px;
+    row-gap: 0;
+
+    .status-text {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    .chevron {
+      grid-column: 3;
+      grid-row: 1 / span 2;
+    }
+  }
 }

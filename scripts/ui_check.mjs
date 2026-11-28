@@ -6,7 +6,7 @@
 // Expects a datasource and route to exist (it creates its own via the API and removes them afterwards).
 //
 // It also checks query access end to end: a route's endpoint panel and access setting, the access marker in the routes
-// list, and an API key created, used against /query and revoked on the Settings page (QTT_QUERY_URL, default
+// list, and an API key created, used against /query and revoked on the Settings page (Query access section) (QTT_QUERY_URL, default
 // http://localhost:18082/query).
 //
 // QTT_OIDC=true: the stack requires sign-in (scripts/stack.sh with QTT_OIDC=true). Pages are walked signed in as
@@ -226,7 +226,10 @@ try {
 
       step = 'create an API key';
       // Create an API key for it on the Settings page, call the route with it, then revoke it.
-      await page.goto(`${base}/#/settings`, { waitUntil: 'networkidle0', timeout: 60000 });
+      await page.goto(`${base}/#/settings?section=access`, { waitUntil: 'networkidle0', timeout: 60000 });
+      await page.waitForSelector('app-api-keys .new-key-button', { visible: true, timeout: 10000 });
+      await reveal('app-api-keys .new-key-button');
+      await page.click('app-api-keys .new-key-button');
       await page.waitForSelector('app-api-keys input[formcontrolname="name"]', { visible: true, timeout: 10000 });
       await reveal('app-api-keys input[formcontrolname="name"]');
       await page.type('app-api-keys input[formcontrolname="name"]', `ui key ${suffix}`);

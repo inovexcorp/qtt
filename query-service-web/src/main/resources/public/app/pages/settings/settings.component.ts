@@ -1,5 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
+import { Subscription } from 'rxjs';
 import { SettingsService, SsoInfo } from '../../core/services/settings.service';
 import { AuthService } from '../../core/services/auth.service';
 import { CacheService } from '../../core/services/cache.service';
@@ -9,12 +11,36 @@ import { CacheInfo, CacheStats } from '../../core/models/cache-info';
 import { SparqiMetricsSummary } from '../../core/models/sparqi.models';
 import { SparqiMetricsModalComponent } from './sparqi-metrics-modal/sparqi-metrics-modal.component';
 
+/** The sections of the Settings page; the current one is in the URL (?section=…). */
+export type SettingsSection = 'overview' | 'sign-in' | 'access' | 'caching' | 'sparqi';
+
+/** How a subsystem is doing, for the status list on the overview and the warnings in the section nav. */
+export type StatusTone = 'ok' | 'warn' | 'off' | 'pending';
+
+export interface StatusLine {
+  label: string;
+  tone: StatusTone;
+  text: string;
+  section: SettingsSection;
+}
+
+const SECTIONS: { id: SettingsSection; label: string; icon: string }[] = [
+  { id: 'overview', label: 'Overview', icon: 'space_dashboard' },
+  { id: 'sign-in', label: 'Sign-in', icon: 'lock' },
+  { id: 'access', label: 'Query access', icon: 'vpn_key' },
+  { id: 'caching', label: 'Caching', icon: 'cached' },
+  { id: 'sparqi', label: 'SPARQi', icon: 'smart_toy' }
+];
+
 @Component({
   selector: 'app-settings',
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss']
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, OnDestroy {
+
+  readonly sections = SECTIONS;
+  section: SettingsSection = 'overview';
 
   databaseType: string | undefined;
   databaseRemoteUrl: string | undefined;
@@ -32,6 +58,7 @@ export class SettingsComponent implements OnInit {
   redisCacheInfo: CacheInfo | undefined;
   redisCacheStats: CacheStats | undefined;
   redisCacheAvailable: boolean = false;
+  redisCacheChecked = false;
 
   // SPARQi metrics properties
   sparqiMetricsSummary: SparqiMetricsSummary | undefined;
@@ -39,15 +66,27 @@ export class SettingsComponent implements OnInit {
   sparqiActiveSessions: number = 0;
   sparqiHealthChecked: boolean = false;
 
+  private sectionSub?: Subscription;
+
   constructor(
     private settingsService: SettingsService,
     private cacheService: CacheService,
     private sparqiService: SparqiService,
     private dialog: MatDialog,
+    private route: ActivatedRoute,
+    private host: ElementRef<HTMLElement>,
     public auth: AuthService
   ) { }
 
   ngOnInit(): void {
+    this.sectionSub = this.route.queryParamMap.subscribe(params => {
+      const wanted = params.get('section');
+      this.section = SECTIONS.some(s => s.id === wanted) ? wanted as SettingsSection : 'overview';
+      // On narrow screens the section list scrolls sideways: keep the current one in view.
+      setTimeout(() => this.host.nativeElement.querySelector('.section-link.active')
+        ?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }));
+    });
+
     this.settingsService.getDatabaseInfo().subscribe(info => {
       this.databaseType = info.datasourceType;
       this.databaseRemoteUrl = info.datasourceUrl;
@@ -76,15 +115,26 @@ export class SettingsComponent implements OnInit {
         this.redisCacheInfo = response.info;
         this.redisCacheStats = response.stats;
         this.redisCacheAvailable = response.available;
+        this.redisCacheChecked = true;
       },
       error: (error) => {
         console.error('Failed to load Redis cache info:', error);
         this.redisCacheAvailable = false;
+        this.redisCacheChecked = true;
       }
     });
 
     // Load SPARQi metrics
     this.loadSparqiMetrics();
+  }
+
+  ngOnDestroy(): void {
+    this.sectionSub?.unsubscribe();
+  }
+
+  /** Query params for a section link; the overview keeps the plain /settings URL. */
+  sectionParams(id: SettingsSection): { section: string | null } {
+    return { section: id === 'overview' ? null : id };
   }
 
   loadSparqiMetrics(): void {
@@ -125,9 +175,79 @@ export class SettingsComponent implements OnInit {
     });
   }
 
+  // ---- Status at a glance -------------------------------------------------------------------------------------------
+
+  get signInStatus(): StatusLine {
+    const line = (tone: StatusTone, text: string): StatusLine => ({ label: 'Sign-in', tone, text, section: 'sign-in' });
+    if (this.ssoLoadFailed) return line('off', 'Could not load the sign-in configuration');
+    if (!this.ssoInfo) return line('pending', 'Checking…');
+    if (!this.ssoInfo.enabled) return line('warn', 'Off: anyone who can reach this server can change it');
+    return line('ok', 'On' + (this.ssoInfo.issuer ? ' · ' + this.hostOf(this.ssoInfo.issuer) : ''));
+  }
+
+  get queryAccessStatus(): StatusLine {
+    const line = (tone: StatusTone, text: string): StatusLine => ({ label: 'Query access', tone, text, section: 'access' });
+    if (this.ssoLoadFailed) return line('off', 'Could not load the access settings');
+    if (!this.ssoInfo) return line('pending', 'Checking…');
+    const total = this.ssoInfo.queryRoutes;
+    const open = this.ssoInfo.openQueryRoutes;
+    if (total === undefined || open === undefined) {
+      return this.ssoInfo.queryAuthDefault === 'authenticated'
+        ? line('ok', 'Routes require a token or an API key by default')
+        : line('warn', 'Routes are open to anyone by default');
+    }
+    if (total === 0) return line('ok', 'No query routes yet');
+    if (open === 0) return line('ok', `All ${total} routes require a token or an API key`);
+    return line('warn', `${open} of ${total} routes are open to anyone`);
+  }
+
+  get queryCacheStatus(): StatusLine {
+    const line = (tone: StatusTone, text: string): StatusLine => ({ label: 'Query cache', tone, text, section: 'caching' });
+    if (!this.redisCacheChecked) return line('pending', 'Checking…');
+    if (!this.isCacheEnabled()) return line('off', 'Off');
+    if (!this.redisCacheInfo?.connected) return line('warn', 'Disconnected from Redis');
+    return line('ok', `Connected · ${this.formatCacheHitRate(this.redisCacheStats)} hit rate`);
+  }
+
+  get ontologyCacheStatus(): StatusLine {
+    const line = (tone: StatusTone, text: string): StatusLine => ({ label: 'Ontology cache', tone, text, section: 'caching' });
+    if (!this.cacheStats) return line('pending', 'Checking…');
+    return line('ok', `${this.formatNumber(this.cacheStats.size)} entries · ${this.formatHitRate(this.cacheStats.hitRate)} hit rate`);
+  }
+
+  get sparqiStatus(): StatusLine {
+    const line = (tone: StatusTone, text: string): StatusLine => ({ label: 'SPARQi', tone, text, section: 'sparqi' });
+    if (!this.sparqiHealthChecked) return line('pending', 'Checking…');
+    if (!this.sparqiEnabled) return line('off', 'Off');
+    const s = this.sparqiMetricsSummary;
+    return line('ok', s
+      ? `On · ${this.formatNumber(s.totalSessions)} sessions, ${this.formatCost(s.totalEstimatedCost)} estimated cost`
+      : 'On');
+  }
+
+  get statusLines(): StatusLine[] {
+    return [this.signInStatus, this.queryAccessStatus, this.queryCacheStatus, this.ontologyCacheStatus, this.sparqiStatus];
+  }
+
+  /** True when the section holds something an operator should look at (shown as a warning in the section nav). */
+  needsAttention(id: SettingsSection): boolean {
+    return this.statusLines.some(s => s.section === id && s.tone === 'warn');
+  }
+
+  statusIcon(tone: StatusTone): string {
+    switch (tone) {
+      case 'ok': return 'check_circle';
+      case 'warn': return 'warning';
+      case 'pending': return 'more_horiz';
+      default: return 'remove_circle_outline';
+    }
+  }
+
+  // ---- Formatting ---------------------------------------------------------------------------------------------------
+
   /** Group names mapped to a role, or a note that the role is only granted directly. */
   formatGroups(groups: string[] | undefined): string {
-    return groups && groups.length ? groups.join(', ') : 'none (role assigned directly in the IdP)';
+    return groups && groups.length ? groups.join(', ') : 'None (role assigned directly in the IdP)';
   }
 
   /** Which token the roles are read from, in words. */
@@ -149,6 +269,15 @@ export class SettingsComponent implements OnInit {
     }
   }
 
+  /** The host of a URL ("https://sso.example.com/realms/x" → "sso.example.com"), or the text itself. */
+  hostOf(url: string): string {
+    try {
+      return new URL(url).host;
+    } catch {
+      return url;
+    }
+  }
+
   formatHitRate(rate: number | undefined): string {
     return rate !== undefined ? (rate * 100).toFixed(2) + '%' : 'N/A';
   }
@@ -157,6 +286,19 @@ export class SettingsComponent implements OnInit {
     if (time === undefined) return 'N/A';
     if (time < 1000) return time + ' ms';
     return (time / 1000).toFixed(2) + ' s';
+  }
+
+  /** Seconds in the largest whole unit: 3600 → "1 hour", 90 → "90 seconds". */
+  formatTtl(seconds: number | undefined): string {
+    if (seconds === undefined || seconds === null) return 'N/A';
+    const units: [number, string][] = [[86400, 'day'], [3600, 'hour'], [60, 'minute']];
+    for (const [size, name] of units) {
+      if (seconds >= size && seconds % size === 0) {
+        const n = seconds / size;
+        return `${n} ${name}${n === 1 ? '' : 's'}`;
+      }
+    }
+    return `${seconds} second${seconds === 1 ? '' : 's'}`;
   }
 
   // Redis cache helper methods
@@ -188,13 +330,14 @@ export class SettingsComponent implements OnInit {
     return '$' + amount.toFixed(4);
   }
 
-  formatNumber(num: number | undefined): string {
-    if (num === undefined) return '0';
-    return num.toLocaleString();
+  /** A cost rounded to cents, for summaries ("$3.21"). */
+  formatCost(amount: number | undefined): string {
+    return '$' + (amount ?? 0).toFixed(2);
   }
 
-  formatDecimal(num: number | undefined, decimals: number = 2): string {
+  /** A number with thousands separators and at most the given decimals: 2785.3 → "2,785.3". */
+  formatNumber(num: number | undefined, maxDecimals: number = 0): string {
     if (num === undefined) return '0';
-    return num.toFixed(decimals);
+    return num.toLocaleString(undefined, { maximumFractionDigits: maxDecimals });
   }
 }
