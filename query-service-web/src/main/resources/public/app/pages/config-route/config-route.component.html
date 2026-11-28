@@ -492,12 +492,12 @@
                         <span>This JSON structure was detected from your template. Update the placeholder values with your test data.</span>
                       </div>
                     }
-                    <ngx-monaco-editor
+                    <app-code-editor
                       class="test-json-editor"
                       [(ngModel)]="bodyJsonContent"
                       [ngModelOptions]="{standalone: true}"
                       [options]="jsonEditorOptions">
-                    </ngx-monaco-editor>
+                    </app-code-editor>
                     @if (isGeneratingRequest) {
                       <div class="disabled-overlay-message">
                         <mat-icon>lock</mat-icon>

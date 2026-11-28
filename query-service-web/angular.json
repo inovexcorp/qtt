@@ -28,11 +28,11 @@
               "@angular/localize/init"
             ],
             "tsConfig": "tsconfig.app.json",
+            "webWorkerTsConfig": "tsconfig.worker.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               "src/main/resources/public/favicon.ico",
-              "src/main/resources/public/assets",
-              { "glob": "**/*", "input": "node_modules/monaco-editor/min/vs", "output": "/assets/monaco/min/vs/" }
+              "src/main/resources/public/assets"
             ],
             "styles": [
               "src/main/resources/public/styles.scss"
@@ -106,6 +106,7 @@
               "@angular/localize/init"
             ],
             "tsConfig": "tsconfig.spec.json",
+            "webWorkerTsConfig": "tsconfig.worker.json",
             "karmaConfig": "karma.conf.js",
             "inlineStyleLanguage": "scss",
             "assets": [

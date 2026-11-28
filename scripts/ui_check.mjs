@@ -137,7 +137,7 @@ try {
   }
 
   // Template editors: a syntax error is marked while typing (before saving), and the mark clears once fixed.
-  // add-route uses ngx-monaco-editor's own Monaco instance, config-route the bundled one; check both.
+  // add-route uses app-code-editor, config-route creates its editor itself; check both.
   // [name, page, buttons/tabs to click (in order) to reveal the editor]
   const editors = [
     ['config-route editor', `#/routes/config-route/${route}`, ['tab:Template Editor']],
@@ -149,6 +149,8 @@ try {
     await page.setViewport({ width: 1440, height: 900 });
     const errs = [];
     page.on('pageerror', e => errs.push(`pageerror: ${e.message}`));
+    // Monaco warns, and runs worker code on the UI thread, when it can't start its web workers.
+    page.on('console', m => { if (/web worker|MonacoEnvironment/i.test(m.text())) errs.push(`console ${m.type()}: ${m.text()}`); });
     try {
       await page.goto(`${base}/${hash}`, { waitUntil: 'networkidle0', timeout: 60000 });
       for (const step of openSteps) {

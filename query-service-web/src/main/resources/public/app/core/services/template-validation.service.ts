@@ -26,16 +26,8 @@ export type MarkerSetter = (model: any, markers: any[]) => void;
 export const TEMPLATE_MARKER_OWNER = 'qtt-template-syntax';
 const MARKER_SEVERITY_ERROR = 8; // monaco.MarkerSeverity.Error
 
-/**
- * Sets markers through every Monaco instance on the page: the route editor is created from the bundled module,
- * while ngx-monaco-editor loads its own copy (window.monaco), and markers only show in the instance that owns the
- * editor's model.
- */
-const setMarkersEverywhere: MarkerSetter = (model, markers) => {
-  const instances = new Set<any>([monaco, (window as any).monaco]
-    .filter(m => typeof m?.editor?.setModelMarkers === 'function'));
-  instances.forEach(m => m.editor.setModelMarkers(model, TEMPLATE_MARKER_OWNER, markers));
-};
+const setMonacoMarkers: MarkerSetter = (model, markers) =>
+  monaco.editor.setModelMarkers(model, TEMPLATE_MARKER_OWNER, markers);
 
 /**
  * Checks FreeMarker template syntax with the server, which parses exactly as a route does, so the editor can mark
@@ -87,7 +79,7 @@ export class TemplateValidationService {
   attach(editor: ValidatedEditor,
          onResult?: (result: TemplateValidation | null) => void,
          debounceMs = 400,
-         setMarkers: MarkerSetter = setMarkersEverywhere): { dispose(): void } {
+         setMarkers: MarkerSetter = setMonacoMarkers): { dispose(): void } {
     const changes = new Subject<string>();
     const subscription = changes.pipe(
       debounceTime(debounceMs),
@@ -98,7 +90,7 @@ export class TemplateValidationService {
       if (model) {
         setMarkers(model, result ? TemplateValidationService.markersFor(result) : []);
       }
-      // ngx-monaco-editor runs its editor outside Angular's zone; report results inside it so views update.
+      // Editors run outside Angular's zone (app-code-editor); report results inside it so views update.
       this.zone.run(() => onResult?.(result));
     });
     const listener = editor.onDidChangeModelContent(() => changes.next(editor.getValue()));

@@ -33,7 +33,7 @@ import { AddRouteComponent } from './pages/add-route/add-route.component';
 import { MatSelectModule } from '@angular/material/select';
 import { ConfigRouteComponent, CacheClearConfirmDialog } from './pages/config-route/config-route.component';
 import { DeleteRouteModalComponent } from './pages/delete-route-modal/delete-route-modal.component';
-import { MonacoEditorModule } from 'ngx-monaco-editor-v2';
+import { CodeEditorComponent } from './shared/code-editor/code-editor.component';
 import { ConfigDatasourceModalComponent } from './pages/config-datasource-modal/config-datasource-modal.component';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatChipsModule } from '@angular/material/chips';
@@ -112,14 +112,7 @@ import { ClipboardModule } from '@angular/cdk/clipboard';
         MatAutocompleteModule,
         MatChipsModule,
         NgxChartsModule,
-        MonacoEditorModule.forRoot({
-            baseUrl: 'assets',
-            defaultOptions: {
-                scrollBeyondLastLine: false,
-                suggestOnTriggerCharacters: true,
-                quickSuggestionsDelay: 0
-            }
-        }),
+        CodeEditorComponent,
         MatCheckboxModule,
         MatTooltipModule,
         MatProgressSpinnerModule,

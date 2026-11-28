@@ -32,6 +32,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabChangeEvent } from '@angular/material/tabs';
 import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
 import * as monaco from 'monaco-editor'; // the full editor: every contribution (suggest, find, ...) and language
+import '../../shared/code-editor/monaco-environment';
 
 
 
@@ -187,7 +188,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
   toolCallsCount: number = 0;
 
   // Monaco editor options for JSON
-  jsonEditorOptions = {
+  jsonEditorOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
     theme: 'vs-dark',
     language: 'json',
     automaticLayout: true,

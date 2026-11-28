@@ -26,7 +26,6 @@
     "marked": "^18.3.0",
     "monaco-editor": "^0.56.0",
     "ngx-markdown": "^22.1.1",
-    "ngx-monaco-editor-v2": "^22.0.5",
     "rxjs": "~7.8.0",
     "tslib": "^2.7.0",
     "xng-breadcrumb": "^15.0.0",
