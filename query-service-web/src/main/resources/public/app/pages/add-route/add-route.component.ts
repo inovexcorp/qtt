@@ -107,7 +107,10 @@ export class AddRouteComponent implements OnInit, OnDestroy {
     // Cache fields
     cacheEnabled: new FormControl(false),
     cacheTtlSeconds: new FormControl<number | null>(null),
-    cacheKeyStrategy: new FormControl('QUERY_HASH')
+    cacheKeyStrategy: new FormControl('QUERY_HASH'),
+    // Who may call it (see app-route-access)
+    accessPolicy: new FormControl('default'),
+    requiredRoles: new FormControl('')
   })
   get routeId() { return this.createRoute.get('routeId') }
   get routeParameters() { return this.createRoute.get('routeParameters'); }
@@ -367,6 +370,10 @@ export class AddRouteComponent implements OnInit, OnDestroy {
     let cacheTtlSeconds = this.createRoute.value['cacheTtlSeconds'] as number | null;
     let cacheKeyStrategy = this.createRoute.value['cacheKeyStrategy'] as string;
 
+    // Access
+    let accessPolicy = (this.createRoute.value['accessPolicy'] as string) || 'default';
+    let requiredRoles = (this.createRoute.value['requiredRoles'] as string) || '';
+
     // Validate required fields (template is now optional)
     if (!routeId || !httpMethods || httpMethods.length === 0 || !routeDescription || !graphMartUri || !dataSourceId) { return; }
 
@@ -378,7 +385,7 @@ export class AddRouteComponent implements OnInit, OnDestroy {
       this.ontologyAutocompleteProvider.setRouteId(routeId);
     }
 
-    this.routeService.postRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, status, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy } as NewRoute)
+    this.routeService.postRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, status, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, accessPolicy, requiredRoles } as NewRoute)
       .subscribe({
         next: () => {
           this.router.navigate(['../../routes']);

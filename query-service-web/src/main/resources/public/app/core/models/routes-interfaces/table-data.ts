@@ -9,4 +9,5 @@ export interface TableData {
     routeParams: string;
     status: string;
     graphMartUri: string;
+    accessPolicy?: string | null;
   }

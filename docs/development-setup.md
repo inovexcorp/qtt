@@ -118,7 +118,10 @@ mvn -Pit -pl query-service-it verify
 ```
 
 `make it` does both for the Derby stack. `scripts/gate.sh` (`make gate`) runs the suite on Derby, Derby + Redis,
-PostgreSQL + Redis and SQL Server, plus restart, UI, TLS and real-Anzo checks.
+PostgreSQL + Redis and SQL Server, with sign-in through a Keycloak container (`QTT_OIDC=true`), and with
+`QUERY_AUTH_DEFAULT=authenticated`, plus restart, UI, TLS and real-Anzo checks. The stack serves query routes at
+`http://localhost:18082/query/<route-id>`; the Keycloak test realm (`scripts/keycloak/qtt-realm.json`) has clients
+for query callers (`qtt-reader` with `qtt-query`, `qtt-finance` with `qtt-query` and `finance-apps`).
 
 ## Recommended Setup: PostgreSQL + Redis
 

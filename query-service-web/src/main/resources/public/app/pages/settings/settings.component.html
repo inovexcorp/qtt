@@ -64,6 +64,7 @@
             <p><strong>Viewer Groups:</strong> {{ formatGroups(ssoInfo?.groupMappings?.viewer) }}</p>
             <p><strong>Editor Groups:</strong> {{ formatGroups(ssoInfo?.groupMappings?.editor) }}</p>
             <p><strong>Admin Groups:</strong> {{ formatGroups(ssoInfo?.groupMappings?.admin) }}</p>
+            <p><strong>Query Groups (qtt-query):</strong> {{ formatGroups(ssoInfo?.groupMappings?.query) }}</p>
           </section>
           <section>
             <h4>Browser Session</h4>
@@ -73,7 +74,26 @@
             <p><strong>Sign-out Path:</strong> {{ ssoInfo?.logoutPath }}</p>
           </section>
         </div>
-        <p class="sso-note">Sign-in protects the UI and the management API. The query endpoints on port 8888 are not covered.</p>
+        <p class="sso-note">Sign-in protects the UI and the management API. Query routes follow their own access setting (see Query Access).</p>
+      </ng-container>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="settings-card query-access-card">
+    <mat-card-header>
+      <mat-card-title><mat-icon>vpn_key</mat-icon> Query Access</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p><strong>Routes left at "default":</strong>
+        {{ ssoInfo?.queryAuthDefault === 'authenticated' ? 'require a token with qtt-query or an API key' : 'are open to anyone who can reach the server' }}
+        (QUERY_AUTH_DEFAULT={{ ssoInfo?.queryAuthDefault ?? 'open' }})</p>
+      <p *ngIf="ssoInfo?.queryRoutes !== undefined"><strong>Open routes:</strong>
+        {{ ssoInfo?.openQueryRoutes }} of {{ ssoInfo?.queryRoutes }}
+        <span class="open-routes-note" *ngIf="ssoInfo?.openQueryRoutes">(anyone who can reach this server can call them)</span></p>
+      <p><strong>Endpoint:</strong>&nbsp;<code>/query/&lt;routeId&gt;</code> on this server, with <code>Authorization: Bearer &lt;token or API key&gt;</code> for authenticated routes.</p>
+      <ng-container *qttIfRole="'admin'">
+        <h4>API Keys</h4>
+        <app-api-keys></app-api-keys>
       </ng-container>
     </mat-card-content>
   </mat-card>

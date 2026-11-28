@@ -59,6 +59,9 @@
       <!-- Tab 1: Route Details -->
       <mat-tab label="Route Details">
         <div class="tab-content">
+          <app-endpoint-panel [baseUrl]="queryBaseUrl" [routeId]="routeId" [access]="effectiveAccessValue"
+                              [methods]="editedMethods"></app-endpoint-panel>
+          <app-route-access [group]="configRoute"></app-route-access>
           <h3>Route Configuration</h3>
           <div class="input-row-one">
             <span>

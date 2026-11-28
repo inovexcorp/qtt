@@ -151,13 +151,13 @@ Creates a temporary route, executes the template with provided parameters, and r
 2. `RouteTestExecutor` validates datasource health
 3. Creates temporary Camel route via `TestRouteService`:
    - Generates UUID-based route ID (`test-{uuid}`)
-   - Creates route at `http://localhost:8888/{routeId}`
+   - Consumes from an in-process `direct:test-{uuid}` endpoint: test routes are never reachable over the network
    - Disables caching for fresh execution
    - Schedules failsafe cleanup after 5 minutes
 4. Marshals parameters:
    - `body.*` parameters → nested JSON request body
-   - Other parameters → URL query parameters
-5. Executes HTTP POST to temporary endpoint
+   - Every parameter → a message header (as a query string parameter becomes one on a real request)
+5. Sends the request to the test route in-process (`TestRouteService.invokeTestRoute`)
 6. Captures enhanced response with results and debug metadata
 7. Cleans up temporary route immediately
 8. Returns results to user

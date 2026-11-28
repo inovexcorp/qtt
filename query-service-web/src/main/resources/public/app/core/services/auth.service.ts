@@ -5,6 +5,9 @@ import { BehaviorSubject, firstValueFrom } from 'rxjs';
 /** QTT roles, lowest first. Each includes the ones before it. */
 export type QttRole = 'viewer' | 'editor' | 'admin';
 
+/** The roles that grant access to the UI and management API; qtt-query (calling query routes) is not one of them. */
+const MANAGEMENT_ROLES = ['qtt-viewer', 'qtt-editor', 'qtt-admin'];
+
 /** The response of GET /queryrest/api/me. */
 export interface CurrentUser {
   username: string;
@@ -47,9 +50,12 @@ export class AuthService {
     return this.userSubject.value;
   }
 
-  /** Signed in, but holding no QTT role: the UI shows a "no access" page instead of the app. */
+  /**
+   * Signed in, but holding no management role: the UI shows a "no access" page instead of the app. qtt-query alone
+   * (calling query routes) gives nothing to do in the UI.
+   */
   get noAccess(): boolean {
-    return this.user.authEnabled && this.user.roles.length === 0;
+    return this.user.authEnabled && !this.user.roles.some(r => MANAGEMENT_ROLES.includes(r));
   }
 
   hasRole(role: QttRole): boolean {

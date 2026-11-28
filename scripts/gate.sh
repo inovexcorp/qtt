@@ -2,6 +2,7 @@
 # Run the full regression gate against one image:
 #   * black-box suite on Derby, Derby+Redis, PostgreSQL+Redis and MSSQL
 #   * the same suite with sign-in required (Keycloak), plus SecurityIT
+#   * the query-access suites with QUERY_AUTH_DEFAULT=authenticated
 #   * slow tests (scheduled metrics), restart persistence, headless UI check and, when ANZO_URL/ANZO_USER/ANZO_PASS
 #     are set, the real-Anzo smoke test (on Derby+Redis)
 #   * custom TLS keystore, and password encryption at rest (PostgreSQL, encryption enabled)
@@ -26,10 +27,12 @@ record() { # name exit-code log
   printf '%-4s %-38s %s\n' "$status" "$1" "$counts" | tee -a "$SUMMARY"
 }
 
-run_suite() { # db redis extra-maven-args...   (QTT_OIDC=true in the environment: sign-in required)
+run_suite() { # db redis extra-maven-args...   (QTT_OIDC=true in the environment: sign-in required;
+              #   SUITE_TAG names a variant, e.g. a different QTT_EXTRA_ENV)
   local db=$1 redis=$2 oidc=${QTT_OIDC:-false}; shift 2
   local name="it[$db,redis=$redis]" log="$LOGS/it-$db-$redis.log"
   if [[ "$oidc" == "true" ]]; then name="it[$db,redis=$redis,oidc]"; log="$LOGS/it-$db-$redis-oidc.log"; fi
+  if [[ -n "${SUITE_TAG:-}" ]]; then name="${name%]},$SUITE_TAG]"; log="${log%.log}-$SUITE_TAG.log"; fi
   if ! QTT_IMAGE=$IMAGE QTT_DB=$db QTT_REDIS=$redis QTT_OIDC=$oidc "$STACK" up > "$log" 2>&1; then
     record "$name (stack up)" 1 "$log"; "$STACK" down; return
   fi
@@ -52,6 +55,12 @@ if [[ -n "${UI_TOOLS:-}" ]]; then
   record "ui check (oidc)" $? "$LOGS/ui-oidc.log"
 fi
 podman logs qtt-it-app > "$LOGS/app-derby-oidc.log" 2>&1
+"$STACK" down
+
+# QUERY_AUTH_DEFAULT=authenticated: routes left at "default" are closed. The rest of the suite calls routes
+# anonymously, so only the query-access suites run here.
+QTT_EXTRA_ENV="-e QUERY_AUTH_DEFAULT=authenticated" SUITE_TAG=closed run_suite derby false \
+  -Dit.test=QueryAuthIT,ApiKeyIT -Dqtt.queryAuthDefault=authenticated -Dit.excludedGroups=slow,restart-setup,restart-verify
 "$STACK" down
 
 # Derby + Redis: full suite including slow tests, then restart, UI and real-Anzo checks on the same stack.

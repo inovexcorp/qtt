@@ -141,7 +141,9 @@ public class DataSourcesControllerTest {
         when(dataSourceService.getDataSource(TEST_DATASOURCE_ID)).thenReturn(stored);
         when(routeService.getRoute("route1")).thenReturn(route);
         when(layerService.getLayerUris(route)).thenReturn(Collections.emptyList());
-        when(camelKarafComponent.getTemplateLocation()).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
+        when(camelKarafComponent.routeBuilder(any(), any())).thenAnswer(inv ->
+                com.inovexcorp.queryservice.routebuilder.CamelRouteTemplateBuilder.builder()
+                        .camelRouteTemplate(inv.getArgument(0)).layerUris(inv.getArgument(1)).build());
 
         // Act
         Response response = dataSourcesController.createDatasource(testDatasource);

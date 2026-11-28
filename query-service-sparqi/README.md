@@ -724,7 +724,7 @@ curl -X POST "https://localhost:8443/queryrest/api/sparqi/generate-test-request"
 Now use the generated `bodyJson` and `queryParams` to test your route:
 
 ```bash
-curl -X POST "http://localhost:8888/person-search?minAge=18" \
+curl -k -X POST "https://localhost:8443/query/person-search?minAge=18" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Alice Johnson",
@@ -770,7 +770,7 @@ print(f"Confidence: {test_data['confidence']}")
 print(f"Reasoning: {test_data['reasoning']}")
 
 # Step 2: Execute the route with generated data
-route_url = f"http://localhost:8888/person-search"
+route_url = f"https://localhost:8443/query/person-search"
 route_response = requests.post(
     route_url,
     params=test_data['queryParams'],

@@ -8,6 +8,8 @@ import com.inovexcorp.queryservice.security.QttRoles;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
+import com.inovexcorp.queryservice.QueryAccess;
+import com.inovexcorp.queryservice.RouteIds;
 import com.inovexcorp.queryservice.cache.CacheInfo;
 import com.inovexcorp.queryservice.cache.CacheKey;
 import com.inovexcorp.queryservice.cache.CacheService;
@@ -23,6 +25,7 @@ import com.inovexcorp.queryservice.routebuilder.service.RouteManagementService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Route;
+import org.eclipse.microprofile.config.ConfigProvider;
 
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -55,7 +58,11 @@ public class RoutesController {
     @Inject
     CacheService cacheService;
 
+    /** The base of every route's endpoint URL, without a trailing slash. */
     private String baseUrl;
+
+    /** Default base when QUERY_BASE_URL is unset: relative to the server the UI is loaded from. */
+    static final String QUERY_PATH = "/query";
 
     static final String CONFIG_PID = "com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController";
 
@@ -65,9 +72,55 @@ public class RoutesController {
     }
 
     public void activate(final RoutesControllerConfig config) {
-        baseUrl = config.baseUrl().endsWith("/") ? config.baseUrl().substring(0, config.baseUrl().length() - 1)
-                : config.baseUrl();
-        log.info("RoutesController activated, going to use '{}' as base url for endpoints", baseUrl);
+        activate(config, ConfigProvider.getConfig().getOptionalValue("API_BASE_URL", String.class).orElse(null));
+    }
+
+    /** {@code legacyApiBaseUrl}: the pre-/query setting API_BASE_URL, which pointed at port 8888 and is ignored. */
+    void activate(final RoutesControllerConfig config, String legacyApiBaseUrl) {
+        String configured = config.baseUrl() == null ? "" : config.baseUrl().trim();
+        while (configured.endsWith("/")) {
+            configured = configured.substring(0, configured.length() - 1);
+        }
+        baseUrl = configured.isEmpty() ? QUERY_PATH : configured;
+        if (configured.isEmpty() && legacyApiBaseUrl != null && !legacyApiBaseUrl.isBlank()) {
+            log.warn("API_BASE_URL ({}) is no longer used: query routes moved from port 8888 to /query on the "
+                    + "application's own port. Set QUERY_BASE_URL to their public URL, for example "
+                    + "https://qtt.example.com/query.", legacyApiBaseUrl);
+        }
+        log.info("Query routes are served under {}/<routeId>", baseUrl);
+    }
+
+    /** Where a route is called: the configured public base URL, or /query on the UI's own server. */
+    String endpointUrl(String routeId) {
+        return baseUrl + "/" + routeId;
+    }
+
+    /** 400 for an unknown access value or an over-long role list; null when both are acceptable. */
+    private static Response rejectInvalidAccess(String accessPolicy, String requiredRoles) {
+        String message = null;
+        try {
+            QueryAccess.parse(accessPolicy);
+        } catch (IllegalArgumentException e) {
+            message = e.getMessage();
+        }
+        if (message == null && requiredRoles != null
+                && QueryAccess.formatRoles(QueryAccess.parseRoles(requiredRoles)) != null
+                && QueryAccess.formatRoles(QueryAccess.parseRoles(requiredRoles)).length()
+                > QueryAccess.MAX_REQUIRED_ROLES_LENGTH) {
+            message = "requiredRoles is longer than " + QueryAccess.MAX_REQUIRED_ROLES_LENGTH + " characters";
+        }
+        return message == null ? null : Response.status(Response.Status.BAD_REQUEST)
+                .entity(Map.of("error", "Invalid access setting", "message", message))
+                .type(MediaType.APPLICATION_JSON)
+                .build();
+    }
+
+    private static Response invalidRouteId(String routeId) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                .entity(Map.of("error", "Invalid route ID", "routeId", String.valueOf(routeId),
+                        "message", RouteIds.RULE))
+                .type(MediaType.APPLICATION_JSON)
+                .build();
     }
 
     /**
@@ -164,15 +217,36 @@ public class RoutesController {
                                             @QueryParam("cacheEnabled") Boolean cacheEnabled,
                                             @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
                                             @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
+                                            @QueryParam("accessPolicy") String accessPolicy,
+                                            @QueryParam("requiredRoles") String requiredRoles,
                                             MultipartFormDataInput form) throws Exception {
         return createEndpoint(routeId, routeParams, dataSourceId, description, graphMartUri, cacheEnabled,
                 cacheTtlSeconds, cacheKeyStrategy, MultipartText.field(form, "freemarker"),
-                MultipartText.field(form, "layers"));
+                MultipartText.field(form, "layers"), accessPolicy, requiredRoles);
     }
 
     public Response createEndpoint(String routeId, String routeParams, String dataSourceId, String description,
                                    String graphMartUri, Boolean cacheEnabled, Integer cacheTtlSeconds,
                                    String cacheKeyStrategy, String freemarker, String layers) throws Exception {
+        return createEndpoint(routeId, routeParams, dataSourceId, description, graphMartUri, cacheEnabled,
+                cacheTtlSeconds, cacheKeyStrategy, freemarker, layers, null, null);
+    }
+
+    /**
+     * @param accessPolicy  who may call the route: "default", "open" or "authenticated"; null means "default"
+     * @param requiredRoles roles an "authenticated" route also requires, comma-separated; null or empty for none
+     */
+    public Response createEndpoint(String routeId, String routeParams, String dataSourceId, String description,
+                                   String graphMartUri, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                   String cacheKeyStrategy, String freemarker, String layers, String accessPolicy,
+                                   String requiredRoles) throws Exception {
+        if (routeId != null && !RouteIds.isValid(routeId)) {
+            return invalidRouteId(routeId);
+        }
+        Response invalidAccess = rejectInvalidAccess(accessPolicy, requiredRoles);
+        if (invalidAccess != null) {
+            return invalidAccess;
+        }
         // If the incoming request was invalid (allow empty freemarker template)
         if (routeId == null || routeParams == null || dataSourceId == null || freemarker == null || description == null
                 || graphMartUri == null || layers == null) {
@@ -213,9 +287,10 @@ public class RoutesController {
             }
 
             routeManagementService.createRoute(routeId, routeParams, dataSourceId, description,
-                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy);
-            final String res = String.format("{ \"endpointUrl\": \"%s/%s\" }", baseUrl, routeId);
-            return Response.status(Response.Status.CREATED).entity(res).type(MediaType.APPLICATION_JSON).build();
+                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy,
+                    accessPolicy, requiredRoles);
+            return Response.status(Response.Status.CREATED).entity(Map.of("endpointUrl", endpointUrl(routeId)))
+                    .type(MediaType.APPLICATION_JSON).build();
         }
     }
 
@@ -271,15 +346,34 @@ public class RoutesController {
                                             @QueryParam("cacheEnabled") Boolean cacheEnabled,
                                             @QueryParam("cacheTtlSeconds") Integer cacheTtlSeconds,
                                             @QueryParam("cacheKeyStrategy") String cacheKeyStrategy,
+                                            @QueryParam("accessPolicy") String accessPolicy,
+                                            @QueryParam("requiredRoles") String requiredRoles,
                                             MultipartFormDataInput form) throws Exception {
         return modifyEndpoint(routeId, routeParams, dataSourceId, description, graphMartUri, cacheEnabled,
                 cacheTtlSeconds, cacheKeyStrategy, MultipartText.field(form, "freemarker"),
-                MultipartText.field(form, "layers"));
+                MultipartText.field(form, "layers"), accessPolicy, requiredRoles);
     }
 
     public Response modifyEndpoint(String routeId, String routeParams, String dataSourceId, String description,
                                    String graphMartUri, Boolean cacheEnabled, Integer cacheTtlSeconds,
                                    String cacheKeyStrategy, String freemarker, String layers) throws Exception {
+        return modifyEndpoint(routeId, routeParams, dataSourceId, description, graphMartUri, cacheEnabled,
+                cacheTtlSeconds, cacheKeyStrategy, freemarker, layers, null, null);
+    }
+
+    /**
+     * @param accessPolicy  "default", "open" or "authenticated"; null keeps the route's current setting
+     * @param requiredRoles comma-separated roles: with {@code accessPolicy} given, the new list (absent: none);
+     *                      otherwise absent keeps the current list
+     */
+    public Response modifyEndpoint(String routeId, String routeParams, String dataSourceId, String description,
+                                   String graphMartUri, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                   String cacheKeyStrategy, String freemarker, String layers, String accessPolicy,
+                                   String requiredRoles) throws Exception {
+        Response invalidAccess = rejectInvalidAccess(accessPolicy, requiredRoles);
+        if (invalidAccess != null) {
+            return invalidAccess;
+        }
         // Check if route exists
         if (!routeManagementService.routeExists(routeId)) {
             return Response.status(Response.Status.NOT_FOUND)
@@ -289,7 +383,7 @@ public class RoutesController {
         }
         // Check if they'd just like to modify route freemarker template
         else if (routeParams == null && dataSourceId == null && freemarker != null && graphMartUri == null
-                && description == null && layers == null) {
+                && description == null && layers == null && accessPolicy == null && requiredRoles == null) {
             Response invalidTemplate = rejectInvalidTemplate(routeId, freemarker);
             if (invalidTemplate != null) {
                 return invalidTemplate;
@@ -316,7 +410,8 @@ public class RoutesController {
                 return invalidTemplate;
             }
             routeManagementService.modifyRoute(routeId, routeParams, dataSourceId, description,
-                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy);
+                    graphMartUri, freemarker, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy,
+                    accessPolicy, requiredRoles);
             return Response.ok().build();
         }
     }
@@ -411,9 +506,12 @@ public class RoutesController {
     @Path("clone/{routeId}")
     public Response cloneEndpoint(@PathParam("routeId") String routeId) throws Exception {
         String clonedRouteId = routeId + "Clone";
+        if (!RouteIds.isValid(clonedRouteId)) {
+            return invalidRouteId(clonedRouteId);
+        }
         routeManagementService.cloneRoute(routeId, clonedRouteId);
-        final String res = String.format("{ \"endpointUrl\": \"%s/%s\" }", baseUrl, clonedRouteId);
-        return Response.status(Response.Status.CREATED).entity(res).type(MediaType.APPLICATION_JSON).build();
+        return Response.status(Response.Status.CREATED).entity(Map.of("endpointUrl", endpointUrl(clonedRouteId)))
+                .type(MediaType.APPLICATION_JSON).build();
     }
 
     public String getFileContent(String routeId) {

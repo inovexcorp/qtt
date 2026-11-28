@@ -25,7 +25,8 @@ public final class Qtt {
 
     public static final String API = System.getProperty("qtt.api", "https://localhost:18443/queryrest/api");
     public static final String UI = System.getProperty("qtt.ui", "https://localhost:18443");
-    public static final String QUERY = System.getProperty("qtt.query", "http://localhost:18888");
+    /** Base URL of the query routes; a route is at QUERY + "/" + routeId. */
+    public static final String QUERY = System.getProperty("qtt.query", "http://localhost:18082/query");
     public static final String WIREMOCK = System.getProperty("qtt.wiremock", "http://localhost:18080");
     /** Anzo base URL as seen from inside the QTT container. */
     public static final String ANZO_INTERNAL = System.getProperty("qtt.anzo.internal", "http://wiremock:8080");
@@ -80,7 +81,9 @@ public final class Qtt {
     }
 
     public static RequestSpecification query() {
-        return given().spec(new RequestSpecBuilder().setBaseUri(QUERY).build());
+        java.net.URI base = java.net.URI.create(QUERY);
+        return given().spec(new RequestSpecBuilder().setBaseUri(base.getScheme() + "://" + base.getAuthority())
+                .setBasePath(base.getPath()).build());
     }
 
     public static String uniqueId(String prefix) {
@@ -156,14 +159,24 @@ public final class Qtt {
     }
 
     /**
-     * Asserts nothing serves the route on the query port: 404, or no listener at all (Karaf closes port 8888 when the
-     * last route is removed).
+     * Asserts nothing serves the route. An anonymous caller gets 401 for a route that doesn't exist (the same as for a
+     * protected one, so route names can't be probed) and 404 for a stopped open route; a caller with a token (OIDC
+     * stacks) gets 404 either way.
      */
     public static void assertNotServed(String routeId) {
         try {
             int status = query().get("/" + routeId).statusCode();
-            if (status != 404) {
-                throw new AssertionError("expected route " + routeId + " not to be served, got HTTP " + status);
+            if (status != 401 && status != 404) {
+                throw new AssertionError("expected route " + routeId + " not to be served (anonymous: 401 or 404), "
+                        + "got HTTP " + status);
+            }
+            if (OIDC) {
+                int withToken = query().auth().oauth2(Tokens.clientCredentials("qtt-reader", "qtt-reader-test-secret"))
+                        .get("/" + routeId).statusCode();
+                if (withToken != 404) {
+                    throw new AssertionError("expected route " + routeId + " not to be served (with a token: 404), "
+                            + "got HTTP " + withToken);
+                }
             }
         } catch (AssertionError e) {
             throw e;

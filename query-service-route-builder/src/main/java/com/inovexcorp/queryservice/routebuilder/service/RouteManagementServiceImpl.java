@@ -1,11 +1,9 @@
 package com.inovexcorp.queryservice.routebuilder.service;
 
-import com.inovexcorp.queryservice.persistence.DisabledDatasources;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
-import com.inovexcorp.queryservice.cache.CacheService;
-import com.inovexcorp.queryservice.cache.NoOpCacheService;
+import com.inovexcorp.queryservice.QueryAccess;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
 import com.inovexcorp.queryservice.persistence.audit.AuditInfo;
 import com.inovexcorp.queryservice.persistence.DataSourceService;
@@ -14,7 +12,6 @@ import com.inovexcorp.queryservice.persistence.LayerAssociations;
 import com.inovexcorp.queryservice.persistence.LayerService;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import com.inovexcorp.queryservice.routebuilder.CamelKarafComponent;
-import com.inovexcorp.queryservice.routebuilder.CamelRouteTemplateBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
 import org.apache.camel.spi.RouteController;
@@ -33,8 +30,6 @@ import java.util.List;
 @ApplicationScoped
 public class RouteManagementServiceImpl implements RouteManagementService {
 
-    @Inject
-    DisabledDatasources disabledDatasources;
 
     @Inject
     CamelKarafComponent camelKarafComponent;
@@ -51,20 +46,16 @@ public class RouteManagementServiceImpl implements RouteManagementService {
     @Inject
     ContextManager contextManager;
 
-    @Inject
-    CacheService cacheService;
 
-    private CacheService getEffectiveCacheService() {
-        return cacheService != null ? cacheService : new NoOpCacheService();
-    }
 
     @Override
     public CamelRouteTemplate createRoute(String routeId, String routeParams, String dataSourceId,
                                           String description, String graphMartUri, String freemarker,
                                           String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
-                                          String cacheKeyStrategy) throws Exception {
+                                          String cacheKeyStrategy, String accessPolicy, String requiredRoles)
+            throws Exception {
         return createRoute(routeId, routeParams, dataSourceId, description, graphMartUri, freemarker, layers,
-                cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, null);
+                cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, accessPolicy, requiredRoles, null);
     }
 
     /**
@@ -74,7 +65,8 @@ public class RouteManagementServiceImpl implements RouteManagementService {
     private CamelRouteTemplate createRoute(String routeId, String routeParams, String dataSourceId,
                                            String description, String graphMartUri, String freemarker,
                                            String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
-                                           String cacheKeyStrategy, AuditInfo audit) throws Exception {
+                                           String cacheKeyStrategy, String accessPolicy, String requiredRoles,
+                                           AuditInfo audit) throws Exception {
         log.debug("Creating route with ID: {}", routeId);
 
         final CamelContext camelContext = contextManager.getDefaultContext();
@@ -84,6 +76,10 @@ public class RouteManagementServiceImpl implements RouteManagementService {
         CamelRouteTemplate template = new CamelRouteTemplate(routeId, routeParams, freemarker,
                                                              description, graphMartUri, datasource);
         template.setAudit(audit);
+        // Stored normalized: a recognised policy in lower case ("default" stored as null), roles trimmed.
+        QueryAccess access = QueryAccess.parse(accessPolicy);
+        template.setAccessPolicy(access == QueryAccess.DEFAULT ? null : access.value());
+        template.setRequiredRoles(QueryAccess.formatRoles(QueryAccess.parseRoles(requiredRoles)));
 
         // Set cache configuration
         if (cacheEnabled != null) {
@@ -106,15 +102,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
                 routeId, template.getCacheEnabled(), template.getCacheTtlSeconds(), template.getCacheKeyStrategy());
 
         // Add route to Camel context
-        camelContext.addRoutes(CamelRouteTemplateBuilder.builder()
-                .camelRouteTemplate(template)
-                .layerUris(layers)
-                .templatesDirectory(camelKarafComponent.getTemplateLocation())
-                .cacheService(getEffectiveCacheService())
-                .cacheKeyPrefix(camelKarafComponent.getCacheKeyPrefix())
-                .cacheDefaultTtlSeconds(camelKarafComponent.getCacheDefaultTtlSeconds())
-                .disabledDatasources(disabledDatasources)
-                .build());
+        camelContext.addRoutes(camelKarafComponent.routeBuilder(template, layers));
 
         // If the route exists in memory, delete it then re-create it
         if (routeService.routeExists(routeId)) {
@@ -122,7 +110,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
             routeService.delete(routeId);
             // Recursive call to recreate
             return createRoute(routeId, routeParams, dataSourceId, description, graphMartUri, freemarker, layers,
-                    cacheEnabled, cacheTtlSeconds, cacheKeyStrategy);
+                    cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, accessPolicy, requiredRoles, audit);
         } else {
             // Persist the route
             routeService.add(template);
@@ -153,9 +141,16 @@ public class RouteManagementServiceImpl implements RouteManagementService {
     public CamelRouteTemplate modifyRoute(String routeId, String routeParams, String dataSourceId,
                                           String description, String graphMartUri, String freemarker,
                                           String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
-                                          String cacheKeyStrategy) throws Exception {
+                                          String cacheKeyStrategy, String accessPolicy, String requiredRoles)
+            throws Exception {
         log.debug("Modifying route with ID: {}", routeId);
-        AuditInfo audit = auditOf(routeId);
+        CamelRouteTemplate existing = routeService.getRoute(routeId);
+        AuditInfo audit = existing == null ? null : existing.getAudit();
+        // The access setting is a pair. With accessPolicy given, requiredRoles is taken as given (absent: none). With
+        // neither given, both are kept, so callers that predate the setting don't reset it.
+        String access = accessPolicy != null ? accessPolicy : existing == null ? null : existing.getAccessPolicy();
+        String roles = accessPolicy != null || requiredRoles != null ? requiredRoles
+                : existing == null ? null : existing.getRequiredRoles();
 
         // Delete route in memory to then recreate it
         routeService.delete(routeId);
@@ -163,7 +158,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
         // Recreate the route with new parameters
         CamelRouteTemplate modified = createRoute(routeId, routeParams, dataSourceId, description,
                                                   graphMartUri, freemarker, layers, cacheEnabled,
-                                                  cacheTtlSeconds, cacheKeyStrategy, audit);
+                                                  cacheTtlSeconds, cacheKeyStrategy, access, roles, audit);
 
         log.info("Successfully modified route: {}", routeId);
         return modified;
@@ -185,6 +180,7 @@ public class RouteManagementServiceImpl implements RouteManagementService {
                                                   template.getDescription(), template.getGraphMartUri(),
                                                   freemarker, layers, template.getCacheEnabled(),
                                                   template.getCacheTtlSeconds(), template.getCacheKeyStrategy(),
+                                                  template.getAccessPolicy(), template.getRequiredRoles(),
                                                   template.getAudit());
 
         log.info("Successfully modified template for route: {}", routeId);
@@ -260,7 +256,8 @@ public class RouteManagementServiceImpl implements RouteManagementService {
         CamelRouteTemplate cloned = createRoute(newRouteId, sourceRoute.getRouteParams(),
                 sourceRoute.getDatasources().getDataSourceId(), sourceRoute.getDescription(),
                 sourceRoute.getGraphMartUri(), fileContent, layers, sourceRoute.getCacheEnabled(),
-                sourceRoute.getCacheTtlSeconds(), sourceRoute.getCacheKeyStrategy());
+                sourceRoute.getCacheTtlSeconds(), sourceRoute.getCacheKeyStrategy(),
+                sourceRoute.getAccessPolicy(), sourceRoute.getRequiredRoles());
 
         log.info("Successfully cloned route {} to {}", sourceRouteId, newRouteId);
         return cloned;

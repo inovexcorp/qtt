@@ -75,7 +75,7 @@ public class RoutesControllerTest {
         // Configure the controller with base URL using reflection
         RoutesControllerConfig mockConfig = mock(RoutesControllerConfig.class);
         when(mockConfig.baseUrl()).thenReturn(BASE_URL);
-        routesController.activate(mockConfig);
+        routesController.activate(mockConfig, null);
 
         // Default context manager behavior
         when(contextManager.getDefaultContext()).thenReturn(camelContext);
@@ -164,11 +164,10 @@ public class RoutesControllerTest {
 
         // Assert
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
-        String expectedJson = String.format("{ \"endpointUrl\": \"%s/%s\" }", BASE_URL, TEST_ROUTE_ID);
-        assertEquals(expectedJson, response.getEntity());
+        assertEquals(Map.of("endpointUrl", BASE_URL + "/" + TEST_ROUTE_ID), response.getEntity());
         verify(routeManagementService).createRoute(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, TEST_LAYERS, null, null, null);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, TEST_LAYERS, null, null, null, null, null);
     }
 
     @Test
@@ -289,7 +288,7 @@ public class RoutesControllerTest {
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
         verify(routeManagementService).createRoute(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, emptyLayers, null, null, null);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, emptyLayers, null, null, null, null, null);
     }
 
     // ========================================
@@ -338,7 +337,7 @@ public class RoutesControllerTest {
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         verify(routeManagementService).modifyRoute(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, TEST_LAYERS, null, null, null);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, TEST_LAYERS, null, null, null, null, null);
     }
 
     @Test
@@ -499,8 +498,7 @@ public class RoutesControllerTest {
 
         // Assert
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
-        String expectedJson = String.format("{ \"endpointUrl\": \"%s/%s\" }", BASE_URL, clonedRouteId);
-        assertEquals(expectedJson, response.getEntity());
+        assertEquals(Map.of("endpointUrl", BASE_URL + "/" + clonedRouteId), response.getEntity());
         verify(routeManagementService).cloneRoute(TEST_ROUTE_ID, clonedRouteId);
     }
 
@@ -521,7 +519,7 @@ public class RoutesControllerTest {
         when(config.baseUrl()).thenReturn("http://localhost:8888/");
 
         // Act
-        newController.activate(config);
+        newController.activate(config, null);
 
         // Assert
         Response response = newController.getBaseUrl();
@@ -542,12 +540,66 @@ public class RoutesControllerTest {
         when(config.baseUrl()).thenReturn("http://localhost:8888");
 
         // Act
-        newController.activate(config);
+        newController.activate(config, null);
 
         // Assert
         Response response = newController.getBaseUrl();
         Map<String, String> entity = (Map<String, String>) response.getEntity();
         assertEquals("http://localhost:8888", entity.get("baseUrl"));
+    }
+
+    @Test
+    public void testActivate_EmptyBaseUrlMeansQueryOnThisServer() {
+        RoutesController newController = new RoutesController();
+        RoutesControllerConfig config = mock(RoutesControllerConfig.class);
+        when(config.baseUrl()).thenReturn("");
+
+        // The old API_BASE_URL is ignored (it pointed at port 8888); only a warning is logged.
+        newController.activate(config, "http://localhost:8888");
+
+        assertEquals("/query", ((Map<?, ?>) newController.getBaseUrl().getEntity()).get("baseUrl"));
+        assertEquals("/query/people", newController.endpointUrl("people"));
+    }
+
+    @Test
+    public void testCreateEndpoint_RejectsRouteIdThatIsNotAPathSegment() throws Exception {
+        for (String bad : new String[]{"a/b", "{id}", "a b", ".."}) {
+            Response response = routesController.createEndpoint(bad, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                    "d", "urn:gm", null, null, null, "SELECT 1", "");
+            assertEquals(bad, Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+            assertEquals("Invalid route ID", ((Map<?, ?>) response.getEntity()).get("error"));
+        }
+        verify(routeManagementService, never()).createRoute(any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any());
+    }
+
+    @Test
+    public void testCreateEndpoint_PassesAccessSettingsThrough() throws Exception {
+        when(dataSourceService.dataSourceExists(TEST_DATASOURCE_ID)).thenReturn(true);
+        Response response = routesController.createEndpoint(TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS,
+                "Authenticated", "finance-apps, eu");
+        assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
+        verify(routeManagementService).createRoute(TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, TEST_FREEMARKER, TEST_LAYERS, null, null, null,
+                "Authenticated", "finance-apps, eu");
+    }
+
+    @Test
+    public void testCreateAndModify_RejectUnknownAccess() throws Exception {
+        Response created = routesController.createEndpoint(TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS, "public", null);
+        assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), created.getStatus());
+        assertEquals("Invalid access setting", ((Map<?, ?>) created.getEntity()).get("error"));
+
+        Response modified = routesController.modifyEndpoint(TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, null, null, null, TEST_FREEMARKER, TEST_LAYERS, null,
+                "r".repeat(1001));
+        assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), modified.getStatus());
+        verify(routeManagementService, never()).createRoute(any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any());
+        verify(routeManagementService, never()).modifyRoute(any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), any());
     }
 
     // ========================================
@@ -569,7 +621,7 @@ public class RoutesControllerTest {
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
         verify(routeManagementService).createRoute(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, templateWithPlus, TEST_LAYERS, null, null, null);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, templateWithPlus, TEST_LAYERS, null, null, null, null, null);
     }
 
     @Test
@@ -587,7 +639,7 @@ public class RoutesControllerTest {
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         verify(routeManagementService).modifyRoute(
                 TEST_ROUTE_ID, TEST_ROUTE_PARAMS, TEST_DATASOURCE_ID,
-                TEST_DESCRIPTION, TEST_GRAPHMART_URI, templateWithPlus, TEST_LAYERS, null, null, null);
+                TEST_DESCRIPTION, TEST_GRAPHMART_URI, templateWithPlus, TEST_LAYERS, null, null, null, null, null);
     }
 
     // ========================================

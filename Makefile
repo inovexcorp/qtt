@@ -217,7 +217,7 @@ destroy_docker:
 
 # Build the image and run the container in detached mode, mapping required ports
 run_docker: destroy_docker build_docker
-	$(ENGINE) run -d --name qtt -p 8443:8443 -p 8888:8888 $(IMAGE):latest
+	$(ENGINE) run -d --name qtt -p 8443:8443 $(IMAGE):latest
 
 # View logs from the QTT container
 logs_docker:

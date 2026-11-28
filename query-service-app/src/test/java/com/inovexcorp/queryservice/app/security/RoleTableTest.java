@@ -136,6 +136,7 @@ class RoleTableTest {
         Indexer app = new Indexer();
         app.indexClass(MeResource.class);
         app.indexClass(SsoInfoResource.class);
+        app.indexClass(ApiKeysResource.class);
         result.add(app.complete());
         return result;
     }

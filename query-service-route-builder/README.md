@@ -20,7 +20,7 @@ This module is responsible for:
 Routes follow this standard pattern:
 
 ```
-HTTP Request (Camel Netty HTTP, port 8888)
+HTTP Request (Camel platform-http, /query/{routeId} on 8443/8080)
   → Datasource Status Check
   → Freemarker Template Processing (SPARQL generation)
   → Cache Check (optional)
@@ -49,7 +49,7 @@ An `@ApplicationScoped` CDI bean (the name is historical) that:
 **Location**: `CamelRouteTemplateBuilder.java`
 
 Builds individual Camel routes from `CamelRouteTemplate` database records. Each route:
-- Exposes an HTTP endpoint: `http://0.0.0.0:8888/{routeId}?{params}`
+- Exposes an HTTP endpoint: `https://<host>:8443/query/{routeId}?{params}`
 - Processes the request body through a Freemarker template to generate SPARQL (`FreemarkerTemplateProcessor`,
   which template test routes use too; its configuration treats templates as untrusted: no `?new`/`?api`, no
   `#include`/`#import`, no Java methods on data-model objects)
@@ -240,7 +240,7 @@ POST /api/routes/myRoute
 7. Creates layer associations
 8. Route is started automatically (unless template is empty)
 
-**Result**: Route available at `http://localhost:8888/myRoute?matchValue=xyz`
+**Result**: Route available at `https://localhost:8443/query/myRoute?matchValue=xyz`
 
 ### 2. Modification
 ```java
@@ -312,7 +312,7 @@ former OSGi PID prefixes):
 com.inovexcorp.queryservice.routebuilder.templateLocation=data/templates/
 
 # Base URL for route endpoints (returned in API responses)
-com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController.baseUrl=${API_BASE_URL:http://localhost:8888}
+com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController.baseUrl=${QUERY_BASE_URL:}
 ```
 
 ### Environment Variables
@@ -337,12 +337,12 @@ Relevant to this module (managed by other modules but impact route behavior):
 
 ### External Dependencies
 - **Apache Camel 4 (Camel Quarkus)**: Route building, processors, components
-- **Camel Netty HTTP**: HTTP endpoint exposure (port 8888)
+- **Camel platform-http**: serves each route at `/query/{routeId}` on the application's HTTP server
 - **Camel Freemarker**: Template processing
 - **Quarkus REST (Jakarta REST)**: REST API implementation
 - **CDI (Quarkus ArC)**: Bean lifecycle and dependency injection
 
-The Camel components used at runtime (`netty-http`, `freemarker`, management) come from the Camel Quarkus extensions
+The Camel components used at runtime (`platform-http`, `direct`, `freemarker`, management) come from the Camel Quarkus extensions
 in `query-service-app`; this module uses them only in tests.
 - **Lombok**: Boilerplate reduction
 - **JSON**: JSON processing for request/response

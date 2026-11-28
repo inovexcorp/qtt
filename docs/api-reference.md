@@ -206,8 +206,14 @@ freemarker: the FreeMarker template (may be empty: the route is then created sto
 layers:     comma-separated layer URIs (may be empty)
 ```
 
-Optional query parameters: `cacheEnabled`, `cacheTtlSeconds`, `cacheKeyStrategy`. Returns `201` with
-`{ "endpointUrl": "..." }`.
+Optional query parameters: `cacheEnabled`, `cacheTtlSeconds`, `cacheKeyStrategy`, and who may call the route:
+`accessPolicy` (`default`, `open` or `authenticated`; absent means `default`) and `requiredRoles` (comma-separated
+roles an authenticated caller must also hold). Returns `201` with `{ "endpointUrl": "..." }`, built from
+`QUERY_BASE_URL` (`/query/<routeId>` when that is unset).
+
+The route ID becomes one URL path segment, so it may contain only letters, digits, `.`, `_` and `-` (1 to 128
+characters); anything else gets `400` with `"error": "Invalid route ID"`. An unknown `accessPolicy` gets `400` with
+`"error": "Invalid access setting"`.
 
 A template that does not parse is rejected with `400`, and nothing is saved:
 
@@ -230,6 +236,10 @@ Content-Type: multipart/form-data
 Same fields as create. To change only the template, send just the `freemarker` part and no query parameters. The
 template is checked as on create (`400` on a syntax error, and the route keeps its previous template). Route changes
 take effect immediately without restart.
+
+The access setting is kept when neither `accessPolicy` nor `requiredRoles` is sent. With `accessPolicy` sent,
+`requiredRoles` is taken as sent, so leaving it out removes the route's required roles. `requiredRoles` alone changes
+only the roles. Routes in `GET /routes` carry `accessPolicy` (`null` means `default`) and `requiredRoles`.
 
 ### Validate a Template
 
@@ -444,28 +454,91 @@ secret is reported only as configured or not, and the private-CA trust store onl
 session cookie: `OIDC_SESSION_SECRET`, `client secret` (derived from it), or `generated at startup` (sessions end at
 every restart and aren't shared between instances). With sign-in off, `enabled` is `false` and `logoutPath` is `null`.
 
+## API Keys API
+
+API keys for the query routes; all endpoints need the admin role. See
+[Administration Guide](administration.md#api-keys).
+
+### List API Keys
+
+```bash
+GET /apikeys
+```
+
+Every key, revoked ones included, newest first. The key itself and its hash are never returned:
+
+```json
+[
+  {
+    "id": "Xb3k9QmT2aLp",
+    "name": "reporting service",
+    "description": null,
+    "routes": ["people-search"],
+    "createdBy": "admin",
+    "createdAt": 1795795200000,
+    "expiresAt": 1827331200000,
+    "lastUsedAt": 1795800000000,
+    "revokedAt": null,
+    "revokedBy": null,
+    "status": "active"
+  }
+]
+```
+
+`status` is `active`, `expired` or `revoked`. `lastUsedAt` is updated at most once a minute.
+
+### Create an API Key
+
+```bash
+POST /apikeys
+Content-Type: application/json
+
+{ "name": "reporting service", "routes": ["people-search"], "expiresInDays": 90, "description": "optional" }
+```
+
+`routes` lists route IDs, or `["*"]` for every authenticated route that requires no roles. `expiresInDays` defaults
+to `QUERY_API_KEY_MAX_DAYS` and may not exceed it. Returns `201` with the key's details plus `"key"`, the key itself
+(`qtt_<id>_<secret>`), which is returned only here. Invalid requests get `400` with a `message`.
+
+### Revoke an API Key
+
+```bash
+DELETE /apikeys/{id}
+```
+
+`204`, or `404` for an unknown id. The key stays listed with `status: "revoked"`; callers using it are refused within
+30 seconds (at once on the instance that revoked it).
+
 ## Query Execution API
 
-Dynamically created endpoints based on your routes.
+Each route is served at `/query/<route-id>` on the same server as the UI and this API.
 
-**Base URL:** `http://localhost:8888`
+**Base URL:** `https://localhost:8443/query` (or `http://localhost:8080/query`)
+
+Authenticated routes need `Authorization: Bearer <token>`, where the token is an OIDC access token carrying
+`qtt-query` or a QTT API key; open routes need nothing. See
+[Securing the Query Endpoints](administration.md#securing-the-query-endpoints).
+
+```bash
+curl -k -H "Authorization: Bearer $QTT_TOKEN" "https://localhost:8443/query/people-search?name=john"
+```
 
 ### Execute Query (GET)
 
 ```bash
-GET /{route-id}?param1=value1&param2=value2
+GET /query/{route-id}?param1=value1&param2=value2
 ```
 
 **Example:**
 
 ```bash
-curl "http://localhost:8888/people-search?name=john&limit=10"
+curl -k "https://localhost:8443/query/people-search?name=john&limit=10"
 ```
 
 ### Execute Query (POST)
 
 ```bash
-POST /{route-id}
+POST /query/{route-id}
 Content-Type: application/json
 
 {
@@ -477,7 +550,7 @@ Content-Type: application/json
 **Example:**
 
 ```bash
-curl -X POST "http://localhost:8888/people-search" \
+curl -k -X POST "https://localhost:8443/query/people-search" \
   -H "Content-Type: application/json" \
   -d '{"name": "john", "limit": 10}'
 ```
@@ -511,8 +584,13 @@ Errors are JSON objects with `error` and `message` (and `status` where shown).
 | 502 | | Anzo returned a server error |
 | 503 | `DISABLED` | The route's datasource is disabled (takes effect on running routes immediately) |
 | 503 | | Anzo could not be reached, timed out or rejected the credentials |
+| 401 | | No credential on an authenticated route or a route that doesn't exist, or an invalid, expired or revoked token or key (`WWW-Authenticate: Bearer`) |
+| 403 | | A valid credential without access to this route (no `qtt-query`, a missing required role, or an API key that doesn't name the route) |
+| 404 | | No such route (callers with a valid credential), or the route is stopped |
+| 405 | | The route doesn't accept this method; `Allow` lists the methods it accepts |
 
-Template errors never call Anzo.
+Template errors never call Anzo. Responses don't echo request headers; the `anzo.query`, `anzo.query_duration` and
+`anzo.graphmart` headers are returned only with `QUERY_DEBUG_HEADERS=true`.
 
 ## Cache Management API
 

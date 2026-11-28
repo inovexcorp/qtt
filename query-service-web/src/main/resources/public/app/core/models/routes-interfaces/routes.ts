@@ -13,6 +13,9 @@ export interface Routes {
     cacheEnabled?: boolean;
     cacheTtlSeconds?: number;
     cacheKeyStrategy?: string;
+    // Who may call it: null (server default), "open" or "authenticated"; required roles, comma-separated
+    accessPolicy?: string | null;
+    requiredRoles?: string | null;
     // Who created and last changed it (read-only)
     audit?: AuditInfo | null;
   }

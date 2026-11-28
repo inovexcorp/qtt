@@ -100,7 +100,10 @@ public class RouteManagementServiceImplTest {
 
         // Setup common mocks
         when(contextManager.getDefaultContext()).thenReturn(camelContext);
-        when(camelKarafComponent.getTemplateLocation()).thenReturn(testTemplateLocation);
+        org.mockito.Mockito.lenient().when(camelKarafComponent.routeBuilder(any(), any())).thenAnswer(inv ->
+                com.inovexcorp.queryservice.routebuilder.CamelRouteTemplateBuilder.builder()
+                        .camelRouteTemplate(inv.getArgument(0)).layerUris(inv.getArgument(1))
+                        .templatesDirectory(testTemplateLocation).build());
         when(camelContext.getRouteController()).thenReturn(routeController);
     }
 

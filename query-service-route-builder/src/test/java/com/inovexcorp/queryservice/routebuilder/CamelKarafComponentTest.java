@@ -75,6 +75,11 @@ class CamelKarafComponentTest {
             }
 
             @Override
+            public boolean debugHeaders() {
+                return false;
+            }
+
+            @Override
             public Class<? extends java.lang.annotation.Annotation> annotationType() {
                 return RouteBuilderConfig.class;
             }
@@ -105,6 +110,17 @@ class CamelKarafComponentTest {
         verify(routeController, never()).stopRoute(any());
         assertTrue(Files.isDirectory(tmp.resolve("templates")), "template directory is created");
         assertEquals(tmp.resolve("templates").toFile(), component.getTemplateLocation());
+    }
+
+    @Test
+    void startSkipsRoutesWhoseIdIsNotAPathSegment() throws Exception {
+        // Stored before route IDs were validated; /query/<id> can't serve them, and one must not stop the rest.
+        when(routeService.getAll()).thenReturn(List.of(route("ok", "Started"), route("a/b", "Started"),
+                route("{x}", "Started")));
+
+        component.start(config(tmp.toString()));
+
+        verify(camelContext, times(1)).addRoutes(any());
     }
 
     @Test

@@ -7,5 +7,5 @@ WORKDIR /opt/qtt
 COPY --chown=1001:0 target/*-runner /opt/qtt/application
 COPY --chown=1001:0 src/main/etc/keystore /opt/qtt/etc/keystore
 USER 1001
-EXPOSE 8443 8080 8888
+EXPOSE 8443 8080
 ENTRYPOINT ["/opt/qtt/application"]

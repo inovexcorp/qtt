@@ -25,6 +25,22 @@
   }
 }
 
+/* Query access card (with the API keys table): full width */
+.query-access-card {
+  flex: 1 1 100%;
+
+  mat-card-title mat-icon { vertical-align: middle; }
+
+  h4 {
+    margin: 16px 0 8px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(0, 0, 0, 0.6);
+  }
+}
+
 /* Single sign-on card: full width, details in two columns */
 .sso-card {
   flex: 1 1 100%;

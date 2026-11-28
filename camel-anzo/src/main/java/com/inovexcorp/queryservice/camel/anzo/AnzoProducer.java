@@ -57,8 +57,8 @@ public class AnzoProducer extends DefaultProducer {
     }
 
     /**
-     * HTTP header values cannot contain line breaks; Netty rejects them and fails the response. Jetty (Karaf) folded
-     * them into spaces, so do the same here and keep the header identical for clients.
+     * HTTP header values cannot contain line breaks; HTTP servers (Netty, Vert.x) reject them and fail the response.
+     * Jetty (Karaf) folded them into spaces, so do the same here and keep the header identical for clients.
      */
     static String headerSafe(String value) {
         return value == null ? null : value.replace('\r', ' ').replace('\n', ' ');

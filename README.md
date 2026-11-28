@@ -82,9 +82,11 @@ applications:
     - SPARQi AI assistant API
     - Metrics and settings endpoints
 
-2. **Camel Query Endpoints** (Port 8888 - HTTP, Camel Netty HTTP)
+2. **Query Endpoints** (`/query/{route-id}` on the same ports, Camel platform-http)
     - Dynamically created query endpoints based on database route definitions
-    - Endpoint pattern: `http://localhost:8888/{route-id}?param=value`
+    - Endpoint pattern: `https://localhost:8443/query/{route-id}?param=value`
+    - Each route is open or requires an OIDC token with `qtt-query` or a QTT API key
+      ([Securing the Query Endpoints](docs/administration.md#securing-the-query-endpoints))
 
 ## Quick Start
 
@@ -98,7 +100,6 @@ docker pull docker.io/inovexis/qtt:latest
 docker run -d \
   --name qtt \
   -p 8443:8443 \
-  -p 8888:8888 \
   docker.io/inovexis/qtt:latest
 ```
 
@@ -106,7 +107,7 @@ Access the application:
 
 - **Web UI**: https://localhost:8443 (self-signed certificate by default)
 - **API Base**: https://localhost:8443/queryrest/api/
-- **Query Endpoints**: http://localhost:8888/{route-id}
+- **Query Endpoints**: https://localhost:8443/query/{route-id}
 
 The UI and API are also served over plain HTTP on port 8080 (add `-p 8080:8080`).
 

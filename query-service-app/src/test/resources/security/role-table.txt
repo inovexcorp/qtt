@@ -11,6 +11,10 @@ GET     /api/settings/sysinfo                            viewer
 GET     /api/settings/stats                              viewer
 GET     /api/settings/sso                                viewer
 
+GET     /api/apikeys                                     admin
+POST    /api/apikeys                                     admin
+DELETE  /api/apikeys/{id}                                admin
+
 GET     /api/metrics/route/persisted                     viewer
 GET     /api/metrics/routes                              viewer
 GET     /api/metrics/exchanges/{routeId}                 viewer

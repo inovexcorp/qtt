@@ -39,6 +39,14 @@ export class ConfigRouteService {
       params = params.append('cacheKeyStrategy', route.cacheKeyStrategy);
     }
 
+    // Who may call the route. Sent as a pair: with accessPolicy given, an absent requiredRoles means none.
+    if (route.accessPolicy) {
+      params = params.append('accessPolicy', route.accessPolicy);
+    }
+    if (route.requiredRoles && route.requiredRoles.trim()) {
+      params = params.append('requiredRoles', route.requiredRoles.trim());
+    }
+
     let formData = new FormData();
     formData.set('freemarker', new Blob([route.templateBody], { type: 'multipart/form-data' }));
     formData.set('layers', new Blob([route.layers], { type: 'multipart/form-data' }));

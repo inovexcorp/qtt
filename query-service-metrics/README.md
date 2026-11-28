@@ -164,7 +164,7 @@ Depends on `ContextManager` for accessing the Camel context:
 ```
 ┌─────────────────────┐
 │  Camel Route        │ (Running, processing exchanges)
-│ (Netty → Template)  │
+│ (HTTP → Template)   │
 └──────────┬──────────┘
            │ Exposes metrics via
            │ ManagedRouteMBean

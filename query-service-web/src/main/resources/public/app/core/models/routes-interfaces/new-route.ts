@@ -11,4 +11,8 @@ export interface NewRoute{
     cacheEnabled?: boolean;
     cacheTtlSeconds?: number;
     cacheKeyStrategy?: string;
+    // Who may call it: "default" (QUERY_AUTH_DEFAULT), "open" or "authenticated"
+    accessPolicy?: string;
+    // Roles an authenticated caller must also hold, comma-separated
+    requiredRoles?: string;
 }

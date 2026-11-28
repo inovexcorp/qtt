@@ -182,7 +182,7 @@ HTTP Request → Freemarker Template → Anzo Query (RDF/XML) → RdfResultsJson
 
 **Typical Route Pattern:**
 ```java
-from("netty-http:http://0.0.0.0:8888/my-route")
+from("platform-http:/query/my-route")
     .to("freemarker:templates/my-template.ftl")
     .to("anzo:query")  // Returns RDF/XML
     .process(rdfResultsJsonifier)  // Converts to JSON-LD

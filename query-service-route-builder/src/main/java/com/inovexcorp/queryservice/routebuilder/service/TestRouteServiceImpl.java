@@ -9,6 +9,13 @@ import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.routebuilder.test.TestRouteBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
+import org.apache.camel.Exchange;
+import org.apache.camel.Message;
+import org.apache.camel.ProducerTemplate;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -35,6 +42,9 @@ public class TestRouteServiceImpl implements TestRouteService {
     @Inject
     DataSourceService dataSourceService;
 
+    /** Reused across invocations (creating one per request would leak producers until the context stops). */
+    private volatile ProducerTemplate producerTemplate;
+
     @Override
     public String createTestRoute(String templateContent, String dataSourceId,
                                   String graphMartUri, String layers) throws Exception {
@@ -49,10 +59,10 @@ public class TestRouteServiceImpl implements TestRouteService {
             throw new IllegalArgumentException("Datasource not found: " + dataSourceId);
         }
 
-        // Create temporary route template
+        // Create temporary route template (route parameters don't apply: the route is invoked in-process)
         CamelRouteTemplate tempTemplate = new CamelRouteTemplate(
                 tempRouteId,
-                "httpMethodRestrict=POST", // Only allow POST for test routes
+                null,
                 templateContent,
                 "Temporary test route",
                 graphMartUri,
@@ -64,13 +74,71 @@ public class TestRouteServiceImpl implements TestRouteService {
         CamelContext context = contextManager.getDefaultContext();
         context.addRoutes(new TestRouteBuilder(tempTemplate, layers));
 
-        log.info("Successfully created test route: {} at http://localhost:8888/{}",
-                tempRouteId, tempRouteId);
+        log.info("Successfully created test route: {}", tempRouteId);
 
         // Schedule failsafe cleanup after 5 minutes
         scheduleFailsafeCleanup(tempRouteId);
 
         return tempRouteId;
+    }
+
+    @Override
+    public TestRouteResult invokeTestRoute(String routeId, Map<String, String> parameters, String body) {
+        CamelContext context = contextManager.getDefaultContext();
+        Exchange result = producer(context).request(TestRouteBuilder.endpointUri(routeId), exchange -> {
+            Message in = exchange.getIn();
+            if (parameters != null) {
+                parameters.forEach((name, value) -> {
+                    if (name != null && value != null) {
+                        in.setHeader(name, value);
+                    }
+                });
+            }
+            // What platform-http sets for a real request, so templates and the debug panel see the same headers.
+            in.setHeader(Exchange.HTTP_METHOD, "POST");
+            in.setHeader(Exchange.CONTENT_TYPE, "application/json");
+            in.setHeader(Exchange.HTTP_QUERY, queryString(parameters));
+            in.setBody(body == null ? "" : body);
+        });
+        if (result.getException() != null) {
+            throw new IllegalStateException("Test route " + routeId + " failed: " + result.getException().getMessage(),
+                    result.getException());
+        }
+        Message out = result.getMessage();
+        return new TestRouteResult(out.getHeader(Exchange.HTTP_RESPONSE_CODE, 200, Integer.class),
+                out.getBody(String.class));
+    }
+
+    private ProducerTemplate producer(CamelContext context) {
+        ProducerTemplate current = producerTemplate;
+        if (current == null || current.getCamelContext() != context) {
+            synchronized (this) {
+                if (producerTemplate == null || producerTemplate.getCamelContext() != context) {
+                    producerTemplate = context.createProducerTemplate();
+                }
+                current = producerTemplate;
+            }
+        }
+        return current;
+    }
+
+    /** The parameters as a URL query string (shown in the test panel's request details as CamelHttpQuery). */
+    static String queryString(Map<String, String> parameters) {
+        if (parameters == null || parameters.isEmpty()) {
+            return null;
+        }
+        StringBuilder query = new StringBuilder();
+        parameters.forEach((name, value) -> {
+            if (name == null || value == null) {
+                return;
+            }
+            if (query.length() > 0) {
+                query.append('&');
+            }
+            query.append(URLEncoder.encode(name, StandardCharsets.UTF_8)).append('=')
+                    .append(URLEncoder.encode(value, StandardCharsets.UTF_8));
+        });
+        return query.length() == 0 ? null : query.toString();
     }
 
     @Override

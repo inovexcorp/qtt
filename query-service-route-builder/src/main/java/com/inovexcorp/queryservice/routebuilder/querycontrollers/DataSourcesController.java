@@ -1,14 +1,11 @@
 package com.inovexcorp.queryservice.routebuilder.querycontrollers;
 
-import com.inovexcorp.queryservice.persistence.DisabledDatasources;
 import com.inovexcorp.queryservice.persistence.audit.Audited;
 import com.inovexcorp.queryservice.security.QttRoles;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
 import com.inovexcorp.queryservice.ContextManager;
-import com.inovexcorp.queryservice.cache.CacheService;
-import com.inovexcorp.queryservice.cache.NoOpCacheService;
 import com.inovexcorp.queryservice.camel.anzo.comm.AnzoClient;
 import com.inovexcorp.queryservice.camel.anzo.comm.QueryResponse;
 import com.inovexcorp.queryservice.camel.anzo.comm.SimpleAnzoClient;
@@ -22,7 +19,6 @@ import com.inovexcorp.queryservice.persistence.Datasources;
 import com.inovexcorp.queryservice.persistence.LayerService;
 import com.inovexcorp.queryservice.persistence.RouteService;
 import com.inovexcorp.queryservice.routebuilder.CamelKarafComponent;
-import com.inovexcorp.queryservice.routebuilder.CamelRouteTemplateBuilder;
 import com.inovexcorp.queryservice.health.HealthCheckConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.CamelContext;
@@ -68,8 +64,6 @@ public class DataSourcesController {
     static final String PASSWORD_REQUIRED_FOR_CHANGE =
             "A password is required when changing the URL or username of a datasource";
 
-    @Inject
-    DisabledDatasources disabledDatasources;
 
     @Inject
     RouteService routeService;
@@ -95,12 +89,7 @@ public class DataSourcesController {
     @Inject
     HealthCheckConfigService healthCheckConfigService;
 
-    @Inject
-    CacheService cacheService;
 
-    private CacheService getEffectiveCacheService() {
-        return cacheService != null ? cacheService : new NoOpCacheService();
-    }
 
     /**
      * Creates a new data source based on the provided Datasources object.
@@ -226,15 +215,7 @@ public class DataSourcesController {
                         if (!layerList.isEmpty()) {
                             layerUris = String.join(",", layerService.getLayerUris(currentRoute));
                         }
-                        camelContext.addRoutes(CamelRouteTemplateBuilder.builder()
-                                .camelRouteTemplate(currentRoute)
-                                .layerUris(layerUris)
-                                .templatesDirectory(camelKarafComponent.getTemplateLocation())
-                                .cacheService(getEffectiveCacheService())
-                                .cacheKeyPrefix(camelKarafComponent.getCacheKeyPrefix())
-                                .cacheDefaultTtlSeconds(camelKarafComponent.getCacheDefaultTtlSeconds())
-                                .disabledDatasources(disabledDatasources)
-                                .build());
+                        camelContext.addRoutes(camelKarafComponent.routeBuilder(currentRoute, layerUris));
                         routeService.add(currentRoute);
                     } catch (Exception e) {
                         log.error("Error re-instantiating route: {} after modification to data source", route, e);

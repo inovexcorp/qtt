@@ -25,10 +25,26 @@ public interface RouteManagementService {
      * @return The created CamelRouteTemplate
      * @throws Exception if route creation fails
      */
+    default CamelRouteTemplate createRoute(String routeId, String routeParams, String dataSourceId,
+                                           String description, String graphMartUri, String freemarker,
+                                           String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                           String cacheKeyStrategy) throws Exception {
+        return createRoute(routeId, routeParams, dataSourceId, description, graphMartUri, freemarker, layers,
+                cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, null, null);
+    }
+
+    /**
+     * Creates a route, as {@link #createRoute(String, String, String, String, String, String, String, Boolean,
+     * Integer, String)}, with who may call it.
+     *
+     * @param accessPolicy  "default", "open" or "authenticated" (see QueryAccess); null means "default"
+     * @param requiredRoles roles an "authenticated" route also requires, comma-separated; null for none
+     */
     CamelRouteTemplate createRoute(String routeId, String routeParams, String dataSourceId,
                                    String description, String graphMartUri, String freemarker,
                                    String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
-                                   String cacheKeyStrategy) throws Exception;
+                                   String cacheKeyStrategy, String accessPolicy, String requiredRoles)
+            throws Exception;
 
     /**
      * Modifies an existing Camel route endpoint.
@@ -46,10 +62,27 @@ public interface RouteManagementService {
      * @return The modified CamelRouteTemplate
      * @throws Exception if route modification fails
      */
+    default CamelRouteTemplate modifyRoute(String routeId, String routeParams, String dataSourceId,
+                                           String description, String graphMartUri, String freemarker,
+                                           String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
+                                           String cacheKeyStrategy) throws Exception {
+        return modifyRoute(routeId, routeParams, dataSourceId, description, graphMartUri, freemarker, layers,
+                cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, null, null);
+    }
+
+    /**
+     * Modifies a route, as {@link #modifyRoute(String, String, String, String, String, String, String, Boolean,
+     * Integer, String)}, including who may call it.
+     *
+     * @param accessPolicy  "default", "open" or "authenticated"; null keeps the route's current setting
+     * @param requiredRoles comma-separated roles. With {@code accessPolicy} given, this is the new list (null: none);
+     *                      otherwise null keeps the current list
+     */
     CamelRouteTemplate modifyRoute(String routeId, String routeParams, String dataSourceId,
                                    String description, String graphMartUri, String freemarker,
                                    String layers, Boolean cacheEnabled, Integer cacheTtlSeconds,
-                                   String cacheKeyStrategy) throws Exception;
+                                   String cacheKeyStrategy, String accessPolicy, String requiredRoles)
+            throws Exception;
 
     /**
      * Modifies only the Freemarker template of an existing route.

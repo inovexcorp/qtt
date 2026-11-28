@@ -18,6 +18,7 @@
 #   QTT_EXTRA_ENV  extra "-e K=V" args for the QTT container
 #   QTT_DATA_VOLUME  named volume mounted at /opt/qtt/data (keeps the Derby database across app containers)
 #   QTT_JAVA_OPTS  JAVA_OPTS for the QTT container (replaces the image default)
+#   QTT_PUBLISH_8888  true: also publish container port 8888 on localhost:18888 (images before /query, upgrade checks)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -33,7 +34,7 @@ KEYCLOAK_PORT=18180
 QTT_CPUS="${QTT_CPUS:-2}"
 QTT_MEMORY="${QTT_MEMORY:-2g}"
 API_PORT=18443
-QUERY_PORT=18888
+HTTP_PORT=18082   # the plain-HTTP listener (8080); query routes are at http://localhost:18082/query/<routeId>
 WIREMOCK_PORT=18080
 DB_PASSWORD='verYs3cret!'
 
@@ -101,10 +102,11 @@ start_app() {
   fi
   if [[ -n "${QTT_DATA_VOLUME:-}" ]]; then args+=(-v "$QTT_DATA_VOLUME:/opt/qtt/data"); fi
   if [[ -n "${QTT_JAVA_OPTS:-}" ]]; then args+=(-e "JAVA_OPTS=$QTT_JAVA_OPTS"); fi
+  if [[ "${QTT_PUBLISH_8888:-false}" == "true" ]]; then args+=(-p 18888:8888); fi
   # shellcheck disable=SC2086
   $ENGINE run -d --name $APP --network $NET --cpus "$QTT_CPUS" --memory "$QTT_MEMORY" \
-    -p $API_PORT:8443 -p $QUERY_PORT:8888 ${args[@]+"${args[@]}"} \
-    -e API_BASE_URL=http://localhost:$QUERY_PORT \
+    -p $API_PORT:8443 -p $HTTP_PORT:8080 ${args[@]+"${args[@]}"} \
+    -e QUERY_BASE_URL=http://localhost:$HTTP_PORT/query \
     -e SPARQI_ENABLED=true -e SPARQI_LLM_BASE_URL=http://wiremock:8080/v1 \
     -e SPARQI_LLM_API_KEY=mock-key -e SPARQI_LLM_MODEL=mock-model \
     ${QTT_EXTRA_ENV:-} "$QTT_IMAGE" >/dev/null

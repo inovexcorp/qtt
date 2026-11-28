@@ -45,10 +45,16 @@ class RouteErrorHandlingTest {
     }
 
     private void start(String template) throws Exception {
+        start(template, null, null);
+    }
+
+    private void start(String template, String access, String requiredRoles) throws Exception {
         Datasources ds = new Datasources("ds1", "30", "8192", "user", "password", "http://anzo:8080");
         ds.setStatus(DatasourceStatus.UP); // the status at build time, which must not decide anything
         CamelRouteTemplate route = new CamelRouteTemplate("r1", "httpMethodRestrict=GET,POST", template,
                 "test", "http://graphmart", ds);
+        route.setAccessPolicy(access);
+        route.setRequiredRoles(requiredRoles);
         context.getRegistry().bind(RdfResultsJsonifier.BEAN_REFERENCE, (org.apache.camel.Processor) e -> { });
         context.addRoutes(CamelRouteTemplateBuilder.builder()
                 .camelRouteTemplate(route)
@@ -124,5 +130,44 @@ class RouteErrorHandlingTest {
         assertTrue(body.get("message").asText().endsWith("headers.label"), body.toString());
         assertFalse(body.get("message").asText().contains("SELECT"), "must not echo the template");
         assertEquals(0, anzoCalls);
+    }
+
+    @Test
+    void aMethodOutsideTheRestrictionGets405WithAllow() throws Exception {
+        start("SELECT * WHERE { ?s ?p ?o }");
+
+        Exchange e = context.createProducerTemplate().request("direct:in", x -> {
+            x.getIn().setHeader(Exchange.HTTP_METHOD, "DELETE");
+            x.getIn().setBody("");
+        });
+
+        assertEquals(405, status(e));
+        assertEquals("GET, POST", e.getMessage().getHeader("Allow"));
+        assertEquals("Method Not Allowed", json(e).get("error").asText());
+        assertEquals(0, anzoCalls);
+
+        Exchange ok = context.createProducerTemplate().request("direct:in", x -> {
+            x.getIn().setHeader(Exchange.HTTP_METHOD, "POST");
+            x.getIn().setBody("");
+        });
+        assertEquals(200, status(ok));
+        assertEquals(1, anzoCalls);
+    }
+
+    @Test
+    void theRunningRouteCarriesItsAccessSetting() throws Exception {
+        // RouteAccessPolicy reads these from the live route, so they must survive route creation.
+        start("SELECT 1", "authenticated", " finance-apps , eu ");
+        assertEquals("authenticated", context.getRoute("r1").getProperties()
+                .get(CamelRouteTemplateBuilder.ACCESS_PROPERTY));
+        assertEquals("finance-apps,eu", context.getRoute("r1").getProperties()
+                .get(CamelRouteTemplateBuilder.REQUIRED_ROLES_PROPERTY));
+    }
+
+    @Test
+    void routesStoredBeforeTheSettingExistedFollowTheDefault() throws Exception {
+        start("SELECT 1", null, null);
+        assertEquals("default", context.getRoute("r1").getProperties().get(CamelRouteTemplateBuilder.ACCESS_PROPERTY));
+        assertEquals("", context.getRoute("r1").getProperties().get(CamelRouteTemplateBuilder.REQUIRED_ROLES_PROPERTY));
     }
 }

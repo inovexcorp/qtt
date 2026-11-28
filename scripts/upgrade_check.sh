@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Upgrade check: data written by one image must be served by another (e.g. Karaf -> Quarkus).
 #   scripts/upgrade_check.sh <old-image> <new-image> <derby|postgres|mssql>
+# OLD_QUERY_URL: where the old image serves routes, when that isn't /query (images before 2.0's /query move served
+# them on port 8888: OLD_QUERY_URL=http://localhost:18888, which also publishes that port).
 # Creates a datasource and a route with the old image, replaces only the app container with the new image
 # (same database; for Derby the same data volume) and verifies both, including that the route still serves queries.
 set -uo pipefail
@@ -13,8 +15,14 @@ $ENGINE volume create qtt-upgrade-data >/dev/null
 # the old image may run as root or uid 1001; make the volume writable for both
 $ENGINE run --rm -v qtt-upgrade-data:/d docker.io/library/busybox:1.36 chmod 777 /d >/dev/null
 rc=0
+old_query=()
+if [[ -n "${OLD_QUERY_URL:-}" ]]; then
+  old_query=(-Dqtt.query="$OLD_QUERY_URL")
+  export QTT_PUBLISH_8888=true
+fi
 QTT_IMAGE=$OLD "$ROOT/scripts/stack.sh" up >/dev/null || { echo "old image did not start"; exit 1; }
-(cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dit.groups=restart-setup -Dit.excludedGroups=) || rc=1
+(cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dit.groups=restart-setup -Dit.excludedGroups= \
+  ${old_query[@]+"${old_query[@]}"}) || rc=1
 QTT_IMAGE=$NEW "$ROOT/scripts/stack.sh" swap-app >/dev/null || { echo "new image did not start on old data"; $ENGINE logs --tail 60 qtt-it-app; rc=1; }
 if [[ $rc -eq 0 ]]; then
   (cd "$ROOT" && mvn -B -q -Pit -pl query-service-it verify -Dit.groups=restart-verify -Dit.excludedGroups=) || rc=1

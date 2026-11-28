@@ -56,6 +56,17 @@ public class CamelRouteTemplate implements AuditListener.Auditable {
     @Column(name = "cacheKeyStrategy")
     private String cacheKeyStrategy = "QUERY_HASH";
 
+    /**
+     * Who may call the route at /query/&lt;routeId&gt;: "default", "open" or "authenticated" (see QueryAccess).
+     * Null (routes stored before this setting existed) means "default".
+     */
+    @Column(name = "accessPolicy")
+    private String accessPolicy;
+
+    /** Roles a caller must also hold for an "authenticated" route, comma-separated; null for none. */
+    @Column(name = "requiredRoles", length = 1000)
+    private String requiredRoles;
+
     /** Who created and last changed this route through the API, and when (read-only; set by AuditListener). */
     @Embedded
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)

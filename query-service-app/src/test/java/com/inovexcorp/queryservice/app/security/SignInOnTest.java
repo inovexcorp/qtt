@@ -40,6 +40,14 @@ class SignInOnTest {
     }
 
     @Test
+    void queryPathsDoNotRedirectToTheIdentityProvider() {
+        // /query is governed by each route's access setting, never by the browser sign-in flow: a refused
+        // anonymous request gets a bearer challenge, not a redirect.
+        given().redirects().follow(false).when().get("/query/no-such-route").then().statusCode(401)
+                .header("WWW-Authenticate", equalTo("Bearer realm=\"qtt\""));
+    }
+
+    @Test
     void meShowsTheSignedInUser() {
         as("editor", "qtt-editor").when().get("/queryrest/api/me").then().statusCode(200)
                 .body("username", equalTo("editor"))

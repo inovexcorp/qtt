@@ -51,9 +51,9 @@ public class FreemarkerTemplateProcessor implements Processor {
      *   <li>{@code ?new} may not create objects: with the default resolver,
      *       {@code "freemarker.template.utility.Execute"?new()} runs operating-system commands.</li>
      *   <li>{@code ?api} stays off (the default, set explicitly so it cannot be switched on by accident).</li>
-     *   <li>Java objects in the data model show their text but expose no methods or properties. Netty puts
-     *       its channel context in the request headers, and with the default exposure a template could call any
-     *       public method on it, for example closing the query server's socket.</li>
+     *   <li>Java objects in the data model show their text but expose no methods or properties. HTTP components
+     *       can put server objects in the exchange (Netty put its channel context in the request headers), and with
+     *       the default exposure a template could call any public method on them, for example closing a socket.</li>
      *   <li>No template loader: {@code #include} and {@code #import} would otherwise read any file under the
      *       working directory (FreeMarker's legacy default loader), which holds the Derby database and config.</li>
      * </ul>

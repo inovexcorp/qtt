@@ -2,6 +2,7 @@ package com.inovexcorp.queryservice.routebuilder;
 
 import com.inovexcorp.queryservice.persistence.DisabledDatasources;
 import com.inovexcorp.queryservice.RdfResultsJsonifier;
+import com.inovexcorp.queryservice.RouteIds;
 import com.inovexcorp.queryservice.cache.CacheService;
 import com.inovexcorp.queryservice.config.OsgiConfig;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
@@ -58,6 +59,10 @@ public class CamelKarafComponent {
     @Getter
     private int cacheDefaultTtlSeconds = 3600;
 
+    /** Whether query routes return the Anzo metadata headers ({@code QUERY_DEBUG_HEADERS}). */
+    @Getter
+    private boolean debugHeaders;
+
     void onStart(@Observes StartupEvent event) throws Exception {
         start(OsgiConfig.load(RouteBuilderConfig.class, CONFIG_PID));
     }
@@ -69,6 +74,7 @@ public class CamelKarafComponent {
     public void start(final RouteBuilderConfig config) throws Exception {
         log.debug("Activating RouteBuilder context!");
         templateLocation = new File(config.templateLocation());
+        debugHeaders = config.debugHeaders();
         if (templateLocation.isFile()) {
             throw new FileNotFoundException("Directory provided in configuration is actually a file: "
                     + templateLocation);
@@ -82,26 +88,40 @@ public class CamelKarafComponent {
         log.info("Using CacheService: {}", cacheService.getInfo().getType());
 
         List<CamelRouteTemplate> camelRouteTemplates = routeService.getAll();
+        int loaded = 0;
         for (CamelRouteTemplate camelRouteTemplate : camelRouteTemplates) {
+            if (!RouteIds.isValid(camelRouteTemplate.getRouteId())) {
+                // Stored before IDs were validated; it can't be a single /query/<routeId> path segment.
+                log.warn("Not loading route '{}': {}. Create it again under a valid ID and delete the old one.",
+                        camelRouteTemplate.getRouteId(), RouteIds.RULE);
+                continue;
+            }
             String layerUris = "";
             List<String> layerList = layerService.getLayerUris(camelRouteTemplate);
             if (!layerList.isEmpty()) {
                 layerUris = String.join(",", layerList);
             }
-            camelContext.addRoutes(CamelRouteTemplateBuilder.builder()
-                    .camelRouteTemplate(camelRouteTemplate)
-                    .layerUris(layerUris)
-                    .templatesDirectory(templateLocation)
-                    .cacheService(cacheService)
-                    .cacheKeyPrefix(cacheKeyPrefix)
-                    .cacheDefaultTtlSeconds(cacheDefaultTtlSeconds)
-                    .disabledDatasources(disabledDatasources)
-                    .build());
+            camelContext.addRoutes(routeBuilder(camelRouteTemplate, layerUris));
             if ("Stopped".equals(camelRouteTemplate.getStatus())) {
                 camelContext.getRouteController().stopRoute(camelRouteTemplate.getRouteId());
             }
+            loaded++;
         }
-        log.info("Loaded {} stored routes", camelRouteTemplates.size());
+        log.info("Loaded {} of {} stored routes", loaded, camelRouteTemplates.size());
+    }
+
+    /** The Camel route for a stored query route, with this component's template directory and cache settings. */
+    public CamelRouteTemplateBuilder routeBuilder(CamelRouteTemplate template, String layerUris) {
+        return CamelRouteTemplateBuilder.builder()
+                .camelRouteTemplate(template)
+                .layerUris(layerUris)
+                .templatesDirectory(templateLocation)
+                .cacheService(cacheService)
+                .cacheKeyPrefix(cacheKeyPrefix)
+                .cacheDefaultTtlSeconds(cacheDefaultTtlSeconds)
+                .disabledDatasources(disabledDatasources)
+                .debugHeaders(debugHeaders)
+                .build();
     }
 
     public void stop() {

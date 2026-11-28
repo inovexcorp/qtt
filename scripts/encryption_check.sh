@@ -11,7 +11,7 @@ STACK="$ROOT/scripts/stack.sh"
 export QTT_IMAGE=$IMAGE QTT_DB=postgres QTT_REDIS=false
 export QTT_EXTRA_ENV="-e PASSWORD_ENCRYPTION_ENABLED=true -e PASSWORD_ENCRYPTION_KEY=check-key-0123456789 -e PASSWORD_ENCRYPTION_SALT=check-salt-0123"
 API=https://localhost:18443/queryrest/api
-QUERY=http://localhost:18888
+QUERY=http://localhost:18082/query
 DS=enc-check
 ROUTE=enc-check-route
 PASSWORD=mock-password

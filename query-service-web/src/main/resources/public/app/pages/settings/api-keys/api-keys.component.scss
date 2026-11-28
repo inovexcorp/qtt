@@ -1,0 +1,19 @@
+.api-keys-intro { font-size: 13px; color: rgba(0, 0, 0, 0.7); }
+.created-key { border: 1px solid #2e7d32; background: rgba(46, 125, 50, 0.06); border-radius: 6px; padding: 12px; margin: 8px 0 16px; }
+.created-key-title { display: flex; align-items: center; gap: 6px; font-weight: 500; margin-bottom: 8px; }
+.created-key-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.created-key-value { flex: 1; overflow-x: auto; white-space: nowrap; padding: 6px 8px; background: rgba(0, 0, 0, 0.05); border-radius: 4px; }
+.create-form { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-start; margin: 8px 0; }
+.create-form .routes-field { flex: 1 1 280px; }
+.create-form .days-field { width: 150px; }
+.create-form .description-field { flex: 1 1 240px; }
+.create-form button { margin-top: 8px; }
+.keys-header { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 13px; }
+.keys-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.keys-table th, .keys-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(0, 0, 0, 0.1); vertical-align: top; }
+.keys-table tr.inactive { opacity: 0.6; }
+.key-description { font-size: 12px; color: rgba(0, 0, 0, 0.6); }
+.status { padding: 2px 6px; border-radius: 10px; font-size: 12px; }
+.status-active { background: rgba(46, 125, 50, 0.12); color: #2e7d32; }
+.status-expired { background: rgba(237, 108, 2, 0.12); color: #b45309; }
+.status-revoked { background: rgba(0, 0, 0, 0.08); color: rgba(0, 0, 0, 0.6); }

@@ -104,18 +104,24 @@ This template:
 
 ### Step 4: Test Your Route
 
-Your new endpoint is now live at: `http://localhost:8888/people-search`
+Your new endpoint is now live at: `https://localhost:8443/query/people-search`. The route's page shows this URL
+and a ready-to-copy `curl` command.
+
+Routes are open to anyone who can reach the server unless you change their **Access** (on the route's page) or the
+server default (`QUERY_AUTH_DEFAULT`). An authenticated route needs `-H "Authorization: Bearer $QTT_TOKEN"`, where
+the token is an OIDC access token with the `qtt-query` role or an API key from **Settings › Query Access**; see
+[Securing the Query Endpoints](administration.md#securing-the-query-endpoints).
 
 **Test without parameters:**
 
 ```bash
-curl -X GET "http://localhost:8888/people-search"
+curl -k -X GET "https://localhost:8443/query/people-search"
 ```
 
 **Test with parameters:**
 
 ```bash
-curl -X GET "http://localhost:8888/people-search?name=john&limit=10"
+curl -k -X GET "https://localhost:8443/query/people-search?name=john&limit=10"
 ```
 
 ### Step 5: Monitor Performance
@@ -226,8 +232,9 @@ The Routes page displays all configured query endpoints in a searchable, sortabl
 #### Route Table Columns
 
 - **Status Icon**: Visual indicator of route and datasource status
-- **Route ID**: Unique identifier (sortable)
-- **Endpoint URL**: Full query path (http://localhost:8888/{route-id})
+- **Route ID**: Unique identifier (sortable), with a globe for an open route or a lock for one that needs a token
+  or API key
+- **Endpoint URL**: Full query path (https://localhost:8443/query/{route-id})
 - **Description**: User-friendly description (sortable)
 - **DataSource ID**: Associated datasource with health warnings
 - **Actions Menu**: Three-dot menu for route operations

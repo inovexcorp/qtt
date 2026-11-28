@@ -76,7 +76,6 @@ services:
       #...
     ports:
       - "8443:8443"
-      - "8888:8888"
 
   qtt-standby:
     image: docker.io/inovexis/qtt:latest
@@ -193,11 +192,16 @@ networks:
 
 ### 3. Route Templates
 
-The management API has no authentication of its own, and anyone who can reach it can save route templates.
-Templates are rendered with FreeMarker's safeguards for untrusted templates switched on: no `?new` or `?api`, no
-`<#include>`/`<#import>`, and no Java methods on request objects (see
-[What Templates Cannot Do](template-development.md#what-templates-cannot-do)). Still, put the management port
-(8443) behind a reverse proxy that requires authentication, and expose only the query port (8888) to clients.
+Without sign-in, anyone who can reach the management API can save route templates, so turn on
+[Single Sign-On](administration.md#single-sign-on-oidc) for shared deployments. Templates are rendered with
+FreeMarker's safeguards for untrusted templates switched on: no `?new` or `?api`, no `<#include>`/`<#import>`, and no
+Java methods on request objects (see [What Templates Cannot Do](template-development.md#what-templates-cannot-do)).
+Templates never see a caller's `Authorization`, `Cookie` or proxy headers, so they can't pass credentials on to Anzo.
+
+The query routes share ports 8443/8080 with the UI. To let applications reach only the query routes, route the path
+`/query/` to them through your reverse proxy and keep `/` and `/queryrest/` internal
+([Exposing only the query routes](administration.md#exposing-only-the-query-routes)), and close routes that should
+not be public ([Securing the Query Endpoints](administration.md#securing-the-query-endpoints)).
 
 ### 4. Secrets Management
 

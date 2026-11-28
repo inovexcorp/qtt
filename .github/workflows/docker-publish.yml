@@ -141,5 +141,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Run Commands" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker run -d --name qtt -p 8443:8443 -p 8888:8888 docker.io/inovexis/qtt:$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d --name qtt -p 8443:8443 docker.io/inovexis/qtt:$VERSION" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
