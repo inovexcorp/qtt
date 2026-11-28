@@ -44,10 +44,10 @@
     overflow: hidden;
 
     // Purple tab styling
-    --mdc-tab-indicator-active-indicator-color: #7b1fa2;
-    --mat-tab-header-active-label-text-color: #7b1fa2;
-    --mat-tab-header-active-focus-label-text-color: #7b1fa2;
-    --mat-tab-header-active-hover-label-text-color: #7b1fa2;
+    --mat-tab-active-indicator-color: #7b1fa2;
+    --mat-tab-active-label-text-color: #7b1fa2;
+    --mat-tab-active-focus-label-text-color: #7b1fa2;
+    --mat-tab-active-hover-label-text-color: #7b1fa2;
 }
 
 .mat-mdc-tab-body{
@@ -65,7 +65,7 @@
 
 // Purple accent for form fields
 .mat-mdc-form-field {
-  --mdc-outlined-text-field-focus-outline-color: #7b1fa2;
+  --mat-form-field-outlined-focus-outline-color: #7b1fa2;
   --mat-form-field-focus-select-arrow-color: #7b1fa2;
 }
 
@@ -87,6 +87,6 @@
   --mat-paginator-container-text-color: #7b1fa2;
 
   .mat-mdc-icon-button {
-    --mdc-icon-button-state-layer-color: #7b1fa2;
+    --mat-icon-button-state-layer-color: #7b1fa2;
   }
 }

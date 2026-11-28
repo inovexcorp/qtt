@@ -178,10 +178,10 @@ mat-divider {
 
   // Purple indicator for active tab
   .mat-mdc-tab-header {
-    --mdc-tab-indicator-active-indicator-color: #7b1fa2;
-    --mat-tab-header-active-label-text-color: #7b1fa2;
-    --mat-tab-header-active-focus-label-text-color: #7b1fa2;
-    --mat-tab-header-active-hover-label-text-color: #7b1fa2;
+    --mat-tab-active-indicator-color: #7b1fa2;
+    --mat-tab-active-label-text-color: #7b1fa2;
+    --mat-tab-active-focus-label-text-color: #7b1fa2;
+    --mat-tab-active-hover-label-text-color: #7b1fa2;
   }
 }
 
