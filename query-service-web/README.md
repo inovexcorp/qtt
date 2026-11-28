@@ -56,8 +56,8 @@ User Request → Quarkus HTTP server (8443 / 8080)
 - **RxJS**: 7.8.0 - Reactive programming
 
 ### Build Tools
-- **Node.js**: 20.18.1 (managed by frontend-maven-plugin)
-- **npm**: 10.8.2
+- **Node.js**: 26.13.1 (managed by frontend-maven-plugin; `.nvmrc` for local work)
+- **npm**: 11.20.0
 - **Angular CLI**: 18.2.0
 - **TypeScript**: 5.5.0
 
@@ -143,7 +143,7 @@ query-service-web/
 The `pom.xml` uses the `frontend-maven-plugin` to automate the Node.js/Angular build process within Maven:
 
 1. **Install Node & npm** (prepare-package phase)
-   - Downloads Node.js v20.18.1 and npm 10.8.2 to `target/`
+   - Downloads Node.js v26.13.1 and npm 11.20.0 to `target/`
    - Ensures consistent build environment across systems
 
 2. **npm install** (prepare-package phase)
@@ -172,8 +172,8 @@ The compiled application is placed in `target/classes/META-INF/resources/`, so i
 
 - **Java**: 17 or higher
 - **Maven**: 3.6+ (for full project build)
-- **Node.js**: 14.20+ (for local Angular development)
-- **npm**: 6.14+
+- **Node.js**: 26.13.1 (for local Angular development: `nvm install && nvm use` reads `.nvmrc`)
+- **npm**: 11.20+ (ships with Node 26.13.1)
 
 ### Local Development (Angular Dev Server)
 

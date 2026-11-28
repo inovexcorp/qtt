@@ -139,7 +139,7 @@ For detailed deployment options, see the [Administration Guide](docs/administrat
 
 - Java 17 (JDK)
 - Apache Maven 3.6+
-- Node.js v20.18.1
+- Node.js v26.13.1 (`query-service-web/.nvmrc`; with nvm: `nvm install && nvm use`)
 - Angular CLI 18.2.21
 
 **For Production Deployment:**
