@@ -1,4 +1,4 @@
-import { APP_INITIALIZER, NgModule } from '@angular/core';
+import { NgModule, inject, provideAppInitializer } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
 import { AppRoutingModule } from './app-routing.module';
@@ -135,7 +135,7 @@ import { ClipboardModule } from '@angular/cdk/clipboard';
     provideHttpClient(withInterceptorsFromDi()),
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
     // Who is signed in, before the first page renders (so role-dependent controls don't flicker).
-    { provide: APP_INITIALIZER, useFactory: (auth: AuthService) => () => auth.load(), deps: [AuthService], multi: true }
+    provideAppInitializer(() => inject(AuthService).load())
   ],
   bootstrap: [AppComponent]
 })
