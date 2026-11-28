@@ -11,13 +11,14 @@ import { QsBreadcrumbComponent } from './shared/qs-breadcrumb/qs-breadcrumb.comp
 import { MatCard, MatCardHeader, MatCardAvatar, MatCardTitle, MatCardSubtitle, MatCardContent, MatCardActions } from '@angular/material/card';
 import { MatNavList, MatListItem } from '@angular/material/list';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { QuickActionsBarComponent } from './shared/quick-actions/quick-actions-bar.component';
 
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss'],
     changeDetection: ChangeDetectionStrategy.Eager,
-    imports: [MatToolbar, MatIconButton, MatIcon, MatButton, MatMenuTrigger, MatMenu, MatMenuItem, QsBreadcrumbComponent, MatCard, MatCardHeader, MatCardAvatar, MatCardTitle, MatCardSubtitle, MatCardContent, MatCardActions, MatDrawerContainer, MatDrawer, MatNavList, MatListItem, RouterLink, RouterLinkActive, MatDrawerContent, RouterOutlet]
+    imports: [MatToolbar, MatIconButton, MatIcon, MatButton, MatMenuTrigger, MatMenu, MatMenuItem, QsBreadcrumbComponent, MatCard, MatCardHeader, MatCardAvatar, MatCardTitle, MatCardSubtitle, MatCardContent, MatCardActions, MatDrawerContainer, MatDrawer, MatNavList, MatListItem, RouterLink, RouterLinkActive, MatDrawerContent, RouterOutlet, QuickActionsBarComponent]
 })
 export class AppComponent implements OnInit, OnDestroy {
   title = 'query-service-ui';

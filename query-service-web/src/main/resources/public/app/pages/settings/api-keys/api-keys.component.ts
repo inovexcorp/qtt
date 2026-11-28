@@ -4,6 +4,8 @@ import { Clipboard } from '@angular/cdk/clipboard';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiKey, ApiKeysService, CreatedApiKey } from '../../../core/services/api-keys.service';
 import { saveErrorMessage } from '../../../core/http-error-message';
+import { onRequestedAction } from '../../../shared/quick-actions/requested-action';
+import { NEW_API_KEY_PARAM } from '../../../shared/quick-actions/global-actions';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -44,7 +46,10 @@ export class ApiKeysComponent implements OnInit {
   @ViewChild(FormGroupDirective) private formDirective?: FormGroupDirective;
   @ViewChild('nameInput') private nameInput?: ElementRef<HTMLInputElement>;
 
-  constructor(private apiKeys: ApiKeysService, private clipboard: Clipboard, private snackBar: MatSnackBar) {}
+  constructor(private apiKeys: ApiKeysService, private clipboard: Clipboard, private snackBar: MatSnackBar) {
+    // "Create API key" in the quick actions bar
+    onRequestedAction(NEW_API_KEY_PARAM, () => this.openForm());
+  }
 
   ngOnInit(): void {
     this.load();

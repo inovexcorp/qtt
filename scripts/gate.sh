@@ -18,6 +18,8 @@ mkdir -p "$LOGS"
 SUMMARY="$LOGS/summary.txt"
 : > "$SUMMARY"
 STACK="$ROOT/scripts/stack.sh"
+# Names, ports and URLs of the stack (QTT_STACK / QTT_PORT_OFFSET run it beside another one).
+eval "$("$STACK" env)"
 rc=0
 
 record() { # name exit-code log
@@ -36,25 +38,25 @@ run_suite() { # db redis extra-maven-args...   (QTT_OIDC=true in the environment
   if ! QTT_IMAGE=$IMAGE QTT_DB=$db QTT_REDIS=$redis QTT_OIDC=$oidc "$STACK" up > "$log" 2>&1; then
     record "$name (stack up)" 1 "$log"; "$STACK" down; return
   fi
-  (cd "$ROOT" && mvn -B -Pit -pl query-service-it verify -Dqtt.redis="$redis" -Dqtt.db="$db" -Dqtt.oidc="$oidc" "$@") \
+  (cd "$ROOT" && mvn -B -Pit -pl query-service-it verify -Dqtt.redis="$redis" -Dqtt.db="$db" -Dqtt.oidc="$oidc" $STACK_IT_PROPS "$@") \
     >> "$log" 2>&1
   record "$name" $? "$log"
 }
 
 for cfg in "derby false" "postgres true" "mssql false"; do
   run_suite $cfg -Dit.excludedGroups=slow,restart-setup,restart-verify
-  podman logs qtt-it-app > "$LOGS/app-${cfg// /-}.log" 2>&1
+  podman logs $STACK_APP > "$LOGS/app-${cfg// /-}.log" 2>&1
   "$STACK" down
 done
 
 # Sign-in required: the whole suite as the qtt-ci service account, plus SecurityIT (browser flow, roles, CSRF).
 QTT_OIDC=true run_suite derby false -Dit.excludedGroups=slow,restart-setup,restart-verify
 if [[ -n "${UI_TOOLS:-}" ]]; then
-  QTT_OIDC=true NODE_PATH="$UI_TOOLS/node_modules" node "$ROOT/scripts/ui_check.mjs" https://localhost:18443 \
+  QTT_OIDC=true NODE_PATH="$UI_TOOLS/node_modules" QTT_OIDC_REALM=$STACK_REALM QTT_QUERY_URL=$STACK_QUERY node "$ROOT/scripts/ui_check.mjs" $STACK_API \
     "$LOGS/screenshots-oidc" > "$LOGS/ui-oidc.log" 2>&1
   record "ui check (oidc)" $? "$LOGS/ui-oidc.log"
 fi
-podman logs qtt-it-app > "$LOGS/app-derby-oidc.log" 2>&1
+podman logs $STACK_APP > "$LOGS/app-derby-oidc.log" 2>&1
 "$STACK" down
 
 # QUERY_AUTH_DEFAULT=authenticated: routes left at "default" are closed. The rest of the suite calls routes
@@ -68,14 +70,14 @@ run_suite derby true -Dit.excludedGroups=restart-setup,restart-verify
 QTT_IMAGE=$IMAGE QTT_DB=derby QTT_REDIS=true "$STACK" restart-it > "$LOGS/restart.log" 2>&1
 record "restart persistence" $? "$LOGS/restart.log"
 if [[ -n "${UI_TOOLS:-}" ]]; then
-  NODE_PATH="$UI_TOOLS/node_modules" node "$ROOT/scripts/ui_check.mjs" https://localhost:18443 "$LOGS/screenshots" > "$LOGS/ui.log" 2>&1
+  NODE_PATH="$UI_TOOLS/node_modules" QTT_OIDC_REALM=$STACK_REALM QTT_QUERY_URL=$STACK_QUERY node "$ROOT/scripts/ui_check.mjs" $STACK_API "$LOGS/screenshots" > "$LOGS/ui.log" 2>&1
   record "ui check" $? "$LOGS/ui.log"
 fi
 if [[ -n "${ANZO_URL:-}" ]]; then
   python3 "$ROOT/scripts/smoke_real_anzo.py" > "$LOGS/real-anzo.log" 2>&1
   record "real Anzo smoke" $? "$LOGS/real-anzo.log"
 fi
-podman logs qtt-it-app > "$LOGS/app-derby-true.log" 2>&1
+podman logs $STACK_APP > "$LOGS/app-derby-true.log" 2>&1
 "$STACK" down
 "$ROOT/scripts/tls_check.sh" "$IMAGE" > "$LOGS/tls.log" 2>&1
 record "custom TLS keystore" $? "$LOGS/tls.log"

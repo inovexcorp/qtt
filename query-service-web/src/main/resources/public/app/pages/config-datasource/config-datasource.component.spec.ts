@@ -14,6 +14,8 @@ import { MetricsService } from '../../core/services/metrics.service';
 import { Datasources } from '../../core/models/datasources';
 import { DatasourceHealth } from '../../core/models/datasource-health';
 import { SaveDatasourceDialogData } from '../config-datasource-modal/config-datasource-modal.component';
+import { QuickActionsService } from '../../shared/quick-actions/quick-actions.service';
+import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 
 describe('ConfigDatasourceComponent', () => {
   let component: ConfigDatasourceComponent;
@@ -193,5 +195,36 @@ describe('ConfigDatasourceComponent', () => {
     c().setEnabled(false);
     expect(live.patch).toHaveBeenCalledWith('ds1', { status: 'DISABLED' });
     expect(datasourceService.disableDatasource).toHaveBeenCalledWith('ds1');
+  });
+
+  describe('quick actions bar', () => {
+    const actions = () => TestBed.inject(QuickActionsService).actions().filter(a => a.group === 'page');
+    const shown = () => actions().filter(a => !a.visible || a.visible()).map(a => a.label);
+    const action = (id: string) => actions().find(a => a.id === id)!;
+
+    it('adds the page\'s actions while it is open, and removes them when it closes', () => {
+      expect(shown()).toEqual(['Save datasource', 'Test connection', 'Run health check', 'Disable datasource',
+        'Delete datasource', 'Show usage']);
+      fixture.destroy();
+      expect(actions()).toEqual([]);
+    });
+
+    it('says why an action cannot run, as the buttons do', () => {
+      expect(action('datasource:save').disabledReason!()).toBe('Nothing has changed');
+      c().form.controls.timeOutSeconds.setValue('ten');
+      expect(action('datasource:save').disabledReason!()).toBe('Some connection settings are invalid');
+      live.healthCheckEnabled.set(false);
+      expect(action('datasource:health').disabledReason!()).toBe('Automated health checks are off on the server');
+    });
+
+    it('asks before disabling, naming how many routes stop, and disables only when confirmed', () => {
+      action('datasource:disable').run();
+      const [type, config] = dialog.open.mock.lastCall as any[];
+      expect(type).toBe(ConfirmDialogComponent);
+      expect(config.data.message[0]).toBe('All 2 routes using it stop answering queries until it is enabled again.');
+      expect(datasourceService.disableDatasource).not.toHaveBeenCalled();
+      afterClosed.next(true);
+      expect(datasourceService.disableDatasource).toHaveBeenCalledWith('ds1');
+    });
   });
 });

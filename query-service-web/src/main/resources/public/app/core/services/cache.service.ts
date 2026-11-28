@@ -23,9 +23,9 @@ export class CacheService {
     return this.http.delete(`/queryrest/api/routes/${routeId}/cache`);
   }
 
-  /** DELETE all cache entries with the configured prefix */
+  /** DELETE all cache entries with the configured prefix (admin) */
   clearAllCache(): Observable<any> {
-    return this.http.delete(this.cacheUrl + 'all');
+    return this.http.delete('/queryrest/api/routes/cache');
   }
 
   /** GET cache statistics for a specific route */

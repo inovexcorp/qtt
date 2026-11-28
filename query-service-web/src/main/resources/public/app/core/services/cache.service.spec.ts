@@ -91,7 +91,7 @@ describe('CacheService', () => {
         expect(response).toBeTruthy();
       });
 
-      const req = httpMock.expectOne('/queryrest/api/routes/cache/all');
+      const req = httpMock.expectOne('/queryrest/api/routes/cache');
       expect(req.request.method).toBe('DELETE');
       req.flush({ success: true, cleared: 100 });
     });
@@ -101,7 +101,7 @@ describe('CacheService', () => {
         expect(error).toBeTruthy();
       });
 
-      const req = httpMock.expectOne('/queryrest/api/routes/cache/all');
+      const req = httpMock.expectOne('/queryrest/api/routes/cache');
       req.error(new ProgressEvent('error'), { status: 500, statusText: 'Server Error' });
     });
   });

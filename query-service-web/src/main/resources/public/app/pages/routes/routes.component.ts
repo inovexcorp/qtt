@@ -19,6 +19,8 @@ import { IfRoleDirective } from '../../shared/if-role.directive';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MatMenuTrigger, MatMenu, MatMenuItem } from '@angular/material/menu';
+import { onRequestedAction } from '../../shared/quick-actions/requested-action';
+import { ADD_ROUTE_PARAM } from '../../shared/quick-actions/global-actions';
 
 @Component({
     selector: 'app-routes',
@@ -46,7 +48,10 @@ export class RoutesComponent implements OnInit {
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
 
-  constructor(private routeService: RoutesService, public router: Router, private dialogRef: MatDialog) { }
+  constructor(private routeService: RoutesService, public router: Router, private dialogRef: MatDialog) {
+    // "Add route" in the quick actions bar
+    onRequestedAction(ADD_ROUTE_PARAM, () => this.openAddRouteDialog());
+  }
 
 
 

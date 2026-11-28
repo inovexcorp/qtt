@@ -36,6 +36,9 @@ import { liveAnnouncement, liveText } from '../datasources/datasources.component
 import { RouteRow, summarize, toRow } from '../metrics/metrics-derive';
 import { DeleteDatasourceModalComponent } from '../delete-datasource-modal/delete-datasource-modal.component';
 import { ConfigDatasourceModalComponent, DatasourceChange, SaveDatasourceDialogData } from '../config-datasource-modal/config-datasource-modal.component';
+import { QuickActionsService } from '../../shared/quick-actions/quick-actions.service';
+import { QuickAction } from '../../shared/quick-actions/quick-action';
+import { confirm } from '../../shared/confirm-dialog/confirm-dialog.component';
 
 /** The form's fields, labelled for the confirmation's list of changes. */
 const FIELD_LABELS: Record<string, string> = {
@@ -228,6 +231,92 @@ export class ConfigDatasourceComponent {
     });
 
     afterNextRender(() => this.ready.set(true));
+
+    const unregister = inject(QuickActionsService).register(this.pageQuickActions());
+    this.destroyRef.onDestroy(unregister);
+  }
+
+  // --- Quick actions bar -------------------------------------------------------------------------------------------
+
+  /** What this page adds to the quick actions bar while it is open. Roles and states as on the page's buttons. */
+  private pageQuickActions(): QuickAction[] {
+    const formBlocks = () => this.datasource() === null ? 'Still loading'
+      : this.form.invalid ? 'Some connection settings are invalid' : null;
+    return [
+      {
+        id: 'datasource:save', label: 'Save datasource', icon: 'check', group: 'page', minRole: 'admin',
+        keywords: ['submit', 'update', 'save changes'],
+        disabledReason: () => formBlocks() ?? (this.changes().length === 0 ? 'Nothing has changed' : null),
+        run: () => this.save()
+      },
+      {
+        id: 'datasource:test', label: 'Test connection', icon: 'network_check', group: 'page', minRole: 'admin',
+        keywords: ['try', 'ping'],
+        disabledReason: () => formBlocks() ?? (this.test().state === 'testing' ? 'A test is already running' : null),
+        run: () => {
+          this.scrollTo('connection-title');
+          this.runTest();
+        }
+      },
+      {
+        id: 'datasource:health', label: 'Run health check', icon: 'monitor_heart', group: 'page', minRole: 'editor',
+        keywords: ['check now', 'status'],
+        disabledReason: () => !this.live.healthCheckEnabled() ? 'Automated health checks are off on the server'
+          : this.status() === 'DISABLED' ? 'Enable the datasource to check it'
+          : this.busy() !== null || this.status() === 'CHECKING' ? 'A check is already running' : null,
+        run: () => this.checkNow()
+      },
+      {
+        id: 'datasource:enable', label: 'Enable datasource', icon: 'play_arrow', group: 'page', minRole: 'admin',
+        keywords: ['turn on'],
+        visible: () => this.status() === 'DISABLED',
+        disabledReason: () => this.busy() !== null ? 'Busy with another action' : null,
+        run: () => this.setEnabled(true)
+      },
+      {
+        id: 'datasource:disable', label: 'Disable datasource', icon: 'block', group: 'page', minRole: 'admin',
+        keywords: ['turn off'],
+        visible: () => this.status() !== 'DISABLED',
+        disabledReason: () => this.busy() !== null ? 'Busy with another action' : null,
+        run: () => this.confirmDisable()
+      },
+      {
+        id: 'datasource:delete', label: 'Delete datasource', icon: 'delete', group: 'page', minRole: 'admin',
+        keywords: ['remove'],
+        run: () => this.openDelete()
+      },
+      {
+        id: 'datasource:usage', label: 'Show usage', icon: 'insights', group: 'page',
+        keywords: ['metrics', 'routes using'],
+        run: () => this.scrollTo('usage-title')
+      }
+    ];
+  }
+
+  /**
+   * Disabling from the quick actions bar asks first: a keyboard-run action is easy to trigger by mistake, and the
+   * routes using the datasource stop answering queries.
+   */
+  private confirmDisable(): void {
+    const id = this.dataSourceId();
+    const routes = this.datasource()?.camelRouteTemplateNames?.length ?? 0;
+    confirm(this.dialog, {
+      title: `Disable ${id}?`,
+      message: [
+        routes === 0 ? 'No routes use this datasource.'
+          : `${routes === 1 ? 'The route' : `All ${routes} routes`} using it stop answering queries until it is enabled again.`,
+        'Health checks also stop while it is disabled.'
+      ],
+      confirmLabel: 'Disable'
+    }).subscribe(confirmed => {
+      if (confirmed) {
+        this.setEnabled(false);
+      }
+    });
+  }
+
+  private scrollTo(headingId: string): void {
+    document.getElementById(headingId)?.closest('section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // --- Loading -----------------------------------------------------------------------------------------------------

@@ -5,7 +5,10 @@
     </button>
   }
   <img class="logo" src="assets/logo.png" />
-  <span>Query Templating Tool</span>
+  <span class="app-title">Query Templating Tool</span>
+  @if (!auth.noAccess) {
+    <app-quick-actions-bar></app-quick-actions-bar>
+  }
   <div class="example-spacer"></div>
   @if (auth.user.authEnabled) {
     <button mat-button class="user-button" [matMenuTriggerFor]="userMenu" aria-label="Account">

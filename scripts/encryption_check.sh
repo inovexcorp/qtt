@@ -10,8 +10,9 @@ ENGINE="${ENGINE:-$(command -v podman || command -v docker)}"
 STACK="$ROOT/scripts/stack.sh"
 export QTT_IMAGE=$IMAGE QTT_DB=postgres QTT_REDIS=false
 export QTT_EXTRA_ENV="-e PASSWORD_ENCRYPTION_ENABLED=true -e PASSWORD_ENCRYPTION_KEY=check-key-0123456789 -e PASSWORD_ENCRYPTION_SALT=check-salt-0123"
-API=https://localhost:18443/queryrest/api
-QUERY=http://localhost:18082/query
+eval "$("$STACK" env)"
+API=$STACK_API/queryrest/api
+QUERY=$STACK_QUERY
 DS=enc-check
 ROUTE=enc-check-route
 PASSWORD=mock-password
@@ -21,7 +22,7 @@ trap '"$STACK" down >/dev/null 2>&1' EXIT
 "$STACK" up >/dev/null 2>&1 || { echo "stack up: FAILED"; exit 1; }
 
 json() { curl -ks -H 'Accept: application/json' -H 'Content-Type: application/json' "$@"; }
-column() { $ENGINE exec qtt-it-db psql -U postgres -d qtt -tAc "select password from datasources where datasourceid='$DS'"; }
+column() { $ENGINE exec $STACK_DB psql -U postgres -d qtt -tAc "select password from datasources where datasourceid='$DS'"; }
 datasource() { # timeout [password]
   printf '{"dataSourceId":"%s","url":"http://wiremock:8080","timeOutSeconds":"%s","maxQueryHeaderLength":"8192","username":"sysadmin"%s,"validateCertificate":false}' \
     "$DS" "$1" "${2:+,\"password\":\"$2\"}"
@@ -38,9 +39,9 @@ check() { # step
 }
 EXPECTED_AUTH="Basic $(printf '%s' "sysadmin:$PASSWORD" | base64)"
 check_query() { # step: the route works and sends the original password to Anzo (the mock accepts any credentials)
-  curl -s -o /dev/null -X DELETE http://localhost:18080/__admin/requests
+  curl -s -o /dev/null -X DELETE $STACK_WIREMOCK/__admin/requests
   local code auth; code=$(curl -s -o /dev/null -w '%{http_code}' "$QUERY/$ROUTE")
-  auth=$(curl -s -X POST http://localhost:18080/__admin/requests/find -d '{"method":"POST","urlPathPattern":"/sparql/graphmart/.*"}' |
+  auth=$(curl -s -X POST $STACK_WIREMOCK/__admin/requests/find -d '{"method":"POST","urlPathPattern":"/sparql/graphmart/.*"}' |
     python3 -c 'import sys,json; r=json.load(sys.stdin)["requests"]; print(r[0]["headers"].get("Authorization","") if r else "")')
   if [[ "$code" != 200 ]]; then echo "$1: route query FAILED ($code)"; failures=$((failures + 1))
   elif [[ "$auth" != "$EXPECTED_AUTH" ]]; then echo "$1: route query sent the wrong credentials"; failures=$((failures + 1))
@@ -72,7 +73,7 @@ else
 fi
 
 # A password stored in plain text (encryption enabled later, or written by an affected build) is encrypted at startup.
-$ENGINE exec qtt-it-db psql -U postgres -d qtt -qc "update datasources set password='$PASSWORD' where datasourceid='$DS'"
+$ENGINE exec $STACK_DB psql -U postgres -d qtt -qc "update datasources set password='$PASSWORD' where datasourceid='$DS'"
 "$STACK" swap-app >/dev/null 2>&1 || { echo "restart: FAILED"; exit 1; }
 check "startup migration"
 check_query "startup migration"
