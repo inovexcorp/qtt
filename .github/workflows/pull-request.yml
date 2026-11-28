@@ -15,6 +15,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check the Node version matches in .nvmrc, pom.xml and package.json
+        run: |
+          cd query-service-web
+          nvmrc=$(tr -d 'v \n' < .nvmrc)
+          pom=$(sed -n 's#.*<nodeVersion>v\(.*\)</nodeVersion>.*#\1#p' pom.xml)
+          engines=$(grep -o '"node": *"[^"]*"' package.json | sed 's/.*: *"\(.*\)"/\1/')
+          echo ".nvmrc=$nvmrc pom.xml=$pom engines=$engines"
+          [ "$nvmrc" = "$pom" ] || { echo "::error::.nvmrc ($nvmrc) and pom.xml nodeVersion ($pom) differ"; exit 1; }
+          case "$engines" in *">=$nvmrc"*) ;; *) echo "::error::package.json engines ($engines) doesn't start at $nvmrc"; exit 1;; esac
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:

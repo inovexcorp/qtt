@@ -7,7 +7,7 @@ This guide covers building QTT from source and setting up a local development en
 - Java 17 (JDK)
 - Apache Maven 3.6+
 - Node.js v26.13.1 (`query-service-web/.nvmrc`; with nvm: `nvm install && nvm use`)
-- Angular CLI 18.2.21
+- Angular CLI 22.3 (installed by `npm ci` in `query-service-web`; use `npx ng`)
 - Docker or Podman (for PostgreSQL and Redis containers)
 
 ## Building from Source

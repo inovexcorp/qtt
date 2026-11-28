@@ -47,22 +47,23 @@ User Request → Quarkus HTTP server (8443 / 8080)
 ## Technology Stack
 
 ### Frontend
-- **Angular**: 18.2.0 - Core framework
-- **Angular Material**: 18.2.0 - UI component library
-- **Bootstrap**: 5.3.0 - Additional styling
-- **Monaco Editor**: 0.50.0 - Code editor for Freemarker templates
-- **ngx-charts**: 20.5.0 - D3-based charting library
-- **ngx-markdown**: 18.0.0 - Markdown rendering
-- **RxJS**: 7.8.0 - Reactive programming
+- **Angular**: 22.3 - Core framework (standalone components, zone.js change detection)
+- **Angular Material / CDK**: 22.3 - UI components, Material 3 theme (`mat.theme`)
+- **Monaco Editor**: 0.58 (ESM build) - Code editor for Freemarker templates and JSON
+- **ngx-charts**: 25 - D3-based charting library
+- **ngx-markdown**: 22 (marked 18) - Markdown rendering in SPARQi chat
+- **xng-breadcrumb**: 15 - Toolbar breadcrumbs
+- **RxJS**: 7.8 - Reactive programming
 
 ### Build Tools
 - **Node.js**: 26.13.1 (managed by frontend-maven-plugin; `.nvmrc` for local work)
 - **npm**: 11.20.0
-- **Angular CLI**: 18.2.0
-- **TypeScript**: 5.5.0
+- **Angular CLI / @angular/build**: 22.3 (esbuild application builder, Vite dev server)
+- **TypeScript**: 6.0
+- **Vitest**: 5 (browser mode, Chrome via Playwright)
 
 ### Packaging
-- **frontend-maven-plugin**: Runs npm install, tests and build during the Maven build
+- **frontend-maven-plugin**: Runs npm ci, tests and build during the Maven build
 - **Jar packaging**: Build output under `META-INF/resources`, served by `query-service-app`
 
 ## Project Structure
@@ -85,22 +86,24 @@ query-service-web/
 │   │           │   │   ├── config-route/    # Route editor with SPARQi chat
 │   │           │   │   ├── add-route/       # New route creation
 │   │           │   │   └── config-datasource/  # Datasource editor
-│   │           │   ├── shared/              # Shared components (breadcrumbs, etc.)
-│   │           │   ├── app.module.ts        # Main application module
-│   │           │   ├── app-routing.module.ts   # Route configuration
+│   │           │   ├── shared/              # Shared components (breadcrumbs, code editor, etc.)
+│   │           │   │   └── code-editor/     # app-code-editor (Monaco form control), workers, Monaco setup
+│   │           │   ├── app.config.ts        # Application providers
+│   │           │   ├── app.routes.ts        # Route configuration (the route editor page is lazy)
 │   │           │   └── app.component.ts     # Root component
 │   │           ├── environments/            # Environment configurations
 │   │           ├── index.html               # Application entry point
-│   │           ├── main.ts                  # Angular bootstrap
-│   │           └── styles.scss              # Global styles
-│   └── test/                                # Unit tests
+│   │           ├── main.ts                  # bootstrapApplication
+│   │           ├── test-providers.ts        # Providers for every TestBed
+│   │           └── styles.scss              # Global styles and Material theme
 ├── angular.json                             # Angular CLI configuration
 ├── package.json                             # npm dependencies
-├── tsconfig.json                            # TypeScript configuration
-├── webpack.config.js                        # Custom webpack config for Monaco Editor
+├── tsconfig.json                            # TypeScript configuration (+ .app, .spec, .worker)
+├── vitest-base.config.mts                   # Vitest settings (browser mode)
 ├── proxy.conf.js                            # Dev server proxy configuration
-├── karma.conf.js                            # Test runner configuration
 └── pom.xml                                  # Maven build configuration
+
+Unit tests (`*.spec.ts`) sit next to the code they test.
 ```
 
 ## Features
@@ -146,12 +149,13 @@ The `pom.xml` uses the `frontend-maven-plugin` to automate the Node.js/Angular b
    - Downloads Node.js v26.13.1 and npm 11.20.0 to `target/`
    - Ensures consistent build environment across systems
 
-2. **npm install** (prepare-package phase)
-   - Installs dependencies from `package.json`
-   - Uses `--legacy-peer-deps` for compatibility
+2. **npm ci** (prepare-package phase)
+   - Installs exactly what `package-lock.json` lists
+   - Dependency install scripts are blocked (npm 11 default); the denials are recorded in `package.json` `allowScripts`
 
 3. **npm test** (prepare-package phase)
-   - Runs the Karma unit tests in headless Chrome with code coverage
+   - Runs the Vitest unit tests in headless Chrome with code coverage; fails below the coverage floor in `angular.json`
+   - Writes a JUnit report to `target/test-reports/vitest-junit.xml`
 
 4. **ng build** (prepare-package phase)
    - Compiles Angular application with Angular CLI
@@ -184,9 +188,10 @@ For rapid frontend development without full Maven builds:
    cd query-service-web
    ```
 
-2. **Install dependencies** (first time only):
+2. **Install dependencies** (first time, and after `package-lock.json` changes):
    ```bash
-   npm install --legacy-peer-deps
+   nvm install && nvm use   # Node 26.13.1 from .nvmrc
+   npm ci
    ```
 
 3. **Start the development server**:
@@ -205,20 +210,9 @@ For rapid frontend development without full Maven builds:
 
 ### Proxy Configuration
 
-The `proxy.conf.js` file routes API calls from the dev server to the backend:
-
-```javascript
-{
-  "/queryrest": {
-    "target": "http://localhost:8080",
-    "secure": false,
-    "changeOrigin": true,
-    "logLevel": "debug"
-  }
-}
-```
-
-This allows the Angular dev server to proxy requests to `/queryrest/api/*` to the running backend service.
+`proxy.conf.js` sends `/queryrest` (the management API) and `/query` (query routes) from the dev server to the backend
+on `http://localhost:8080`. Sign-in stays off with the dev server; to work on the sign-in flow, use the UI served by
+QTT on 8080.
 
 ## Build Commands
 
@@ -268,21 +262,25 @@ mvn -pl '!query-service-web' clean install
 
 ### Unit Tests
 
-Run Angular unit tests with Karma:
+Run the unit tests with Vitest:
 
 ```bash
 cd query-service-web
-npm test
+npm test                                   # watch mode
+npx ng test --watch=false --coverage      # once, with coverage (as the Maven build does)
+npx ng test --watch=false --include='**/settings/**'   # some files only
 ```
 
 Tests are located alongside components with `.spec.ts` extension.
 
 ### Test Configuration
 
-- **Test Framework**: Jasmine 5.1.0
-- **Test Runner**: Karma 6.4.0
-- **Browser**: Chrome (headless mode available)
-- **Coverage**: Istanbul code coverage reports
+- **Test runner**: Vitest 5 through `@angular/build:unit-test`
+- **Browser**: Vitest browser mode with Playwright, using the installed Google Chrome (no browser download)
+- **TestBed**: zone.js change detection, like the app (`test-providers.ts`)
+- **Coverage**: floor in `angular.json` (`coverageThresholds`); HTML report in `coverage/`
+
+The end-to-end UI check (`scripts/ui_check.mjs`, run by `scripts/gate.sh`) walks every page of a running stack.
 
 ## Deployment
 
@@ -309,25 +307,22 @@ There is no separate deployment of the web module; rebuild `query-service-app` (
 ### Build Configuration
 
 **angular.json**: Angular CLI build configuration
-- Output path: `target/classes/META-INF/resources`
+- Builder: `@angular/build:application` (esbuild)
+- Output path: `target/classes/META-INF/resources` (`outputPath.browser` is empty, so no `browser/` subfolder)
 - Source root: `src/main/resources/public`
-- Custom webpack config for Monaco Editor
+- Budgets: the initial bundle warns at 2 MB (Monaco must stay out of it), component styles at 20 kB
 
 **tsconfig.json**: TypeScript compiler options
 - Target: ES2022
-- Module: ES2020
-- Strict mode enabled
-
-**webpack.config.js**: Custom webpack rules
-- Monaco Editor CSS/font handling
-- Asset bundling configuration
+- Strict mode and strict templates enabled
+- `tsconfig.worker.json` compiles the Monaco web workers
 
 ### Runtime Configuration
 
 The Angular application adapts to the backend environment:
 
 - **API Base URL**: Determined by backend configuration (`/queryrest/api/`)
-- **Hash Routing**: Enabled (`useHash: true`)
+- **Hash Routing**: Enabled (`withHashLocation()` in `app.config.ts`)
 - **Environment Files**: `environment.ts` (dev) and `environment.prod.ts` (prod)
 
 ## Development Notes
@@ -341,17 +336,20 @@ The application uses hash-based routing (`/#/routes`) instead of HTML5 push-stat
 
 ### Monaco Editor Integration
 
-Monaco Editor (VS Code's editor) requires special webpack configuration:
-- CSS files must be loaded from node_modules
-- Fonts and assets are copied to `assets/monaco/`
-- Custom webpack config in `webpack.config.js` handles this
+The app uses Monaco's ESM build (one copy), bundled into lazy chunks: only the route editor page and the add-route
+dialog load it.
+- `shared/code-editor/code-editor.component.ts`: `app-code-editor`, a form control around `monaco.editor.create`
+- `shared/code-editor/monaco-environment.ts`: starts the editor and JSON web workers (bundled from
+  `new Worker(new URL(...))`), and links Monaco's stylesheet when an editor is created
+- Monaco's stylesheet is built as a separate file, `monaco-editor.css` (`angular.json` styles: `inject: false`).
+  CSS that Monaco's JavaScript imports is dropped (`loader: { ".css": "empty" }`), because esbuild would write it to a
+  file nothing links.
 
-### Legacy Peer Dependencies
+### Animations
 
-The `--legacy-peer-deps` flag is required due to peer dependency conflicts between:
-- Angular 18 packages
-- Monaco Editor wrapper (ngx-monaco-editor-v2)
-- ngx-charts and D3 dependencies
+`@angular/animations` is deprecated (Angular plans to remove it in v23). The app's own transitions use
+`animate.enter` / `animate.leave` with CSS; the package and `provideAnimationsAsync()` remain only for ngx-charts,
+which still depends on it.
 
 ### Build Performance
 
@@ -359,24 +357,27 @@ The `--legacy-peer-deps` flag is required due to peer dependency conflicts betwe
 - Use `npm start` for frontend development (live reload)
 - Backend changes don't require Angular rebuild
 
-**Slow Maven Build**:
-- First build: ~5-10 minutes (downloads Node.js + npm packages)
-- Subsequent builds: ~2-3 minutes
+**Maven Build**:
+- First build downloads Node.js and the npm packages
+- After that the web module builds in about 30 seconds (production build ~10 s, unit tests ~10 s)
 - Skip with `-pl '!query-service-web'` when not needed
 
 ## Troubleshooting
 
-### Build Fails with "npm install" Error
+### Build Fails with "npm ci" Error
 
 **Problem**: `frontend-maven-plugin` fails to install dependencies
 
 **Solution**:
-```bash
-cd query-service-web
-rm -rf node_modules target
-npm install --legacy-peer-deps
-mvn clean install
-```
+1. `npm ci` requires `package.json` and `package-lock.json` to agree: after changing dependencies, run `npm install`
+   and commit the updated lockfile
+2. Then:
+   ```bash
+   cd query-service-web
+   rm -rf node_modules target
+   npm ci
+   mvn clean install
+   ```
 
 ### Cannot Access Web UI
 
@@ -401,9 +402,10 @@ mvn clean install
 **Problem**: Template editor shows blank or errors in console
 
 **Solution**:
-1. Clear Angular cache: `rm -rf .angular/cache`
-2. Reinstall Monaco assets: `npm install --legacy-peer-deps`
-3. Check `angular.json` assets configuration includes Monaco
+1. Check the browser console: "could not create web worker" points at `monaco-environment.ts` and
+   `tsconfig.worker.json`; an unstyled editor means `monaco-editor.css` didn't load
+2. Clear the Angular cache: `rm -rf .angular/cache`
+3. Reinstall: `npm ci`
 
 ## Related Modules
 
