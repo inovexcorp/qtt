@@ -16,5 +16,10 @@ module.exports = (config) => {
     }
   );
 
+  // ngx-markdown 22 loads marked-katex-extension with a dynamic import, only when [katex] is used (we don't). It is an
+  // optional peer we don't install; resolve it to an empty module so webpack doesn't fail on it.
+  config.resolve = config.resolve || {};
+  config.resolve.alias = { ...(config.resolve.alias || {}), 'marked-katex-extension': false };
+
   return config;
 };

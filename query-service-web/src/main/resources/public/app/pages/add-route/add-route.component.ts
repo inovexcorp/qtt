@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild, OnDestroy } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { ViewEncapsulation } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { trigger, state, style, transition, animate } from '@angular/animations';
@@ -44,6 +44,7 @@ import { CacheInfo } from '../../core/models/cache-info';
             ])
         ])
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class AddRouteComponent implements OnInit, OnDestroy {
@@ -63,7 +64,7 @@ export class AddRouteComponent implements OnInit, OnDestroy {
   allLayers: GraphmartLayers[] = [];
   separatorKeysCodes: number[] = [ENTER, COMMA];
   showTemplateEditor: boolean = false;
-  editorOptions = {
+  editorOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
     theme: 'vs-dark',
     language: 'freemarker2',
     automaticLayout: true,

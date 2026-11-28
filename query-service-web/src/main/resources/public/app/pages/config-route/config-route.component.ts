@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, AfterViewInit, OnDestroy, ViewChild, Inject, inject } from '@angular/core';
+import { Component, ElementRef, OnInit, AfterViewInit, OnDestroy, ViewChild, Inject, inject, ChangeDetectionStrategy } from '@angular/core';
 import { SettingsService } from '../../core/services/settings.service';
 import { effectiveAccess } from '../../shared/query-endpoint';
 import { FormGroup, FormControl, Validators } from '@angular/forms';
@@ -31,11 +31,7 @@ import { MatDialog, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabChangeEvent } from '@angular/material/tabs';
 import { TemplateValidation, TemplateValidationService, saveErrorMessage } from '../../core/services/template-validation.service';
-import * as monaco from 'monaco-editor';
-
-// Import ALL editor features including suggest
-import 'monaco-editor/esm/vs/editor/edcore.main.js';
-import 'monaco-editor/esm/vs/editor/editor.all.js';
+import * as monaco from 'monaco-editor'; // the full editor: every contribution (suggest, find, ...) and language
 
 
 
@@ -55,6 +51,7 @@ import 'monaco-editor/esm/vs/editor/editor.all.js';
             ])
         ])
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -1558,6 +1555,7 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
       margin: 8px 0;
     }
   `],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
 export class CacheClearConfirmDialog {
