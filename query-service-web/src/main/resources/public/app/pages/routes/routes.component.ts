@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { Routes } from '../../core/models/routes-interfaces/routes';
 import { TableData } from '../../core/models/routes-interfaces/table-data';
 import { RoutesService } from './routes.service';
@@ -10,6 +10,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { AddRouteComponent } from '../add-route/add-route.component';
 import { DeleteRouteModalComponent } from '../delete-route-modal/delete-route-modal.component';
 import { filter } from 'rxjs';
+import { SettingsService } from '../../core/services/settings.service';
+import { effectiveAccess, endpointUrl } from '../../shared/query-endpoint';
 
 @Component({
   selector: 'app-routes',
@@ -22,6 +24,9 @@ export class RoutesComponent implements OnInit {
   dataSource = new MatTableDataSource<TableData>;
   displayedColumns: string[] = ['Status', 'Route ID', 'URL', 'Description', 'DataSource ID', 'Menu Actions'];
   baseUrl!: string;
+  /** QUERY_AUTH_DEFAULT: what routes left at "default" require. */
+  serverDefaultAccess: 'open' | 'authenticated' = 'open';
+  private settingsService = inject(SettingsService);
 
   // Store sort state in memory
   private sortState: { active: string, direction: 'asc' | 'desc' | '' } = {
@@ -42,6 +47,10 @@ export class RoutesComponent implements OnInit {
       if (this.router.url === '/routes' || this.router.url.startsWith('/#/routes') && !this.router.url.includes('config-route')) {
         this.getRoutes();
       }
+    });
+    this.settingsService.getSsoInfo().subscribe({
+      next: info => this.serverDefaultAccess = info.queryAuthDefault === 'authenticated' ? 'authenticated' : 'open',
+      error: () => { /* keep "open"; informational only */ }
     });
     this.routeService.getBaseUrl().subscribe(response => {
       this.baseUrl = response.baseUrl;
@@ -78,7 +87,8 @@ export class RoutesComponent implements OnInit {
             routeParams: value.routeParams,
             datasources: value.datasources,
             status: value.status,
-            graphMartUri: value.graphMartUri
+            graphMartUri: value.graphMartUri,
+            accessPolicy: value.accessPolicy
           }
         });
         this.dataSource = new MatTableDataSource(tableData);
@@ -95,6 +105,16 @@ export class RoutesComponent implements OnInit {
 
   }
 
+  /** Absolute URL of a route's endpoint. */
+  endpointUrl(routeId: string): string {
+    return endpointUrl(this.baseUrl, routeId);
+  }
+
+  /** Whether a route is open to anyone ("open"), or needs a token or API key ("authenticated"). */
+  accessOf(element: TableData): 'open' | 'authenticated' {
+    return effectiveAccess(element.accessPolicy, this.serverDefaultAccess);
+  }
+
   //On key press, update the table based on search
   applyFilter(filterValue: string) {
     this.dataSource.filter = filterValue.trim();
@@ -102,7 +122,9 @@ export class RoutesComponent implements OnInit {
 
   openAddRouteDialog() {
     this.dialogRef.open(AddRouteComponent, {
-      maxWidth: '150rem'
+      maxWidth: '150rem',
+      // The form (with the access and cache sections) can be taller than the window; scroll inside the dialog
+      maxHeight: '90vh'
     })
   }
 

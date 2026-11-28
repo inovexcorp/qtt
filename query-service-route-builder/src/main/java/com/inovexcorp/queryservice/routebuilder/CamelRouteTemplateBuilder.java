@@ -1,5 +1,6 @@
 package com.inovexcorp.queryservice.routebuilder;
 
+import com.inovexcorp.queryservice.QueryAccess;
 import com.inovexcorp.queryservice.RdfResultsJsonifier;
 import com.inovexcorp.queryservice.cache.CacheService;
 import com.inovexcorp.queryservice.persistence.CamelRouteTemplate;
@@ -33,8 +34,16 @@ import java.nio.file.Files;
 public class CamelRouteTemplateBuilder extends RouteBuilder {
 
     private static final String TEMPLATE_NAME_FORMAT = "%s.ftl";
-    /** Query endpoints are served by Netty HTTP on their own port (Jetty under Karaf). */
-    static final String QUERY_ENDPOINT_URL = "netty-http:http://0.0.0.0:8888/%s?%s";
+    /** Query routes are served by the application's HTTP server (8080/8443) under this path. */
+    public static final String QUERY_PATH = "/query/";
+    /** Route property carrying the route's access setting (QueryAccess value), read by the HTTP security policy. */
+    public static final String ACCESS_PROPERTY = "qtt.access";
+    /** Route property carrying the roles an authenticated caller must also hold (comma-separated, may be empty). */
+    public static final String REQUIRED_ROLES_PROPERTY = "qtt.requiredRoles";
+    /** Header in which platform-http passes the authenticated user (VertxPlatformHttpConstants.AUTHENTICATED_USER). */
+    static final String AUTHENTICATED_USER_HEADER = "CamelVertxPlatformHttpAuthenticatedUser";
+    /** platform-http endpoint for a route: its path, and the strategy that filters headers in and out. */
+    static final String QUERY_ENDPOINT_URL = "platform-http:" + QUERY_PATH + "%s?headerFilterStrategy=#class:%s";
 
     private final String layerUris;
     private final CamelRouteTemplate camelRouteTemplate;
@@ -44,6 +53,8 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
     private final int cacheDefaultTtlSeconds;
     /** Checked on every request, so disabling a datasource takes effect on its running routes. */
     private final DisabledDatasources disabledDatasources;
+    /** Return the Anzo metadata headers (anzo.query, ...) to callers ({@code QUERY_DEBUG_HEADERS}). */
+    private final boolean debugHeaders;
 
     //Template for creating routes in a format of from->template->to
     @Override
@@ -144,11 +155,33 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
                 .setBody(constant("{\"error\": \"Backend datasource unavailable\", \"status\": \"DOWN\", \"message\": \"The datasource for this route is currently unreachable. Please check datasource health status.\"}"));
 
-        // From the query endpoint (Netty HTTP on port 8888)
-        String routeParams = normalizeRouteParams(camelRouteTemplate.getRouteParams());
-        from(String.format(QUERY_ENDPOINT_URL, camelRouteTemplate.getRouteId(), routeParams))
+        // From the query endpoint, /query/<routeId> on the application's HTTP server
+        QueryRouteParams routeParams = QueryRouteParams.parse(camelRouteTemplate.getRouteId(),
+                normalizeRouteParams(camelRouteTemplate.getRouteParams()));
+        from(queryEndpointUri(camelRouteTemplate.getRouteId(), debugHeaders))
                 // Set the route ID.
                 .routeId(camelRouteTemplate.getRouteId())
+                // Who may call it; enforced before the request reaches the route (RouteAccessPolicy).
+                .routeProperty(ACCESS_PROPERTY, QueryAccess.parse(camelRouteTemplate.getAccessPolicy()).value())
+                .routeProperty(REQUIRED_ROLES_PROPERTY, String.join(",",
+                        QueryAccess.parseRoles(camelRouteTemplate.getRequiredRoles())))
+                // platform-http passes the server's authenticated user (the caller's security identity) as a header;
+                // a template must not see it any more than it sees the caller's credentials.
+                .removeHeader(AUTHENTICATED_USER_HEADER)
+                // Methods outside the route's httpMethodRestrict get 405 (platform-http itself would answer 404).
+                .process(exchange -> {
+                    String method = exchange.getMessage().getHeader(Exchange.HTTP_METHOD, String.class);
+                    if (!routeParams.allows(method)) {
+                        exchange.getMessage().removeHeaders("*");
+                        exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 405);
+                        exchange.getMessage().setHeader("Allow", routeParams.allowHeader());
+                        exchange.getMessage().setHeader(Exchange.CONTENT_TYPE, "application/json");
+                        exchange.getMessage().setBody(String.format(
+                                "{\"error\": \"Method Not Allowed\", \"message\": \"This route accepts %s\"}",
+                                routeParams.allowHeader()));
+                        exchange.setRouteStop(true);
+                    }
+                })
                 // Check datasource status before processing
                 .process(exchange -> {
                     if (isDatasourceDisabled()) {
@@ -183,6 +216,12 @@ public class CamelRouteTemplateBuilder extends RouteBuilder {
                     // Store result in cache
                     .process(new CacheStoreProcessor(cacheService, camelRouteTemplate, cacheDefaultTtlSeconds))
             .end();
+    }
+
+    /** The platform-http endpoint URI of a query route. */
+    static String queryEndpointUri(String routeId, boolean debugHeaders) {
+        Class<?> strategy = debugHeaders ? QueryDebugHeaderFilterStrategy.class : QueryHeaderFilterStrategy.class;
+        return String.format(QUERY_ENDPOINT_URL, routeId, strategy.getName());
     }
 
     private boolean isDatasourceDisabled() {

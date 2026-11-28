@@ -1,4 +1,6 @@
-import { Component, ElementRef, OnInit, AfterViewInit, OnDestroy, ViewChild, Inject } from '@angular/core';
+import { Component, ElementRef, OnInit, AfterViewInit, OnDestroy, ViewChild, Inject, inject } from '@angular/core';
+import { SettingsService } from '../../core/services/settings.service';
+import { effectiveAccess } from '../../shared/query-endpoint';
 import { FormGroup, FormControl, Validators } from '@angular/forms';
 import { ViewEncapsulation } from '@angular/core';
 import { trigger, state, style, transition, animate } from '@angular/animations';
@@ -212,9 +214,26 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     // Cache fields
     cacheEnabled: new FormControl(false),
     cacheTtlSeconds: new FormControl<number | null>(null),
-    cacheKeyStrategy: new FormControl('QUERY_HASH')
-
+    cacheKeyStrategy: new FormControl('QUERY_HASH'),
+    // Who may call it (see app-route-access)
+    accessPolicy: new FormControl('default'),
+    requiredRoles: new FormControl('')
   })
+
+  /** Base URL of the query routes (QUERY_BASE_URL, or "/query" on this server) and the server's default access. */
+  queryBaseUrl: string | null = null;
+  serverDefaultAccess: 'open' | 'authenticated' = 'open';
+  private settingsService = inject(SettingsService);
+
+  /** The access that applies to this route as currently edited. */
+  get effectiveAccessValue(): 'open' | 'authenticated' {
+    return effectiveAccess(this.configRoute.value['accessPolicy'], this.serverDefaultAccess);
+  }
+
+  /** HTTP methods as currently edited. */
+  get editedMethods(): string[] {
+    return (this.configRoute.value['routeParams'] as string[] | null) || [];
+  }
   get template() { return this.configRoute.get('template') }
   get routeParameters() { return this.configRoute.get('routeParameters'); }
   get routeDescription() { return this.configRoute.get('routeDescription'); }
@@ -431,9 +450,13 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
     let cacheTtlSeconds = this.configRoute.value['cacheTtlSeconds'] as number | null;
     let cacheKeyStrategy = this.configRoute.value['cacheKeyStrategy'] as string;
 
+    // Access
+    let accessPolicy = (this.configRoute.value['accessPolicy'] as string) || 'default';
+    let requiredRoles = (this.configRoute.value['requiredRoles'] as string) || '';
+
     if (!httpMethods || httpMethods.length === 0 || !routeDescription || !graphMartUri || !templateBody || !dataSourceId) { return; }
 
-    this.configRouteService.configRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy } as NewRoute)
+    this.configRouteService.configRoute({ routeId, routeParams, dataSourceId, routeDescription, graphMartUri, templateBody, layers, cacheEnabled, cacheTtlSeconds, cacheKeyStrategy, accessPolicy, requiredRoles } as NewRoute)
       .subscribe({
         next: () => this.navigateBack(),
         // Stay on the page (keeping the edits) and say why, e.g. a template syntax error
@@ -856,6 +879,14 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.getDatasources();
 
+    // Where the route is called, and what "default" access means on this server
+    this.routesService.getBaseUrl().pipe(takeUntil(this.destroy$))
+      .subscribe({ next: metadata => this.queryBaseUrl = metadata.baseUrl, error: () => this.queryBaseUrl = '/query' });
+    this.settingsService.getSsoInfo().pipe(takeUntil(this.destroy$)).subscribe({
+      next: info => this.serverDefaultAccess = info.queryAuthDefault === 'authenticated' ? 'authenticated' : 'open',
+      error: () => { /* keep "open"; informational only */ }
+    });
+
     // Check if SPARQI is enabled
     this.checkSparqiStatus();
 
@@ -908,6 +939,10 @@ export class ConfigRouteComponent implements OnInit, AfterViewInit, OnDestroy {
           if (this.routeData.cacheKeyStrategy) {
             this.configRoute.controls['cacheKeyStrategy'].setValue(this.routeData.cacheKeyStrategy);
           }
+
+          // Load access configuration
+          this.configRoute.controls['accessPolicy'].setValue(this.routeData.accessPolicy || 'default');
+          this.configRoute.controls['requiredRoles'].setValue(this.routeData.requiredRoles || '');
 
           // Load cache info for displaying defaults
           this.loadCacheInfo();

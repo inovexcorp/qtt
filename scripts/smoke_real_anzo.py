@@ -19,7 +19,7 @@ import urllib.request
 import uuid
 
 API = os.environ.get("QTT_API", "https://localhost:18443/queryrest/api")
-QUERY = os.environ.get("QTT_QUERY", "http://localhost:18888")
+QUERY = os.environ.get("QTT_QUERY", "http://localhost:18082/query")
 CTX = ssl.create_default_context()
 CTX.check_hostname = False
 CTX.verify_mode = ssl.CERT_NONE

@@ -27,4 +27,14 @@ class SpaFallbackTest {
         assertFalse(P.matcher("/queryrest/api/routes").matches());
         assertFalse(P.matcher("/q/health").matches());
     }
+
+    @Test
+    void leavesQueryRoutesAlone() {
+        // A query route the fallback caught would answer 200 with the UI's index.html instead of data.
+        assertFalse(P.matcher("/query").matches());
+        assertFalse(P.matcher("/query/").matches());
+        assertFalse(P.matcher("/query/people-search").matches());
+        assertFalse(P.matcher("/query/people-search/").matches());
+        assertTrue(P.matcher("/queryish").matches());
+    }
 }

@@ -230,7 +230,7 @@ CamelRouteTemplate(
 Datasources ds = ...; // existing datasource
 
 CamelRouteTemplate route = new CamelRouteTemplate(
-    "findPerson",                    // routeId → http://localhost:8888/findPerson
+    "findPerson",                    // routeId → https://localhost:8443/query/findPerson
     "?name={name}",                  // routeParams
     "SELECT ?person WHERE { ... }",  // templateContent (Freemarker)
     "Find person by name",           // description
@@ -243,7 +243,7 @@ CamelRouteTemplate route = new CamelRouteTemplate(
 **Usage in QTT**:
 1. Route stored in database
 2. `CamelRouteTemplateBuilder` reads on startup
-3. Creates dynamic endpoint: `http://0.0.0.0:8888/{routeId}`
+3. Creates dynamic endpoint: `https://<host>:8443/query/{routeId}`
 4. Freemarker template processes request → generates SPARQL
 5. SPARQL sent to Anzo via datasource configuration
 
@@ -750,7 +750,7 @@ quarkus.hibernate-orm.<kind>.schema-management.strategy=validate
 ┌────────────────────────┐
 │  Camel Context         │
 │  Dynamic Routes        │
-│  Port 8888             │
+│  /query/{routeId}      │
 └────────────────────────┘
 ```
 
@@ -817,7 +817,7 @@ public void buildRoute(CamelRouteTemplate template) {
     );
 
     // Create dynamic Camel route
-    from("netty-http:http://0.0.0.0:8888/" + template.getRouteId())
+    from("platform-http:/query/" + template.getRouteId())
         .routeId(template.getRouteId())
         .convertBodyTo(String.class)
         .to("freemarker:file:" + templatePath)
@@ -828,10 +828,10 @@ public void buildRoute(CamelRouteTemplate template) {
 
 **4. Route is Accessible**:
 ```bash
-GET http://localhost:8888/findPerson?name=John
+GET https://localhost:8443/query/findPerson?name=John
 
 # Flow:
-# 1. Camel Netty HTTP receives request
+# 1. Camel platform-http receives the request at /query/{routeId}
 # 2. Freemarker template processes parameters → SPARQL query
 # 3. Anzo component executes query (using datasource config)
 # 4. RdfResultsJsonifier converts RDF/XML → JSON-LD

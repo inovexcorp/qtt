@@ -1,0 +1,83 @@
+<section class="panel api-keys">
+  <div class="panel-head">
+    <h3 class="panel-title">API keys</h3>
+    <span class="count" *ngIf="!loadFailed">{{ visibleKeys.length }}</span>
+    <span class="spacer"></span>
+    <mat-slide-toggle *ngIf="!loadFailed && hasRevoked" [(ngModel)]="showRevoked" [ngModelOptions]="{standalone: true}">
+      Show revoked
+    </mat-slide-toggle>
+    <button mat-flat-button color="primary" type="button" class="new-key-button" *ngIf="!showForm" (click)="openForm()">
+      <mat-icon>add</mat-icon> New API key
+    </button>
+  </div>
+  <p class="intro">
+    API keys let applications call authenticated query routes without an identity provider. Send one as
+    <code>Authorization: Bearer qtt_…</code>. A key only works on the routes it names (or <code>*</code>), and never on
+    the management API.
+  </p>
+
+  <div class="created-key" *ngIf="created" role="alert">
+    <div class="created-key-title"><mat-icon aria-hidden="true">key</mat-icon> Key “{{ created.name }}” created. Copy it now: it won't be shown again.</div>
+    <div class="created-key-row">
+      <code class="created-key-value">{{ created.key }}</code>
+      <button mat-icon-button type="button" (click)="copyCreated()" matTooltip="Copy key" aria-label="Copy key"><mat-icon>content_copy</mat-icon></button>
+    </div>
+    <button mat-stroked-button type="button" (click)="dismissCreated()">I've stored it</button>
+  </div>
+
+  <form *ngIf="showForm" [formGroup]="form" class="create-form" (ngSubmit)="create()">
+    <h4>New API key</h4>
+    <div class="fields">
+      <mat-form-field appearance="outline" class="name-field">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" placeholder="e.g. reporting service" #nameInput>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="days-field">
+        <mat-label>Expires in (days)</mat-label>
+        <input matInput type="number" min="1" formControlName="expiresInDays" placeholder="server maximum">
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="routes-field">
+        <mat-label>Routes</mat-label>
+        <input matInput formControlName="routes" placeholder="people-search, places or *">
+        <mat-hint>Route IDs, comma-separated. <code>*</code>: every authenticated route without required roles.</mat-hint>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="description-field">
+        <mat-label>Description (optional)</mat-label>
+        <input matInput formControlName="description">
+      </mat-form-field>
+    </div>
+    <div class="form-actions">
+      <button mat-button type="button" (click)="closeForm()">Cancel</button>
+      <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || creating">Create key</button>
+    </div>
+  </form>
+
+  <p class="muted" *ngIf="loadFailed">Could not load the API keys.</p>
+
+  <p class="empty muted" *ngIf="!loadFailed && !visibleKeys.length">
+    {{ keys.length ? 'No active keys.' : 'No API keys yet.' }} Create one so an application can call authenticated routes.
+  </p>
+
+  <div class="table-scroll" *ngIf="visibleKeys.length">
+    <table class="keys-table">
+      <thead>
+        <tr><th>Name</th><th>Key ID</th><th>Routes</th><th>Status</th><th>Expires</th><th>Last used</th><th>Created</th><th><span class="cdk-visually-hidden">Actions</span></th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let key of visibleKeys" [class.inactive]="key.status !== 'active'">
+          <td class="name-cell">{{ key.name }}<div class="key-description" *ngIf="key.description">{{ key.description }}</div></td>
+          <td><code>qtt_{{ key.id }}_…</code></td>
+          <td class="routes-cell">{{ formatRoutes(key.routes) }}</td>
+          <td><span class="status status-{{ key.status }}">{{ key.status }}</span></td>
+          <td class="nowrap">{{ key.expiresAt ? (key.expiresAt | date:'mediumDate') : 'Never' }}</td>
+          <td>{{ key.lastUsedAt ? (key.lastUsedAt | date:'MMM d, y, h:mm a') : 'Never' }}</td>
+          <td>{{ key.createdBy }}<div class="key-description" *ngIf="key.createdAt">{{ key.createdAt | date:'mediumDate' }}</div></td>
+          <td class="action-cell">
+            <button mat-icon-button color="warn" type="button" *ngIf="key.status !== 'revoked'" (click)="revoke(key)"
+                    [attr.aria-label]="'Revoke ' + key.name" matTooltip="Revoke"><mat-icon>block</mat-icon></button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>

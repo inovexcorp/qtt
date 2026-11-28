@@ -49,6 +49,14 @@ describe('AuthService', () => {
     expect(service.roleLabel).toBeNull();
   });
 
+  it('reports no access for a user who may only call query routes', async () => {
+    const loading = service.load();
+    http.expectOne('/queryrest/api/me').flush({ ...editor, roles: ['qtt-query'] });
+    await loading;
+
+    expect(service.noAccess).toBeTrue();
+  });
+
   it('keeps allowing everything when /me fails', async () => {
     const loading = service.load();
     http.expectOne('/queryrest/api/me').flush('boom', { status: 500, statusText: 'Server Error' });

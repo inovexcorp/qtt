@@ -6,8 +6,10 @@ package com.inovexcorp.queryservice.routebuilder.querycontrollers;
  */
 public @interface RoutesControllerConfig {
 
-    String DEFAULT_BASE_URL = "http://localhost:8888";
-
-    /** The base URL for routes to show when serving the data back to the web ui */
-    String baseUrl();
+    /**
+     * Public URL under which query routes are reached, including the {@code /query} path (for example
+     * {@code https://qtt.example.com/query}); shown in the UI and returned as each route's endpoint URL. Empty means
+     * {@code /query}, relative to the server the UI is loaded from. Set from {@code QUERY_BASE_URL}.
+     */
+    String baseUrl() default "";
 }

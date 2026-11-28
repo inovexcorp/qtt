@@ -1,36 +1,81 @@
-<div class="settings-container">
-  <mat-card class="settings-card">
-    <mat-card-header>
-      <mat-card-title>System Information</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <p><strong>Version:</strong> {{version}}</p>
-      <p><strong>Uptime:</strong> {{uptime}}</p>
-      <p><strong>Database Type:</strong> {{databaseType}}</p>
-      <p><strong>Remote Address:</strong> {{databaseRemoteUrl}}</p>
-    </mat-card-content>
-  </mat-card>
+<div class="settings">
+  <nav class="section-nav" aria-label="Settings sections">
+    <a *ngFor="let s of sections"
+       class="section-link"
+       [class.active]="section === s.id"
+       [attr.aria-current]="section === s.id ? 'page' : null"
+       [routerLink]="[]"
+       [queryParams]="sectionParams(s.id)">
+      <mat-icon aria-hidden="true">{{ s.icon }}</mat-icon>
+      <span class="section-label">{{ s.label }}</span>
+      <mat-icon *ngIf="needsAttention(s.id)" class="attention" aria-hidden="false" aria-label="Needs attention">warning</mat-icon>
+    </a>
+  </nav>
 
-  <mat-card class="settings-card">
-    <mat-card-header>
-      <mat-card-title>Application Stats</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <p><strong>Datasources:</strong> {{datasourceCount}}</p>
-      <p><strong>Routes:</strong> {{routeCount}}</p>
-    </mat-card-content>
-  </mat-card>
+  <main class="section-body">
 
-  <mat-card class="settings-card sso-card">
-    <mat-card-header>
-      <mat-card-title><mat-icon>lock</mat-icon> Single Sign-On</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <p *ngIf="ssoLoadFailed"><em>Could not load the sign-in configuration.</em></p>
-      <p *ngIf="!ssoInfo && !ssoLoadFailed"><em>Loading…</em></p>
+    <!-- ================================================================ Overview -->
+    <ng-container *ngIf="section === 'overview'">
+      <header class="section-head">
+        <h2>Overview</h2>
+        <p>How this QTT server is set up and whether anything needs attention.</p>
+      </header>
 
-      <div *ngIf="ssoInfo && !ssoInfo.enabled" class="sso-banner sso-off">
-        <mat-icon>warning</mat-icon>
+      <section class="panel">
+        <h3 class="panel-title">Status</h3>
+        <ul class="status-list">
+          <li *ngFor="let s of statusLines">
+            <a class="status-row" [routerLink]="[]" [queryParams]="sectionParams(s.section)">
+              <mat-icon class="tone tone-{{ s.tone }}" aria-hidden="true">{{ statusIcon(s.tone) }}</mat-icon>
+              <span class="status-label">{{ s.label }}</span>
+              <span class="status-text">{{ s.text }}</span>
+              <mat-icon class="chevron" aria-hidden="true">chevron_right</mat-icon>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section class="panel">
+        <h3 class="panel-title">System</h3>
+        <dl class="kv">
+          <div><dt>Version</dt><dd>{{ version ?? '…' }}</dd></div>
+          <div><dt>Uptime</dt><dd>{{ uptime ?? '…' }}</dd></div>
+          <div>
+            <dt>Database</dt>
+            <dd>{{ databaseType ?? '…' }}
+              <span class="sub mono" *ngIf="databaseRemoteUrl">{{ databaseRemoteUrl }}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Datasources</dt>
+            <dd class="with-action">
+              <span class="num">{{ datasourceCount ?? '…' }}</span>
+              <a routerLink="/datasources" class="inline-link">View datasources</a>
+            </dd>
+          </div>
+          <div>
+            <dt>Routes</dt>
+            <dd class="with-action">
+              <span class="num">{{ routeCount ?? '…' }}</span>
+              <a routerLink="/routes" class="inline-link">View routes</a>
+            </dd>
+          </div>
+        </dl>
+      </section>
+    </ng-container>
+
+    <!-- ================================================================ Sign-in -->
+    <ng-container *ngIf="section === 'sign-in'">
+      <header class="section-head">
+        <h2>Sign-in</h2>
+        <p>Single sign-on through your identity provider. It protects the UI and the management API.</p>
+      </header>
+
+      <p class="muted" *ngIf="ssoLoadFailed">Could not load the sign-in configuration.</p>
+      <p class="muted" *ngIf="!ssoInfo && !ssoLoadFailed">Loading…</p>
+
+      <div *ngIf="ssoInfo && !ssoInfo.enabled" class="callout callout-warn" role="status">
+        <mat-icon aria-hidden="true">warning</mat-icon>
         <div>
           <strong>Sign-in is off.</strong>
           Anyone who can reach this server can view and change datasources, routes and templates.
@@ -39,8 +84,8 @@
       </div>
 
       <ng-container *ngIf="ssoInfo?.enabled">
-        <div class="sso-banner sso-on">
-          <mat-icon>verified_user</mat-icon>
+        <div class="callout callout-ok" role="status">
+          <mat-icon aria-hidden="true">verified_user</mat-icon>
           <div>
             <strong>Sign-in is on.</strong>
             Signed in as {{ auth.user.displayName }}<span *ngIf="auth.user.displayName !== auth.user.username"> ({{ auth.user.username }})</span>
@@ -48,135 +93,213 @@
           </div>
         </div>
 
-        <div class="sso-grid">
-          <section>
-            <h4>Identity Provider</h4>
-            <p><strong>Issuer:</strong> {{ ssoInfo?.issuer ?? 'not set' }}</p>
-            <p><strong>Client ID:</strong> {{ ssoInfo?.clientId }}</p>
-            <p><strong>Client Secret:</strong> {{ ssoInfo?.clientSecretConfigured ? 'Configured' : 'Not set' }}</p>
-            <p><strong>Accepted Audience:</strong> {{ ssoInfo?.audience?.length ? ssoInfo?.audience?.join(', ') : 'any' }}</p>
-            <p><strong>Private CA Trust Store:</strong> {{ ssoInfo?.privateCaTrustStore ? 'Configured' : 'No (JVM default)' }}</p>
-          </section>
-          <section>
-            <h4>Users and Roles</h4>
-            <p><strong>Username Claim:</strong> {{ ssoInfo?.usernameClaim }}</p>
-            <p><strong>Roles Claim:</strong> {{ ssoInfo?.rolesClaim ?? 'provider default' }} ({{ formatRolesSource(ssoInfo?.rolesSource) }})</p>
-            <p><strong>Viewer Groups:</strong> {{ formatGroups(ssoInfo?.groupMappings?.viewer) }}</p>
-            <p><strong>Editor Groups:</strong> {{ formatGroups(ssoInfo?.groupMappings?.editor) }}</p>
-            <p><strong>Admin Groups:</strong> {{ formatGroups(ssoInfo?.groupMappings?.admin) }}</p>
-          </section>
-          <section>
-            <h4>Browser Session</h4>
-            <p><strong>Flow:</strong> {{ ssoInfo?.applicationType === 'hybrid' ? 'Browser sign-in and bearer tokens' : ssoInfo?.applicationType }}</p>
-            <p><strong>Cookie Encryption Key:</strong> {{ formatSessionKey(ssoInfo?.sessionKey) }}</p>
-            <p><strong>Force HTTPS Redirect:</strong> {{ ssoInfo?.forceHttpsRedirect ? 'Yes' : 'No' }}</p>
-            <p><strong>Sign-out Path:</strong> {{ ssoInfo?.logoutPath }}</p>
-          </section>
-        </div>
-        <p class="sso-note">Sign-in protects the UI and the management API. The query endpoints on port 8888 are not covered.</p>
+        <section class="panel">
+          <h3 class="panel-title">Identity provider</h3>
+          <dl class="kv">
+            <div><dt>Issuer</dt><dd class="mono">{{ ssoInfo?.issuer ?? 'Not set' }}</dd></div>
+            <div><dt>Client ID</dt><dd class="mono">{{ ssoInfo?.clientId }}</dd></div>
+            <div><dt>Client secret</dt><dd>{{ ssoInfo?.clientSecretConfigured ? 'Configured' : 'Not set' }}</dd></div>
+            <div>
+              <dt>Accepted audience</dt>
+              <dd>
+                <span class="tokens" *ngIf="ssoInfo?.audience?.length; else anyAudience">
+                  <code *ngFor="let a of ssoInfo?.audience">{{ a }}</code>
+                </span>
+                <ng-template #anyAudience>Any</ng-template>
+              </dd>
+            </div>
+            <div><dt>Private CA trust store</dt><dd>{{ ssoInfo?.privateCaTrustStore ? 'Configured' : 'No (JVM default)' }}</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <h3 class="panel-title">Users and roles</h3>
+          <dl class="kv">
+            <div><dt>Username claim</dt><dd class="mono">{{ ssoInfo?.usernameClaim }}</dd></div>
+            <div>
+              <dt>Roles claim</dt>
+              <dd><span class="mono">{{ ssoInfo?.rolesClaim ?? 'provider default' }}</span>
+                <span class="sub">{{ formatRolesSource(ssoInfo?.rolesSource) }}</span></dd>
+            </div>
+          </dl>
+          <h4 class="group-title">Groups that grant each role</h4>
+          <dl class="kv">
+            <div *ngFor="let r of [
+                  { label: 'Viewer', groups: ssoInfo?.groupMappings?.viewer },
+                  { label: 'Editor', groups: ssoInfo?.groupMappings?.editor },
+                  { label: 'Admin', groups: ssoInfo?.groupMappings?.admin },
+                  { label: 'Query (qtt-query)', groups: ssoInfo?.groupMappings?.query }]">
+              <dt>{{ r.label }}</dt>
+              <dd>
+                <span class="tokens" *ngIf="r.groups?.length; else noGroups"><code *ngFor="let g of r.groups">{{ g }}</code></span>
+                <ng-template #noGroups><span class="muted">{{ formatGroups(r.groups) }}</span></ng-template>
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <h3 class="panel-title">Browser session</h3>
+          <dl class="kv">
+            <div><dt>Flow</dt><dd>{{ ssoInfo?.applicationType === 'hybrid' ? 'Browser sign-in and bearer tokens' : ssoInfo?.applicationType }}</dd></div>
+            <div><dt>Cookie encryption key</dt><dd>{{ formatSessionKey(ssoInfo?.sessionKey) }}</dd></div>
+            <div><dt>Force HTTPS redirect</dt><dd>{{ ssoInfo?.forceHttpsRedirect ? 'Yes' : 'No' }}</dd></div>
+            <div><dt>Sign-out path</dt><dd class="mono">{{ ssoInfo?.logoutPath }}</dd></div>
+          </dl>
+        </section>
       </ng-container>
-    </mat-card-content>
-  </mat-card>
 
-  <mat-card class="settings-card">
-    <mat-card-header>
-      <mat-card-title>Ontology Cache Statistics</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <p><strong>Cache Size:</strong> {{cacheStats?.size || 0}} entries</p>
-      <p><strong>Hit Count:</strong> {{cacheStats?.hitCount || 0}}</p>
-      <p><strong>Miss Count:</strong> {{cacheStats?.missCount || 0}}</p>
-      <p><strong>Hit Rate:</strong> {{formatHitRate(cacheStats?.hitRate)}}</p>
-      <p><strong>Eviction Count:</strong> {{cacheStats?.evictionCount || 0}}</p>
-      <p><strong>Total Load Time:</strong> {{formatLoadTime(cacheStats?.totalLoadTime)}}</p>
-    </mat-card-content>
-  </mat-card>
+      <p class="footnote" *ngIf="ssoInfo">
+        Query routes follow their own access setting. See
+        <a [routerLink]="[]" [queryParams]="sectionParams('access')" class="inline-link">Query access</a>.
+      </p>
+    </ng-container>
 
-  <mat-card class="settings-card">
-    <mat-card-header>
-      <mat-card-title><img src="assets/img/Redis-Logo.png" alt="Redis Logo" class="redis-logo"> Query Cache Statistics</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
+    <!-- ================================================================ Query access -->
+    <ng-container *ngIf="section === 'access'">
+      <header class="section-head">
+        <h2>Query access</h2>
+        <p>Who can call the query routes, and the API keys applications use to call them.</p>
+      </header>
 
-      <div *ngIf="!isCacheEnabled()">
-        <p><em>Redis query caching is not enabled</em></p>
+      <section class="panel">
+        <h3 class="panel-title">Access policy</h3>
+        <p class="muted" *ngIf="ssoLoadFailed">Could not load the access settings.</p>
+        <dl class="kv">
+          <div>
+            <dt>Routes left at “default”</dt>
+            <dd>{{ ssoInfo?.queryAuthDefault === 'authenticated' ? 'Require a token with qtt-query or an API key' : 'Open to anyone who can reach the server' }}
+              <span class="sub mono">QUERY_AUTH_DEFAULT={{ ssoInfo?.queryAuthDefault ?? 'open' }}</span>
+            </dd>
+          </div>
+          <div *ngIf="ssoInfo?.queryRoutes !== undefined">
+            <dt>Open routes</dt>
+            <dd>
+              <span class="num">{{ ssoInfo?.openQueryRoutes }} of {{ ssoInfo?.queryRoutes }}</span>
+              <span class="sub warn-text" *ngIf="ssoInfo?.openQueryRoutes">
+                <mat-icon aria-hidden="true">warning</mat-icon>Anyone who can reach this server can call them
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>Endpoint</dt>
+            <dd><code>/query/&lt;routeId&gt;</code> on this server
+              <span class="sub">Authenticated routes need <code>Authorization: Bearer &lt;token or API key&gt;</code></span>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <app-api-keys *qttIfRole="'admin'"></app-api-keys>
+    </ng-container>
+
+    <!-- ================================================================ Caching -->
+    <ng-container *ngIf="section === 'caching'">
+      <header class="section-head">
+        <h2>Caching</h2>
+        <p>Ontology lookups are cached in memory. Query results can also be cached in Redis.</p>
+      </header>
+
+      <div class="panel-pair">
+        <section class="panel">
+          <h3 class="panel-title">Ontology cache</h3>
+          <dl class="kv kv-compact">
+            <div><dt>Entries</dt><dd class="num">{{ formatNumber(cacheStats?.size) }}</dd></div>
+            <div><dt>Hit rate</dt><dd class="num">{{ formatHitRate(cacheStats?.hitRate) }}</dd></div>
+            <div><dt>Hits</dt><dd class="num">{{ formatNumber(cacheStats?.hitCount) }}</dd></div>
+            <div><dt>Misses</dt><dd class="num">{{ formatNumber(cacheStats?.missCount) }}</dd></div>
+            <div><dt>Evictions</dt><dd class="num">{{ formatNumber(cacheStats?.evictionCount) }}</dd></div>
+            <div><dt>Total load time</dt><dd class="num">{{ formatLoadTime(cacheStats?.totalLoadTime) }}</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h3 class="panel-title">Query cache</h3>
+            <span *ngIf="isCacheEnabled()" class="pill"
+                  [class.pill-ok]="redisCacheInfo?.connected" [class.pill-warn]="!redisCacheInfo?.connected">
+              {{ redisCacheInfo?.connected ? 'Connected' : 'Disconnected' }}
+            </span>
+          </div>
+
+          <p class="muted" *ngIf="!redisCacheChecked">Loading…</p>
+          <div class="empty" *ngIf="redisCacheChecked && !isCacheEnabled()">
+            <p><strong>Query caching is off.</strong></p>
+            <p class="muted">Set <code>REDIS_ENABLED=true</code> and point QTT at a Redis server to cache query results.</p>
+          </div>
+
+          <dl class="kv kv-compact" *ngIf="isCacheEnabled()">
+            <div><dt>Server</dt><dd><span class="mono">{{ redisCacheInfo?.host }}:{{ redisCacheInfo?.port }}</span><span class="muted"> · DB {{ redisCacheInfo?.database }}</span></dd></div>
+            <div><dt>Keys</dt><dd class="num">{{ formatNumber(redisCacheStats?.keyCount) }}</dd></div>
+            <div><dt>Memory</dt><dd class="num">{{ formatBytes(redisCacheStats?.memoryUsageBytes) }}</dd></div>
+            <div><dt>Hit rate</dt><dd class="num">{{ formatCacheHitRate(redisCacheStats) }}</dd></div>
+            <div><dt>Hits</dt><dd class="num">{{ formatNumber(redisCacheStats?.hits) }}</dd></div>
+            <div><dt>Misses</dt><dd class="num">{{ formatNumber(redisCacheStats?.misses) }}</dd></div>
+            <div><dt>Evictions</dt><dd class="num">{{ formatNumber(redisCacheStats?.evictions) }}</dd></div>
+            <div><dt>Default TTL</dt><dd>{{ formatTtl(redisCacheInfo?.defaultTtlSeconds) }}</dd></div>
+            <div><dt>Compression</dt><dd>{{ redisCacheInfo?.compressionEnabled ? 'On' : 'Off' }}</dd></div>
+          </dl>
+        </section>
       </div>
-      <div *ngIf="isCacheEnabled()" class="cache-stats-grid">
-        <p><strong>Status:</strong> {{redisCacheInfo?.connected ? 'Connected' : 'Disconnected'}}</p>
-        <p><strong>Host:</strong> {{redisCacheInfo?.host}}:{{redisCacheInfo?.port}} (DB {{redisCacheInfo?.database}})</p>
-        <p><strong>Keys:</strong> {{redisCacheStats?.keyCount || 0}}</p>
-        <p><strong>Memory:</strong> {{formatBytes(redisCacheStats?.memoryUsageBytes)}}</p>
-        <p><strong>Hits:</strong> {{redisCacheStats?.hits || 0}}</p>
-        <p><strong>Misses:</strong> {{redisCacheStats?.misses || 0}}</p>
-        <p><strong>Hit Rate:</strong> {{formatCacheHitRate(redisCacheStats)}}</p>
-        <p><strong>Evictions:</strong> {{redisCacheStats?.evictions || 0}}</p>
-        <p><strong>TTL:</strong> {{redisCacheInfo?.defaultTtlSeconds}}s</p>
-        <p><strong>Compression:</strong> {{redisCacheInfo?.compressionEnabled ? 'On' : 'Off'}}</p>
-      </div>
-    </mat-card-content>
-  </mat-card>
+    </ng-container>
 
-  <mat-card class="settings-card sparqi-metrics-card">
-    <mat-card-header>
-      <mat-card-title><img src="assets/img/sparqi.png" alt="sparqi logo" class="sparqi-logo"> SPARQi AI Assistant Metrics</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <!-- Loading State -->
-      <div *ngIf="!sparqiHealthChecked" class="sparqi-loading">
-        <mat-spinner diameter="40"></mat-spinner>
-        <p>Checking SPARQi status...</p>
-      </div>
-
-      <!-- SPARQi Disabled State -->
-      <div *ngIf="sparqiHealthChecked && !sparqiEnabled" class="sparqi-disabled">
-<!--        <mat-icon class="disabled-icon">smart_toy</mat-icon>-->
-
-        <h3>SPARQi AI Assistant is Disabled</h3>
-      </div>
-
-      <!-- No Metrics Data -->
-      <div *ngIf="sparqiHealthChecked && sparqiEnabled && !sparqiMetricsSummary" class="sparqi-no-data">
-        <mat-icon class="no-data-icon">bar_chart</mat-icon>
-        <p><em>No SPARQi metrics data available yet</em></p>
-        <p class="info-text">Start using SPARQi to see usage metrics here</p>
-      </div>
-
-      <!-- Metrics Display -->
-      <div *ngIf="sparqiHealthChecked && sparqiEnabled && sparqiMetricsSummary" class="metrics-content">
-        <div class="metrics-grid">
-          <div class="metric-item">
-            <strong>Total Messages:</strong> {{formatNumber(sparqiMetricsSummary.totalMessages)}}
-          </div>
-          <div class="metric-item">
-            <strong>Total Sessions:</strong> {{formatNumber(sparqiMetricsSummary.totalSessions)}}
-          </div>
-          <div class="metric-item">
-            <strong>Input Tokens:</strong> {{formatNumber(sparqiMetricsSummary.totalInputTokens)}}
-          </div>
-          <div class="metric-item">
-            <strong>Output Tokens:</strong> {{formatNumber(sparqiMetricsSummary.totalOutputTokens)}}
-          </div>
-          <div class="metric-item">
-            <strong>Total Tokens:</strong> {{formatNumber(sparqiMetricsSummary.totalTokens)}}
-          </div>
-          <div class="metric-item">
-            <strong>Avg Tokens/Message:</strong> {{formatDecimal(sparqiMetricsSummary.avgTokensPerMessage)}}
-          </div>
-          <div class="metric-item cost-highlight">
-            <strong>Total Cost:</strong> {{formatCurrency(sparqiMetricsSummary.totalEstimatedCost)}}
-          </div>
-          <div class="metric-item cost-highlight">
-            <strong>Avg Cost/Message:</strong> {{formatCurrency(sparqiMetricsSummary.avgCostPerMessage)}}
-          </div>
+    <!-- ================================================================ SPARQi -->
+    <ng-container *ngIf="section === 'sparqi'">
+      <header class="section-head section-head-logo">
+        <img src="assets/img/sparqi.png" alt="" class="sparqi-logo">
+        <div>
+          <h2>SPARQi</h2>
+          <p>Usage and estimated cost of the AI assistant that helps write query templates.</p>
         </div>
+      </header>
 
-        <div class="metrics-actions">
-          <button mat-raised-button color="primary" (click)="openMetricsCharts()" class="view-charts-button">
-            <mat-icon>analytics</mat-icon>
-            View Detailed Analytics
-          </button>
+      <section class="panel" *ngIf="!sparqiHealthChecked">
+        <div class="loading-line"><mat-spinner diameter="20"></mat-spinner><span>Checking SPARQi…</span></div>
+      </section>
+
+      <section class="panel" *ngIf="sparqiHealthChecked && !sparqiEnabled">
+        <div class="empty">
+          <p><strong>SPARQi is off.</strong></p>
+          <p class="muted">Set <code>SPARQI_ENABLED=true</code> and configure a model provider to turn on the assistant.</p>
         </div>
-      </div>
-    </mat-card-content>
-  </mat-card>
+      </section>
+
+      <section class="panel" *ngIf="sparqiHealthChecked && sparqiEnabled && !sparqiMetricsSummary">
+        <div class="empty">
+          <p><strong>No usage yet.</strong></p>
+          <p class="muted">Start using SPARQi to see usage metrics here.</p>
+        </div>
+      </section>
+
+      <ng-container *ngIf="sparqiHealthChecked && sparqiEnabled && sparqiMetricsSummary as m">
+        <section class="panel">
+          <div class="panel-head">
+            <h3 class="panel-title">Usage</h3>
+            <span class="muted period" *ngIf="m.periodStart && m.periodEnd">
+              {{ m.periodStart | date:'mediumDate' }} – {{ m.periodEnd | date:'mediumDate' }}
+            </span>
+          </div>
+          <dl class="kv kv-compact">
+            <div><dt>Messages</dt><dd class="num">{{ formatNumber(m.totalMessages) }}</dd></div>
+            <div><dt>Sessions</dt><dd class="num">{{ formatNumber(m.totalSessions) }}</dd></div>
+            <div><dt>Input tokens</dt><dd class="num">{{ formatNumber(m.totalInputTokens) }}</dd></div>
+            <div><dt>Output tokens</dt><dd class="num">{{ formatNumber(m.totalOutputTokens) }}</dd></div>
+            <div><dt>Total tokens</dt><dd class="num">{{ formatNumber(m.totalTokens) }}</dd></div>
+            <div><dt>Average tokens per message</dt><dd class="num">{{ formatNumber(m.avgTokensPerMessage, 1) }}</dd></div>
+          </dl>
+          <h4 class="group-title">Estimated cost</h4>
+          <dl class="kv kv-compact">
+            <div><dt>Total</dt><dd class="num">{{ formatCurrency(m.totalEstimatedCost) }}</dd></div>
+            <div><dt>Average per message</dt><dd class="num">{{ formatCurrency(m.avgCostPerMessage) }}</dd></div>
+          </dl>
+          <div class="panel-actions">
+            <button mat-stroked-button color="primary" type="button" (click)="openMetricsCharts()">
+              <mat-icon>analytics</mat-icon>
+              View detailed analytics
+            </button>
+          </div>
+        </section>
+      </ng-container>
+    </ng-container>
+  </main>
 </div>

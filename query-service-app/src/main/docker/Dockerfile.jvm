@@ -39,6 +39,6 @@ RUN cp -r /opt/qtt/etc /tmp/train/etc \
 FROM base
 COPY --from=train --chown=qtt:qtt /opt/qtt/app-cds.jsa /opt/qtt/app-cds.jsa
 USER qtt
-EXPOSE 8443 8080 8888
+EXPOSE 8443 8080
 ENV JAVA_OPTS="-XX:+UseSerialGC -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 ENTRYPOINT ["sh", "-c", "exec java -XX:SharedArchiveFile=/opt/qtt/app-cds.jsa $JAVA_OPTS -jar /opt/qtt/quarkus-run.jar"]

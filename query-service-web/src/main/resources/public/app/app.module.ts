@@ -56,6 +56,10 @@ import { AuthService } from './core/services/auth.service';
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
 import { IfRoleDirective } from './shared/if-role.directive';
 import { AuditLineComponent } from './shared/audit-line/audit-line.component';
+import { RouteAccessComponent } from './shared/route-access/route-access.component';
+import { EndpointPanelComponent } from './shared/endpoint-panel/endpoint-panel.component';
+import { ApiKeysComponent } from './pages/settings/api-keys/api-keys.component';
+import { ClipboardModule } from '@angular/cdk/clipboard';
 
 @NgModule({
   declarations: [
@@ -77,7 +81,10 @@ import { AuditLineComponent } from './shared/audit-line/audit-line.component';
     SparqiMetricsModalComponent,
     CacheClearConfirmDialog,
     IfRoleDirective,
-    AuditLineComponent
+    AuditLineComponent,
+    RouteAccessComponent,
+    EndpointPanelComponent,
+    ApiKeysComponent
   ],
     imports: [
         BrowserModule,
@@ -121,6 +128,7 @@ import { AuditLineComponent } from './shared/audit-line/audit-line.component';
         MatSnackBarModule,
         MarkdownModule.forRoot(),
         MatSlideToggle,
+        ClipboardModule,
         NgOptimizedImage
     ],
   providers: [

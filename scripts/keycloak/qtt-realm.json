@@ -9,7 +9,9 @@
       {"name": "qtt-viewer", "description": "QTT: read-only"},
       {"name": "qtt-editor", "description": "QTT: routes, templates, tests, SPARQi"},
       {"name": "qtt-admin", "description": "QTT: everything, including datasources"},
-      {"name": "legacy-admins", "description": "Site role mapped to qtt-admin with OIDC_ADMIN_GROUPS (tests group mapping)"}
+      {"name": "legacy-admins", "description": "Site role mapped to qtt-admin with OIDC_ADMIN_GROUPS (tests group mapping)"},
+      {"name": "qtt-query", "description": "QTT: call query routes whose access is authenticated"},
+      {"name": "finance-apps", "description": "Site role used as a route's required role (tests requiredRoles)"}
     ]
   },
   "clients": [
@@ -55,6 +57,44 @@
       ]
     },
     {
+      "clientId": "qtt-reader",
+      "name": "Application calling QTT query routes (test only)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "qtt-reader-test-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "qtt-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {"included.client.audience": "qtt", "access.token.claim": "true", "id.token.claim": "false"}
+        }
+      ]
+    },
+    {
+      "clientId": "qtt-finance",
+      "name": "Application with the finance-apps role (tests required roles)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "qtt-finance-test-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "qtt-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {"included.client.audience": "qtt", "access.token.claim": "true", "id.token.claim": "false"}
+        }
+      ]
+    },
+    {
       "clientId": "other-app",
       "name": "A different application (tests audience rejection)",
       "enabled": true,
@@ -87,6 +127,10 @@
     {"username": "service-account-qtt-ci", "enabled": true, "serviceAccountClientId": "qtt-ci",
      "realmRoles": ["qtt-admin"]},
     {"username": "service-account-other-app", "enabled": true, "serviceAccountClientId": "other-app",
-     "realmRoles": ["qtt-admin"]}
+     "realmRoles": ["qtt-admin"]},
+    {"username": "service-account-qtt-reader", "enabled": true, "serviceAccountClientId": "qtt-reader",
+     "realmRoles": ["qtt-query"]},
+    {"username": "service-account-qtt-finance", "enabled": true, "serviceAccountClientId": "qtt-finance",
+     "realmRoles": ["qtt-query", "finance-apps"]}
   ]
 }

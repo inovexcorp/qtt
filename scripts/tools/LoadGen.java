@@ -16,6 +16,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  *   java scripts/tools/LoadGen.java <url> <seconds> <concurrency>
  *
+ * https URLs are accepted with any certificate (the test stack's is self-signed). LOADGEN_AUTHORIZATION, when set, is
+ * sent as the Authorization header (for example "Bearer qtt_..."), to measure authenticated query routes.
+ *
  * Each worker keeps one keep-alive connection busy. Unlike ApacheBench, the JDK client handles chunked responses
  * correctly (ab miscounts them on keep-alive connections, which doubled Karaf's apparent throughput), and every
  * response is checked: non-2xx statuses and bodies whose length differs from the first response count as errors.
@@ -27,9 +30,25 @@ public class LoadGen {
         URI uri = URI.create(args[0]);
         long seconds = Long.parseLong(args[1]);
         int concurrency = Integer.parseInt(args[2]);
-        HttpClient client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
-                .connectTimeout(Duration.ofSeconds(5)).build();
-        HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).GET().build();
+        HttpClient.Builder builder = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(5));
+        if ("https".equals(uri.getScheme())) {
+            System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
+            javax.net.ssl.SSLContext tls = javax.net.ssl.SSLContext.getInstance("TLS");
+            tls.init(null, new javax.net.ssl.TrustManager[]{new javax.net.ssl.X509TrustManager() {
+                public void checkClientTrusted(java.security.cert.X509Certificate[] c, String a) { }
+                public void checkServerTrusted(java.security.cert.X509Certificate[] c, String a) { }
+                public java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0]; }
+            }}, null);
+            builder.sslContext(tls);
+        }
+        HttpClient client = builder.build();
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).GET();
+        String authorization = System.getenv("LOADGEN_AUTHORIZATION");
+        if (authorization != null && !authorization.isBlank()) {
+            requestBuilder.header("Authorization", authorization);
+        }
+        HttpRequest request = requestBuilder.build();
         int expectedLength = client.send(request, HttpResponse.BodyHandlers.ofByteArray()).body().length;
 
         AtomicBoolean running = new AtomicBoolean(true);

@@ -38,13 +38,19 @@
     <ng-container matColumnDef="Route ID">
       <th mat-header-cell *matHeaderCellDef mat-sort-header="routeId">Route ID</th>
       <td mat-cell *matCellDef="let element">
-        {{element.routeId}}</td>
+        <span class="route-id-cell">
+          <mat-icon class="access-icon" [class.access-open]="accessOf(element) === 'open'"
+                    [matTooltip]="accessOf(element) === 'open' ? 'Open: anyone who can reach the server can call it' : 'Authenticated: needs a token with qtt-query or an API key'"
+                    [attr.aria-label]="accessOf(element) === 'open' ? 'Open route' : 'Authenticated route'">
+            {{ accessOf(element) === 'open' ? 'public' : 'lock' }}</mat-icon>
+          {{element.routeId}}
+        </span></td>
     </ng-container>
 
     <!-- URL Column -->
     <ng-container matColumnDef="URL">
       <th mat-header-cell *matHeaderCellDef>Endpoint URL </th>
-      <td mat-cell *matCellDef="let element">{{baseUrl}}/{{element.routeId}} </td>
+      <td mat-cell *matCellDef="let element">{{ endpointUrl(element.routeId) }}</td>
     </ng-container>
 
     <!-- Description Column -->

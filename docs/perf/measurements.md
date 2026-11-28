@@ -10,3 +10,5 @@ Produced by `scripts/measure.py`; raw results in `results/`. Conditions: podman,
 | phase5-quarkus-jvm-port | 7b4a1ea | 427 | 189 | 12 | 2540 (2423-2595) | 2630 | 452.1 | 569.2 | 1039 / 7.1 / 12.2 | 9002 / 0.8 / 1.3 | Camel Quarkus 3.40 JVM mode, Temurin 17 JRE; FreeMarker parse-once, Anzo client without streaming probe |
 | phase7-quarkus-jvm-tuned | 97ae32d+dirty | 352 | 172 | 9 | 2114 (2100-2233) | 2193 | 295.8 | 347.8 | 1043 / 7.3 / 12.1 | 8808 / 0.8 / 1.4 | jlink Java 17 on Debian slim, AppCDS, SerialGC, unused LangChain4j jars excluded |
 | security-fixes | 907f6d4+dirty | 353 | 173 | 9 | 2113 (2028-2122) | 2194 | 307.9 | 359.8 | 1044 / 7.3 / 12.0 | 8876 / 0.8 / 1.4 | Phase 7 image plus the password, disable and template-error fixes |
+| baseline-netty-oidc | a900bb2+dirty | 357 | 176 | 9 | 2320 (2292-2322) | 2404 | 314.5 | 368.6 | 1058 / 7.4 / 11.6 | 8972 / 0.8 / 1.3 | netty-http 8888 (feature/oidc) |
+| spike-platform-http | a900bb2+dirty | 358 | 176 | 9 | 2208 (2136-2340) | 2286 | 313.2 | 366.6 | 1281 / 6.2 / 8.3 | 8993 / 0.8 / 1.2 | platform-http /query on 8080 (plain) |

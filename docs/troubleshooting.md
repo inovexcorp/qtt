@@ -147,12 +147,40 @@ collects the console output).
 
 ## Common Issues and Solutions
 
+### Issue: Route Returns 401 or 403
+
+**Symptoms:**
+
+```bash
+curl -k https://localhost:8443/query/my-route
+# 401 Unauthorized, WWW-Authenticate: Bearer realm="qtt"
+```
+
+**Causes and fixes:**
+
+- **401 without a credential**: the route's access is `authenticated` (or `default` with
+  `QUERY_AUTH_DEFAULT=authenticated`). Send `-H "Authorization: Bearer <token or API key>"`, or set the route to
+  `open`. A route that doesn't exist also answers anonymous callers with 401; check the route ID.
+- **401 with a credential**: the token is invalid or expired, was issued for another application (Keycloak needs the
+  audience mapper on the calling client), or the API key is wrong, expired or revoked. Bad credentials are refused even
+  on open routes. With sign-in off, OIDC tokens can't be checked at all; use an API key.
+- **403**: the credential is valid but lacks access: an OIDC token without `qtt-query` (admin doesn't include it), a
+  route's required role missing from the token, or an API key that doesn't name the route (a `*` key doesn't reach
+  routes with required roles). The response body says which: `missingRoles` lists the roles the token lacks. If a
+  role is listed that the user does have in the IdP, check its spelling on the route and the group mapping
+  (`OIDC_QUERY_GROUPS`, and the token's `groups` claim).
+- **503 with `Retry-After`** right after someone saved the route: the route is being replaced. Retry after the given
+  number of seconds; it serves again within about a second.
+- **The page returns QTT's HTML instead of data**: the client called `/<route-id>` or a proxy sent `/query/` to the
+  wrong place; the query URL is `/query/<route-id>`.
+- **A browser app gets a CORS error**: add its origin to `QUERY_CORS_ORIGINS`.
+
 ### Issue: Route Returns 404
 
 **Symptoms:**
 
 ```bash
-curl http://localhost:8888/my-route
+curl -k https://localhost:8443/query/my-route
 # 404 Not Found
 ```
 
@@ -184,7 +212,7 @@ curl http://localhost:8888/my-route
 **Symptoms:**
 
 ```bash
-curl http://localhost:8888/my-route
+curl -k https://localhost:8443/query/my-route
 # 500 Internal Server Error
 ```
 

@@ -1,0 +1,48 @@
+{
+  "label": "spike-platform-http",
+  "image": "localhost/qtt:spike-platform-http",
+  "commit": "a900bb2+dirty",
+  "date": "2026-11-27T14:19:29",
+  "note": "platform-http /query on 8080 (plain)",
+  "image_bytes": 357839898,
+  "image_gzip_bytes": 175735532,
+  "layers": 9,
+  "cold_start": [
+    {
+      "api_ms": 2136,
+      "first_query_ms": 2220
+    },
+    {
+      "api_ms": 2340,
+      "first_query_ms": 2424
+    },
+    {
+      "api_ms": 2208,
+      "first_query_ms": 2286
+    }
+  ],
+  "api_ready_ms_median": 2208,
+  "api_ready_ms_min": 2136,
+  "api_ready_ms_max": 2340,
+  "first_query_ms_median": 2286,
+  "first_query_ms_min": 2220,
+  "first_query_ms_max": 2424,
+  "rss_idle_mb": 313.2,
+  "load_uncached": {
+    "rps": 1281.1,
+    "p50_ms": 6.25,
+    "p95_ms": 8.34,
+    "p99_ms": 9.88,
+    "errors": 0,
+    "requests": 38442
+  },
+  "load_cached": {
+    "rps": 8992.9,
+    "p50_ms": 0.85,
+    "p95_ms": 1.25,
+    "p99_ms": 2.04,
+    "errors": 0,
+    "requests": 269797
+  },
+  "rss_after_load_mb": 366.6
+}

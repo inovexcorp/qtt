@@ -85,6 +85,8 @@
                 </mat-form-field>
             </div>
 
+            <app-route-access [group]="createRoute"></app-route-access>
+
             <!-- Cache Configuration Section -->
             <div class="cache-config-section" *ngIf="cacheInfo && cacheInfo.enabled">
                 <h3>Cache Configuration</h3>

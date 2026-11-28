@@ -46,7 +46,11 @@ public class MeResource {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("username", username);
         body.put("displayName", displayName);
-        body.put("roles", QttRoles.ALL.stream().filter(identity::hasRole).toList());
+        java.util.List<String> roles = new java.util.ArrayList<>(QttRoles.ALL.stream().filter(identity::hasRole).toList());
+        if (identity.hasRole(QttRoles.QUERY)) {
+            roles.add(QttRoles.QUERY);
+        }
+        body.put("roles", roles);
         body.put("authEnabled", settings.oidcEnabled());
         body.put("logoutUrl", settings.oidcEnabled() ? LOGOUT_PATH : null);
         return body;

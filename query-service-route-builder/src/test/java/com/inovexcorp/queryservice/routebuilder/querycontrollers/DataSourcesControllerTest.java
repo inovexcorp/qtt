@@ -62,6 +62,10 @@ public class DataSourcesControllerTest {
     @Mock
     private CamelContext camelContext;
 
+    @org.mockito.Spy
+    private com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates routeUpdates =
+            new com.inovexcorp.queryservice.routebuilder.QueryRouteUpdates();
+
     @InjectMocks
     private DataSourcesController dataSourcesController;
 
@@ -141,7 +145,9 @@ public class DataSourcesControllerTest {
         when(dataSourceService.getDataSource(TEST_DATASOURCE_ID)).thenReturn(stored);
         when(routeService.getRoute("route1")).thenReturn(route);
         when(layerService.getLayerUris(route)).thenReturn(Collections.emptyList());
-        when(camelKarafComponent.getTemplateLocation()).thenReturn(new java.io.File(System.getProperty("java.io.tmpdir")));
+        when(camelKarafComponent.routeBuilder(any(), any())).thenAnswer(inv ->
+                com.inovexcorp.queryservice.routebuilder.CamelRouteTemplateBuilder.builder()
+                        .camelRouteTemplate(inv.getArgument(0)).layerUris(inv.getArgument(1)).build());
 
         // Act
         Response response = dataSourcesController.createDatasource(testDatasource);
@@ -150,6 +156,10 @@ public class DataSourcesControllerTest {
         assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
         verify(routeService).add(route);
         verify(camelContext).addRoutes(any());
+        // ...and callers were told to retry (503) while it was replaced.
+        verify(routeUpdates).begin("route1", null, null);
+        verify(routeUpdates).end("route1");
+        org.junit.Assert.assertFalse(routeUpdates.isUpdating("route1"));
     }
 
     @Test

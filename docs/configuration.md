@@ -30,13 +30,21 @@ This configuration controls the database connection for the persistence layer.
 driver or sets the Settings page's database type (which shows the database actually in use); it is still accepted,
 and only used to pick the database when neither `QTT_DB_KIND` nor `DB_URL` is set.
 
-### API Configuration
+### Query Endpoint Configuration
 
-This configuration controls the UI base URL when displaying the route endpoints.
+Query routes are served at `/query/<route-id>` on ports 8443 and 8080. Who can call them:
+[Administration Guide](administration.md#securing-the-query-endpoints).
 
-| Variable       | Default                 | Description                                    |
-|----------------|-------------------------|------------------------------------------------|
-| `API_BASE_URL` | `http://localhost:8888` | Base URL for query endpoints exposed to the UI |
+| Variable                 | Default | Description                                                                                         |
+|--------------------------|---------|-----------------------------------------------------------------------------------------------------|
+| `QUERY_AUTH_DEFAULT`     | `open`  | Access of routes left at "default": `open` (anyone who can reach the server) or `authenticated` (a token with `qtt-query`, or an API key). Any other value stops startup |
+| `QUERY_BASE_URL`         | (none)  | Public URL of the query routes, including `/query` (for example `https://data.example.com/query`); shown in the UI. Unset: `/query` on the server the UI is loaded from |
+| `QUERY_API_KEY_MAX_DAYS` | `365`   | Longest lifetime of a new API key, and the default. `0`: keys may be created without expiry         |
+| `QUERY_CORS_ORIGINS`     | (none)  | Origins allowed to call `/query` from a browser (comma-separated, or `*`). Unset: no CORS           |
+| `QUERY_DEBUG_HEADERS`    | `false` | Return the generated SPARQL and Anzo timing in `anzo.query`, `anzo.query_duration` and `anzo.graphmart` response headers |
+| `OIDC_QUERY_GROUPS`      | (none)  | Comma-separated IdP role/group names granting `qtt-query` (calling authenticated routes)            |
+
+`API_BASE_URL`, which pointed the UI at port 8888 before 2.0, is ignored; startup logs a warning if it is set.
 
 ### Sign-In (OIDC) Configuration
 
@@ -55,6 +63,7 @@ Single sign-on for the UI and management API. Setup, roles and identity-provider
 | `OIDC_VIEWER_GROUPS`        | (none)                  | Comma-separated role/group names granting `qtt-viewer`                      |
 | `OIDC_EDITOR_GROUPS`        | (none)                  | Comma-separated role/group names granting `qtt-editor`                      |
 | `OIDC_ADMIN_GROUPS`         | (none)                  | Comma-separated role/group names granting `qtt-admin`                       |
+| `OIDC_QUERY_GROUPS`         | (none)                  | Comma-separated role/group names granting `qtt-query` (see Query Endpoint Configuration) |
 | `OIDC_TOKEN_AUDIENCE`       | `OIDC_CLIENT_ID`        | Audience bearer tokens must carry                                           |
 | `OIDC_SESSION_SECRET`       | (from client secret)    | Encrypts the session cookie; same value on every instance (32+ characters)  |
 | `OIDC_TRUSTSTORE_FILE`      | (none)                  | Trust store for an identity provider with a private CA                      |
@@ -182,8 +191,15 @@ Configuration is read at startup; changes take effect after a restart.
 ```properties
 # Freemarker template directory (relative to the working directory, /opt/qtt in containers)
 com.inovexcorp.queryservice.routebuilder.templateLocation=data/templates/
-# API base URL exposed to UI
-com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController.baseUrl=${API_BASE_URL:http://localhost:8888}
+# Public URL of the query routes, shown in the UI (empty: /query on this server)
+com.inovexcorp.queryservice.routebuilder.querycontrollers.RoutesController.baseUrl=${QUERY_BASE_URL:}
+# Return the Anzo metadata headers (anzo.query, ...) to query callers
+com.inovexcorp.queryservice.routebuilder.debugHeaders=${QUERY_DEBUG_HEADERS:false}
+# Query route access (docs/administration.md#securing-the-query-endpoints)
+qtt.query.auth-default=${QUERY_AUTH_DEFAULT:open}
+qtt.query.api-key-max-days=${QUERY_API_KEY_MAX_DAYS:365}
+qtt.query.cors-origins=${QUERY_CORS_ORIGINS:}
+qtt.auth.query-groups=${OIDC_QUERY_GROUPS:}
 ```
 
 ### Database Configuration
@@ -422,7 +438,6 @@ keytool -genkey \
 docker run -d \
   --name qtt \
   -p 8443:8443 \
-  -p 8888:8888 \
   -v /path/to/keystore.jks:/opt/qtt/etc/custom-keystore:ro \
   -e KEYSTORE=/opt/qtt/etc/custom-keystore \
   -e PASSWORD=YourStrongPassword \
@@ -478,7 +493,6 @@ docker run -d \
 
 | Port  | Protocol | Service          | Purpose                     | Exposed by Default |
 |-------|----------|------------------|-----------------------------|--------------------|
-| 8443  | HTTPS    | Quarkus HTTP     | REST API and Web UI         | Yes                |
-| 8080  | HTTP     | Quarkus HTTP     | REST API and Web UI (plain) | Yes                |
-| 8888  | HTTP     | Camel Netty HTTP | Dynamic query endpoints     | Yes                |
+| 8443  | HTTPS    | Quarkus HTTP     | Web UI, REST API, query routes (`/query`) | Yes  |
+| 8080  | HTTP     | Quarkus HTTP     | The same, over plain HTTP   | Yes                |
 | 5005  | TCP      | JVM Debug        | Remote debugging (dev mode) | No                 |

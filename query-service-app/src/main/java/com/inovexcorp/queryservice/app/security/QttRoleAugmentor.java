@@ -18,6 +18,8 @@ import java.util.Set;
  *   <li>Any other name is looked up in {@code OIDC_VIEWER_GROUPS}, {@code OIDC_EDITOR_GROUPS} and
  *       {@code OIDC_ADMIN_GROUPS}, so sites can grant QTT roles to groups they already have.</li>
  *   <li>Higher roles include lower ones: admin adds editor and viewer, editor adds viewer.</li>
+ *   <li>{@code qtt-query} (calling authenticated query routes) comes from a token role of that name or from
+ *       {@code OIDC_QUERY_GROUPS}; the management roles neither imply it nor are implied by it.</li>
  * </ul>
  */
 @ApplicationScoped
@@ -52,6 +54,13 @@ public class QttRoleAugmentor implements SecurityIdentityAugmentor {
             viewer |= QttRoles.VIEWER.equals(role) || settings.viewerGroups().contains(role);
         }
         Set<String> roles = new HashSet<>();
+        // qtt-query stands apart: granted by its own name or OIDC_QUERY_GROUPS, never implied by the roles above.
+        for (String role : tokenRoles) {
+            if (QttRoles.QUERY.equals(role) || settings.queryGroups().contains(role)) {
+                roles.add(QttRoles.QUERY);
+                break;
+            }
+        }
         if (admin) {
             roles.add(QttRoles.ADMIN);
         }

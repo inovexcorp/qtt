@@ -20,7 +20,6 @@ docker pull docker.io/inovexis/qtt:latest
 docker run -d \
   --name qtt \
   -p 8443:8443 \
-  -p 8888:8888 \
   docker.io/inovexis/qtt:latest
 ```
 
@@ -30,8 +29,6 @@ docker run -d \
 docker run -d \
   --name qtt \
   -p 8443:8443 \
-  -p 8888:8888 \
-  -e API_BASE_URL=http://localhost:8888 \
   -e DB_DRIVER_NAME=derby \
   docker.io/inovexis/qtt:latest
 ```
@@ -40,7 +37,7 @@ docker run -d \
 
 - **Web UI**: https://localhost:8443
 - **API Base**: https://localhost:8443/queryrest/api/
-- **Query Endpoints**: http://localhost:8888/{route-id}
+- **Query Endpoints**: https://localhost:8443/query/{route-id}
 
 The image ships with a self-signed certificate (see [SSL/TLS Configuration](#ssltls-configuration)). The UI and API
 are also served over plain HTTP on port 8080 if you publish it (`-p 8080:8080`).
@@ -95,14 +92,13 @@ podman pull docker.io/inovexis/qtt:latest
 podman run -d \
   --name qtt \
   -p 8443:8443 \
-  -p 8888:8888 \
   docker.io/inovexis/qtt:latest
 ```
 
 **With volume mount for persistent data:**
 
 ```bash
-podman run -d --name qtt -p 8443:8443 -p 8888:8888 -v qtt-data:/opt/qtt/data:Z docker.io/inovexis/qtt:latest
+podman run -d --name qtt -p 8443:8443 -v qtt-data:/opt/qtt/data:Z docker.io/inovexis/qtt:latest
 ```
 
 **Note**: The `:Z` flag is important for SELinux systems (RHEL, CentOS, Fedora) to properly label the volume.
@@ -153,10 +149,8 @@ services:
       DB_URL: "jdbc:postgresql://postgresql:5432/qtt"
       DB_USER: qttuser
       DB_PASSWORD: SecurePassword123
-      API_BASE_URL: http://localhost:8888
     ports:
       - "8443:8443"
-      - "8888:8888"
     networks:
       - qtt-network
 
@@ -204,10 +198,8 @@ services:
       DB_URL: "jdbc:sqlserver://mssql:1433;databaseName=qtt;encrypt=true;trustServerCertificate=true"
       DB_USER: sa
       DB_PASSWORD: "VerySecure123!"
-      API_BASE_URL: http://localhost:8888
     ports:
       - "8443:8443"
-      - "8888:8888"
     networks:
       - qtt-network
 
@@ -274,7 +266,6 @@ services:
       DB_URL: "jdbc:postgresql://postgresql:5432/qtt"
       DB_USER: qttuser
       DB_PASSWORD: SecurePassword123
-      API_BASE_URL: http://localhost:8888
 
       # Redis Cache Configuration
       REDIS_ENABLED: "true"
@@ -291,7 +282,6 @@ services:
       CACHE_STATS_ENABLED: "true"
     ports:
       - "8443:8443"
-      - "8888:8888"
     networks:
       - qtt-network
 
@@ -364,7 +354,6 @@ Podman supports Kubernetes-style pods for grouping containers:
 # Create a pod with port mappings
 podman pod create --name qtt-pod \
   -p 8443:8443 \
-  -p 8888:8888 \
   -p 5432:5432
 
 # Run PostgreSQL in the pod
@@ -401,9 +390,8 @@ use the UI or the management API (`/queryrest/api`). What each user can do then 
 **Sign-in is off by default.** Without it, the UI and management API are open to anyone who can reach ports
 8080/8443, and QTT logs a warning at every startup. Turn it on for any shared or production deployment.
 
-**Sign-in does not cover the query endpoints on port 8888.** Anyone who can reach port 8888 can run every started
-route, using the credentials stored for its datasource. Restrict that port at the network level (firewall, private
-network, or a reverse proxy with its own authentication).
+**Sign-in does not decide who can call the query routes.** Each route at `/query/<route-id>` has its own access
+setting, and routes are open unless you close them; see [Securing the Query Endpoints](#securing-the-query-endpoints).
 
 ### Roles
 
@@ -530,6 +518,118 @@ Users can't sign in while the IdP is unreachable. To get back in, restart QTT wi
 opens the UI and API to anyone who can reach them, so do that only on a network you control, and turn sign-in back on
 as soon as the IdP returns.
 
+## Securing the Query Endpoints
+
+Applications call routes at `/query/<route-id>` on the same server as the UI: `https://<host>:8443/query/<route-id>`
+(or port 8080 over plain HTTP). Each route has an **access** setting, edited on the route's page or sent as
+`accessPolicy` to the routes API:
+
+| Access          | Who can call the route                                                                                   |
+|-----------------|----------------------------------------------------------------------------------------------------------|
+| `default`       | Follows `QUERY_AUTH_DEFAULT` (`open` unless you change it)                                               |
+| `open`          | Anyone who can reach the server; credentials are ignored                                                 |
+| `authenticated` | A caller with an OIDC access token that carries the `qtt-query` role, or a QTT API key that names the route (or `*`) |
+
+**Routes are open by default** (`QUERY_AUTH_DEFAULT=open`), as they were on port 8888, so upgrading only changes the
+URL. Close routes one at a time, or set `QUERY_AUTH_DEFAULT=authenticated` to close every route left at `default`;
+routes set explicitly to `open` stay open. At startup QTT logs a warning with the number of open routes (their names at
+INFO), and the routes list marks each route as open (globe) or authenticated (lock).
+
+Callers send their credential as a bearer token:
+
+```bash
+curl -H "Authorization: Bearer $QTT_TOKEN" https://qtt.example.com:8443/query/people-search
+```
+
+What callers get back:
+
+| Situation                                                                       | Response                                  |
+|---------------------------------------------------------------------------------|-------------------------------------------|
+| Open route                                                                      | 200                                       |
+| Authenticated route, no credential                                              | 401 with `WWW-Authenticate: Bearer` (never a redirect to the sign-in page) |
+| Invalid, expired or revoked token or key, on any route (open ones too)          | 401                                       |
+| Valid credential without access to the route                                    | 403, the body naming the missing roles (`missingRoles`) or the API key's scope |
+| Route being changed right now (a save in the UI or API, or its datasource changed) | 503 with `Retry-After: 1`, for callers the route's access setting admits |
+| Route that doesn't exist: anonymous caller / caller with a valid credential     | 401 / 404 (anonymous callers can't tell a missing route from a protected one) |
+| A method the route doesn't accept                                               | 405 with `Allow`                          |
+
+### The `qtt-query` role
+
+Callers with an OIDC token need the `qtt-query` role. It is separate from `qtt-viewer`, `qtt-editor` and `qtt-admin`:
+an admin can't call authenticated routes without it, and `qtt-query` alone gives no access to the UI. Grant it like
+the other roles, as an IdP role named `qtt-query` or by mapping existing roles or groups with `OIDC_QUERY_GROUPS`
+(comma-separated).
+
+For an application, create a confidential client with a service account in the IdP, give the service account
+`qtt-query`, and add the same audience mapper as for scripts ([Setting up Keycloak](#setting-up-keycloak)) so its
+tokens are issued for QTT. The application then uses the client-credentials grant:
+
+```bash
+TOKEN=$(curl -s https://keycloak.example.com/realms/example/protocol/openid-connect/token \
+  -d grant_type=client_credentials -d client_id=reporting-app -d client_secret="$SECRET" | jq -r .access_token)
+curl -H "Authorization: Bearer $TOKEN" https://qtt.example.com:8443/query/people-search
+```
+
+### Required roles
+
+An authenticated route can also list **required roles** (comma-separated, for example `finance-apps`). An OIDC caller
+then needs `qtt-query` and every listed role (IdP role or group names, matched after `OIDC_*_GROUPS` mapping). An API
+key holds no IdP roles, so it can call such a route only if the key names the route; a `*` key does not reach it.
+
+### API keys
+
+API keys suit applications that don't use your identity provider, and deployments without sign-in. Admins manage them
+under **Settings › Query Access** (or `GET/POST /queryrest/api/apikeys`, `DELETE /queryrest/api/apikeys/{id}`).
+
+- A key looks like `qtt_<id>_<secret>`. It is shown **once**, when it is created; QTT stores only a SHA-256 hash of
+  the secret, and lists keys by their id, name, routes and dates.
+- A key names the routes it may call, or `*` for every authenticated route that requires no roles. Open routes accept
+  any valid key.
+- Keys expire after `QUERY_API_KEY_MAX_DAYS` days (365 by default) unless created with a shorter `expiresInDays`.
+  With `QUERY_API_KEY_MAX_DAYS=0`, keys can be created without an expiry.
+- Revoking a key takes effect within 30 seconds on every instance (at once on the instance that revoked it).
+  To rotate a key, create a second one, switch the application over, then revoke the first.
+- Keys work on `/query` only, never on the management API. Automation that manages routes and datasources uses an
+  OIDC service account ([Calling the API from scripts](#calling-the-api-from-scripts)).
+- Send keys only in the `Authorization` header, never in a URL, and keep them out of browser code.
+
+### Calling routes from a browser
+
+A web application on another origin needs CORS. List the allowed origins in `QUERY_CORS_ORIGINS` (comma-separated, or
+`*` for any). QTT then answers preflight requests for `/query/*` and allows `GET`, `POST`, the `Authorization` and
+`Content-Type` headers, and no cookies. The management API never allows cross-origin requests. Browser applications
+should send an OIDC access token from their own sign-in, not an API key.
+
+### What templates and callers can see
+
+Templates read request headers and query parameters (`headers.*`), but QTT removes `Authorization`, `Cookie`,
+`Proxy-Authorization`, `Forwarded` and `X-Forwarded-*` before a template runs, so a template can't copy a caller's
+credential into the query sent to Anzo. Responses carry `Content-Type` and the route's own headers only; request
+headers are not echoed back. The `anzo.query`, `anzo.query_duration` and `anzo.graphmart` response headers, which show
+the generated SPARQL, are sent only with `QUERY_DEBUG_HEADERS=true`.
+
+All callers of a route share its cache: access decides who may call a route, not what data each caller sees. Anzo
+is always queried with the datasource's stored credentials.
+
+### Exposing only the query routes
+
+Port 8888 is gone, so separate the query routes from the UI by path instead: expose `/query/` to the networks your
+applications use, and keep `/` and `/queryrest/` internal if only your staff use the UI. With nginx:
+
+```nginx
+location /query/ {
+    proxy_pass https://qtt:8443;
+}
+location / {
+    allow 10.0.0.0/8;   # staff network
+    deny all;
+    proxy_pass https://qtt:8443;
+}
+```
+
+Set `QUERY_BASE_URL` to the public URL of the query routes (for example `https://data.example.com/query`) so the UI
+shows the right endpoint URLs.
+
 ## SSL/TLS Configuration
 
 ### Using Custom SSL Certificates
@@ -541,7 +641,6 @@ SSL configuration via environment variables:
 docker run -d \
   --name qtt \
   -p 8443:8443 \
-  -p 8888:8888 \
   -v /path/to/keystore.jks:/opt/qtt/etc/custom-keystore:ro \
   -e KEYSTORE=/opt/qtt/etc/custom-keystore \
   -e PASSWORD=your-keystore-password \
@@ -584,7 +683,6 @@ The container runs as the non-root user `qtt` (uid 1001), so mounted volumes mus
 docker run -d \
   --name qtt \
   -p 8443:8443 \
-  -p 8888:8888 \
   -v qtt-data:/opt/qtt/data \
   -v qtt-templates:/opt/qtt/data/templates \
   docker.io/inovexis/qtt:latest
@@ -596,7 +694,6 @@ docker run -d \
 podman run -d \
   --name qtt \
   -p 8443:8443 \
-  -p 8888:8888 \
   -v qtt-data:/opt/qtt/data:Z \
   -v qtt-templates:/opt/qtt/data/templates:Z \
   docker.io/inovexis/qtt:latest
@@ -604,21 +701,40 @@ podman run -d \
 
 ## Port Configuration
 
-| Port | Protocol | Purpose                                    |
-|------|----------|--------------------------------------------|
-| 8443 | HTTPS    | REST API and Web UI                        |
-| 8080 | HTTP     | REST API and Web UI (plain HTTP)           |
-| 8888 | HTTP     | Dynamic query endpoints (Camel Netty HTTP) |
+| Port | Protocol | Purpose                                                         |
+|------|----------|-----------------------------------------------------------------|
+| 8443 | HTTPS    | Web UI, management API (`/queryrest/api`), query routes (`/query`) |
+| 8080 | HTTP     | The same, over plain HTTP                                       |
 
-Sign-in ([Single Sign-On](#single-sign-on-oidc)) protects 8443 and 8080 only. Port 8888 has no authentication;
-restrict who can reach it.
+Port 8888 (the query endpoints before 2.0) is no longer used. Sign-in ([Single Sign-On](#single-sign-on-oidc))
+protects the UI and management API; each query route follows its own access setting
+([Securing the Query Endpoints](#securing-the-query-endpoints)).
 
 To expose QTT on other host ports, change the host side of the `-p` mapping (for example `-p 443:8443`).
 
 ## Upgrading from QTT 1.x
 
-QTT now runs on Camel Quarkus instead of Apache Karaf. Environment variables, ports, URLs and the REST API are
-unchanged, so an existing deployment upgrades by switching the image:
+QTT now runs on Camel Quarkus instead of Apache Karaf. Environment variables and the management API are unchanged,
+but **the query endpoints moved** from `http://<host>:8888/<route-id>` to `https://<host>:8443/query/<route-id>`
+(or `http://<host>:8080/query/<route-id>`), so applications and proxies that call routes must change their URLs:
+
+| Before (1.x)                                   | From 2.0                                                                      |
+|------------------------------------------------|-------------------------------------------------------------------------------|
+| `http://<host>:8888/<route-id>`                | `https://<host>:8443/query/<route-id>`                                         |
+| Publish port 8888 (`-p 8888:8888`)             | Not needed; the query routes share 8443/8080 with the UI                       |
+| `API_BASE_URL=http://<host>:8888`              | `QUERY_BASE_URL=https://<host>:8443/query` (or unset); `API_BASE_URL` is ignored with a warning |
+| Proxy rule "expose port 8888"                  | Proxy rule on the path `/query/` ([Exposing only the query routes](#exposing-only-the-query-routes)) |
+| No credentials                                 | Still none: routes stay open until you close them ([Securing the Query Endpoints](#securing-the-query-endpoints)) |
+| 405 for a method the route doesn't accept      | 405, now with an `Allow` header                                                |
+| `anzo.query` / `anzo.query_duration` / `anzo.graphmart` response headers | Only with `QUERY_DEBUG_HEADERS=true`                      |
+| Any request header echoed in the response      | Not echoed                                                                     |
+
+Route IDs must now be letters, digits, `.`, `_` and `-` (up to 128 characters), since each is one URL path segment.
+A stored route whose ID breaks that rule is not loaded; startup logs it by name, and it can be recreated under a
+valid ID. Of the route parameters (`routeParams`), only `httpMethodRestrict` (what the UI writes) is kept; other Netty
+options set through the API are ignored with a warning.
+
+Otherwise an existing deployment upgrades by switching the image:
 
 - **Derby**: mount the same `/opt/qtt/data` volume. The container now runs as uid 1001, while the 1.x container ran
   as root, so hand the volume over to that user once before starting the new image:
@@ -639,13 +755,16 @@ unchanged, so an existing deployment upgrades by switching the image:
   It is off unless `OIDC_ENABLED=true`, so upgrading changes nothing until you turn it on. Routes and datasources
   gain `createdBy`/`createdAt`/`modifiedBy`/`modifiedAt` columns, added automatically at first start; existing rows
   leave them empty.
+- **Query access**: routes gain `accessPolicy` and `requiredRoles` columns and there is a new `api_keys` table, all
+  created at first start. Existing routes get the `default` access, which is open unless `QUERY_AUTH_DEFAULT` says
+  otherwise.
 
 ## Docker vs Podman Command Reference
 
 | Action           | Docker                                                                             | Podman                                                                             |
 |------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
 | Pull image       | `docker pull docker.io/inovexis/qtt:latest`                                        | `podman pull docker.io/inovexis/qtt:latest`                                        |
-| Run container    | `docker run -d --name qtt -p 8443:8443 -p 8888:8888 docker.io/inovexis/qtt:latest` | `podman run -d --name qtt -p 8443:8443 -p 8888:8888 docker.io/inovexis/qtt:latest` |
+| Run container    | `docker run -d --name qtt -p 8443:8443 docker.io/inovexis/qtt:latest` | `podman run -d --name qtt -p 8443:8443 docker.io/inovexis/qtt:latest` |
 | List containers  | `docker ps`                                                                        | `podman ps`                                                                        |
 | View logs        | `docker logs qtt`                                                                  | `podman logs qtt`                                                                  |
 | Follow logs      | `docker logs -f qtt`                                                               | `podman logs -f qtt`                                                               |

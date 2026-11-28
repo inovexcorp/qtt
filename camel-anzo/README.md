@@ -184,7 +184,7 @@ from("direct:dynamicLayers")
 In QTT, the component is typically used after Freemarker template processing:
 
 ```java
-from("jetty:http://0.0.0.0:8888/myQuery")
+from("platform-http:/query/myQuery")
     .convertBodyTo(String.class)
     .to("freemarker:file:/path/to/template.ftl")  // Generates SPARQL
     .to("anzo:http://anzo-server:8080?...")        // Executes SPARQL
@@ -486,7 +486,7 @@ The camel-anzo component is a core part of the Query Translation Tool (QTT) serv
 ```
 HTTP Request
     ↓
-Jetty Endpoint (port 8888)
+platform-http Endpoint (/query/{routeId})
     ↓
 Freemarker Template (converts JSON to SPARQL)
     ↓
@@ -503,7 +503,7 @@ The `query-service-route-builder` module uses camel-anzo to create dynamic route
 
 ```java
 // From CamelRouteTemplateBuilder.java
-from("jetty:http://0.0.0.0:8888/" + template.getRouteId())
+from("platform-http:/query/" + template.getRouteId())
     .routeId(template.getRouteId())
     .convertBodyTo(String.class)
     .to("freemarker:file:" + templatePath)
@@ -538,7 +538,7 @@ Routes are stored in the database and created at runtime:
 2. `RouteManagementService` stores route metadata in database
 3. `CamelRouteTemplateBuilder` reads from database on startup
 4. Camel routes are dynamically created with anzo:// endpoints
-5. Routes are accessible at `http://localhost:8888/{routeId}`
+5. Routes are accessible at `https://localhost:8443/query/{routeId}`
 
 ---
 

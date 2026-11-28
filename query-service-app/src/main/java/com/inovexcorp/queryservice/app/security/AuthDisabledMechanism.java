@@ -18,7 +18,8 @@ import java.util.Set;
  * Keeps QTT usable without single sign-on. When OIDC is off, every request is given the identity {@code anonymous}
  * holding every QTT role, so the same role checks run whether or not sign-in is configured (the alternative, skipping
  * the checks, would need a second code path). When OIDC is on, this mechanism steps aside and the OIDC mechanism
- * authenticates the request.
+ * authenticates the request. It never applies to the query routes ({@code /query/*}), and the identity it grants
+ * holds only the management roles, never {@code qtt-query}.
  */
 @ApplicationScoped
 public class AuthDisabledMechanism implements HttpAuthenticationMechanism {
@@ -41,7 +42,12 @@ public class AuthDisabledMechanism implements HttpAuthenticationMechanism {
 
     @Override
     public Uni<SecurityIdentity> authenticate(RoutingContext context, IdentityProviderManager identityProviderManager) {
-        return oidcEnabled ? Uni.createFrom().nullItem() : Uni.createFrom().item(everyone);
+        // Never on the query routes: their access is per route, and "everyone holds every role" there would open
+        // every authenticated route whenever sign-in is off. Callers there authenticate with API keys instead.
+        if (oidcEnabled || QueryPaths.isQueryPath(context.normalizedPath())) {
+            return Uni.createFrom().nullItem();
+        }
+        return Uni.createFrom().item(everyone);
     }
 
     @Override

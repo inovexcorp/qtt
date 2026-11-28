@@ -16,7 +16,7 @@ import org.apache.camel.builder.RouteBuilder;
  * details for UI display.
  * <p>
  * The route flow is:
- * HTTP Request → Freemarker Template → Capture SPARQL → Anzo Query → JSON-LD → Enhanced Response
+ * direct: request → Freemarker Template → Capture SPARQL → Anzo Query → JSON-LD → Enhanced Response
  * <p>
  * The template renders through {@link FreemarkerTemplateProcessor}, exactly as in a saved route: same output, and
  * the same restrictions on what a template may do.
@@ -45,9 +45,9 @@ public class TestRouteBuilder extends RouteBuilder {
                 .setHeader(Exchange.CONTENT_TYPE, constant("application/json"))
                 .process(new TestErrorProcessor());
 
-        // Build test route (no caching - all queries execute fresh)
-        from(String.format("netty-http:http://0.0.0.0:8888/%s?httpMethodRestrict=POST",
-                camelRouteTemplate.getRouteId()))
+        // Build test route (no caching - all queries execute fresh). It is reached only in-process, through
+        // TestRouteService.invokeTestRoute, never over the network.
+        from(endpointUri(camelRouteTemplate.getRouteId()))
                 .routeId(camelRouteTemplate.getRouteId())
                 .log(LoggingLevel.INFO, "Test route ${routeId} processing request")
                 .convertBodyTo(String.class)
@@ -62,5 +62,10 @@ public class TestRouteBuilder extends RouteBuilder {
                 .process(RdfResultsJsonifier.BEAN_REFERENCE)
                 // Wrap results with debug metadata
                 .process(new EnhancedResponseProcessor());
+    }
+
+    /** The in-process endpoint of a test route. */
+    public static String endpointUri(String routeId) {
+        return "direct:" + routeId;
     }
 }

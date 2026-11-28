@@ -27,10 +27,13 @@ public class SsoInfoResource {
 
     private final AuthSettings settings;
     private final Config config;
+    private final com.inovexcorp.queryservice.persistence.RouteService routeService;
 
-    SsoInfoResource(AuthSettings settings, Config config) {
+    SsoInfoResource(AuthSettings settings, Config config,
+                    com.inovexcorp.queryservice.persistence.RouteService routeService) {
         this.settings = settings;
         this.config = config;
+        this.routeService = routeService;
     }
 
     @GET
@@ -55,7 +58,12 @@ public class SsoInfoResource {
         groups.put("viewer", sorted(settings.viewerGroups()));
         groups.put("editor", sorted(settings.editorGroups()));
         groups.put("admin", sorted(settings.adminGroups()));
+        groups.put("query", sorted(settings.queryGroups()));
         body.put("groupMappings", groups);
+        body.put("queryAuthDefault", settings.queryAuthDefault().value());
+        List<com.inovexcorp.queryservice.persistence.CamelRouteTemplate> routes = routeService.getAll();
+        body.put("queryRoutes", routes.size());
+        body.put("openQueryRoutes", AuthStartupCheck.openRoutes(settings.queryAuthDefault(), routes).size());
 
         // Quarkus encrypts the session cookie with the first of these that is set, else a random per-start key
         // (sessions then end on every restart and are not shared between instances).

@@ -15,7 +15,12 @@ export interface SsoInfo {
   rolesClaim: string | null;
   rolesSource: string | null;
   audience: string[];
-  groupMappings: { viewer: string[]; editor: string[]; admin: string[] };
+  groupMappings: { viewer: string[]; editor: string[]; admin: string[]; query?: string[] };
+  /** What query routes left at "default" require (QUERY_AUTH_DEFAULT). */
+  queryAuthDefault?: 'open' | 'authenticated';
+  /** How many query routes exist, and how many of them anyone can call. */
+  queryRoutes?: number;
+  openQueryRoutes?: number;
   /** Which key encrypts the session cookie: 'OIDC_SESSION_SECRET', 'client secret' or 'generated at startup'. */
   sessionKey: string;
   privateCaTrustStore: boolean;

@@ -5,6 +5,10 @@
 // Requires puppeteer-core and a local Chrome (CHROME_PATH, default: macOS Google Chrome).
 // Expects a datasource and route to exist (it creates its own via the API and removes them afterwards).
 //
+// It also checks query access end to end: a route's endpoint panel and access setting, the access marker in the routes
+// list, and an API key created, used against /query and revoked on the Settings page (Query access section) (QTT_QUERY_URL, default
+// http://localhost:18082/query).
+//
 // QTT_OIDC=true: the stack requires sign-in (scripts/stack.sh with QTT_OIDC=true). Pages are walked signed in as
 // "admin" through the Keycloak login form; then a viewer's controls, the no-access page, signing in again after the
 // session ends (back to the same page) and signing out are checked.
@@ -135,6 +139,8 @@ try {
             .find(t => t.innerText.trim() === l)?.click(), label);
         } else {
           await page.waitForSelector(step, { visible: true, timeout: 10000 });
+          // Dialogs scroll inside themselves (the add-route form is taller than the viewport with caching on).
+          await page.$eval(step, el => el.scrollIntoView({ block: 'center' }));
           await page.click(step);
         }
         await new Promise(r => setTimeout(r, 800));
@@ -158,6 +164,97 @@ try {
       await page.waitForSelector('.monaco-editor .squiggly-error', { hidden: true, timeout: 10000 });
     } catch (e) {
       errs.push(`editor check: ${e.message}`);
+      if (shots) await page.screenshot({ path: `${shots}/${name.replace(/[^a-z0-9]+/gi, '-')}-failed.png` }).catch(() => {});
+    }
+    console.log(`${errs.length ? 'FAIL' : 'PASS'} ${name}${errs.length ? '\n    ' + errs.join('\n    ') : ''}`);
+    problems.push(...errs.map(e => `${name}: ${e}`));
+    pages.push([name]);
+    await page.close();
+  }
+
+  // Query access through the UI (signed in as admin on OIDC stacks).
+  {
+    const name = 'query access';
+    const queryBase = process.env.QTT_QUERY_URL || 'http://localhost:18082/query';
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1440, height: 900 });
+    page.on('dialog', d => d.accept()); // the revoke confirmation
+    const errs = [];
+    page.on('pageerror', e => errs.push(`pageerror: ${e.message}`));
+    // A route change is a delete and re-create, so the route can briefly be missing (404) while it saves.
+    const routeAccess = async () => {
+      const r = await fetch(`${api}/routes/${route}`, { headers: { Accept: 'application/json', ...auth } });
+      return r.status === 200 ? (await r.json()).accessPolicy : undefined;
+    };
+    // The app scrolls inside its own container, so bring elements into view before using them.
+    const reveal = sel => page.$eval(sel, el => el.scrollIntoView({ block: 'center' }));
+    const waitFor = async (fn, what) => {
+      for (let i = 0; i < 40; i++) { if (await fn()) return; await new Promise(r => setTimeout(r, 250)); }
+      errs.push(`timed out waiting for ${what}`);
+    };
+    let step = 'open the route page';
+    try {
+      await page.goto(`${base}/#/routes/config-route/${route}`, { waitUntil: 'networkidle0', timeout: 60000 });
+      await new Promise(r => setTimeout(r, 1500));
+      let text = await page.evaluate(() => document.body.innerText);
+      if (!text.includes(`/query/${route}`)) errs.push('endpoint URL not shown on the route page');
+      if (!text.includes('Who can call this route')) errs.push('access setting not shown on the route page');
+      if ((await fetch(`${queryBase}/${route}`)).status !== 200) errs.push('route not open before the change');
+
+      // Close the route through the UI.
+      step = 'open the access select';
+      await page.click('.route-access mat-select');
+      await page.waitForSelector('mat-option', { visible: true, timeout: 5000 });
+      await page.evaluate(() => [...document.querySelectorAll('mat-option')]
+        .find(o => o.innerText.trim().startsWith('Authenticated'))?.click());
+      await new Promise(r => setTimeout(r, 500));
+      text = await page.evaluate(() => document.body.innerText);
+      if (!text.includes('Authorization: Bearer $QTT_TOKEN')) errs.push('curl example has no token header');
+      step = 'save the route';
+      await page.click('#config-route-btn');
+      await waitFor(async () => (await routeAccess()) === 'authenticated', 'the route to be saved as authenticated');
+      const anonymous = (await fetch(`${queryBase}/${route}`)).status;
+      if (anonymous !== 401) errs.push(`anonymous call to the closed route got ${anonymous}, expected 401`);
+
+      step = 'check the routes list';
+      // The routes list marks it.
+      await page.goto(`${base}/#/routes`, { waitUntil: 'networkidle0', timeout: 60000 });
+      await new Promise(r => setTimeout(r, 1000));
+      const marked = await page.evaluate(r => [...document.querySelectorAll('tr')]
+        .some(tr => tr.innerText.includes(r) && tr.querySelector('[aria-label="Authenticated route"]')), route);
+      if (!marked) errs.push('routes list does not mark the route as authenticated');
+
+      step = 'create an API key';
+      // Create an API key for it on the Settings page, call the route with it, then revoke it.
+      await page.goto(`${base}/#/settings?section=access`, { waitUntil: 'networkidle0', timeout: 60000 });
+      await page.waitForSelector('app-api-keys .new-key-button', { visible: true, timeout: 10000 });
+      await reveal('app-api-keys .new-key-button');
+      await page.click('app-api-keys .new-key-button');
+      await page.waitForSelector('app-api-keys input[formcontrolname="name"]', { visible: true, timeout: 10000 });
+      await reveal('app-api-keys input[formcontrolname="name"]');
+      await page.type('app-api-keys input[formcontrolname="name"]', `ui key ${suffix}`);
+      await reveal('app-api-keys input[formcontrolname="routes"]');
+      await page.type('app-api-keys input[formcontrolname="routes"]', route);
+      await reveal('app-api-keys .create-form button[type="submit"]');
+      await page.click('app-api-keys .create-form button[type="submit"]');
+      await page.waitForSelector('.created-key-value', { visible: true, timeout: 10000 });
+      const key = await page.$eval('.created-key-value', el => el.innerText.trim());
+      if (!key.startsWith('qtt_')) errs.push(`created key looks wrong: ${key.slice(0, 8)}…`);
+      const withKey = (await fetch(`${queryBase}/${route}`, { headers: { Authorization: `Bearer ${key}` } })).status;
+      if (withKey !== 200) errs.push(`call with the new API key got ${withKey}, expected 200`);
+      step = 'dismiss the new key';
+      await reveal('.created-key button[mat-stroked-button]');
+      await page.click('.created-key button[mat-stroked-button]');
+      await page.waitForSelector(`button[aria-label="Revoke ui key ${suffix}"]`, { visible: true, timeout: 10000 });
+      step = 'revoke the key';
+      await reveal(`button[aria-label="Revoke ui key ${suffix}"]`);
+      await page.click(`button[aria-label="Revoke ui key ${suffix}"]`);
+      await waitFor(async () => (await fetch(`${queryBase}/${route}`,
+        { headers: { Authorization: `Bearer ${key}` } })).status === 401, 'the revoked key to be refused');
+      if (shots) await page.screenshot({ path: `${shots}/query-access.png`, fullPage: true });
+    } catch (e) {
+      errs.push(`query access check (${step}): ${e.message}`);
+      if (shots) await page.screenshot({ path: `${shots}/query-access-failed.png`, fullPage: true }).catch(() => {});
     }
     console.log(`${errs.length ? 'FAIL' : 'PASS'} ${name}${errs.length ? '\n    ' + errs.join('\n    ') : ''}`);
     problems.push(...errs.map(e => `${name}: ${e}`));

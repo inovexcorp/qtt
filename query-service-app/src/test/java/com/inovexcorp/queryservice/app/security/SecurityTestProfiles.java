@@ -29,6 +29,18 @@ final class SecurityTestProfiles {
         }
     }
 
+    /** Sign-in off, and query routes left at "default" require authentication (QUERY_AUTH_DEFAULT=authenticated). */
+    public static class SignInOffClosed implements QuarkusTestProfile {
+        @Override
+        public Map<String, String> getConfigOverrides() {
+            Map<String, String> config = base();
+            config.put("quarkus.oidc.tenant-enabled", "false");
+            config.put("qtt.query.auth-default", "authenticated");
+            config.put("qtt.db.url", "jdbc:derby:memory:qtt-security-test-closed;create=true");
+            return config;
+        }
+    }
+
     /**
      * Sign-in on, against the WireMock OpenID provider from quarkus-test-oidc-server (started by
      * {@code @QuarkusTestResource(OidcWiremockTestResource.class)}, which sets {@code keycloak.url}).
@@ -45,6 +57,7 @@ final class SecurityTestProfiles {
             config.put("quarkus.oidc.credentials.secret", "secret");
             config.put("quarkus.oidc.token.issuer", ISSUER);
             config.put("qtt.auth.admin-groups", "platform-ops");
+            config.put("qtt.auth.query-groups", "data-apps");
             return config;
         }
     }

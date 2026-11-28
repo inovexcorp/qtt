@@ -33,7 +33,6 @@ SPARQi is particularly helpful when you need to:
 docker run -d \
   --name qtt \
   -p 8080:8080 \
-  -p 8888:8888 \
   -e SPARQI_ENABLED=true \
   -e SPARQI_LLM_BASE_URL=https://api.openai.com/v1 \
   -e SPARQI_LLM_API_KEY=sk-your-openai-key \
@@ -95,7 +94,6 @@ litellm --config litellm_config.yaml --port 4000
 docker run -d \
   --name qtt \
   -p 8080:8080 \
-  -p 8888:8888 \
   -e SPARQI_ENABLED=true \
   -e SPARQI_LLM_BASE_URL=http://host.docker.internal:4000 \
   -e SPARQI_LLM_API_KEY=anything \
@@ -111,7 +109,6 @@ docker run -d \
 docker run -d \
   --name qtt \
   -p 8080:8080 \
-  -p 8888:8888 \
   -e SPARQI_ENABLED=true \
   -e SPARQI_LLM_BASE_URL=https://your-resource.openai.azure.com/openai/deployments/your-deployment \
   -e SPARQI_LLM_API_KEY=your-azure-key \

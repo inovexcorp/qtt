@@ -15,7 +15,7 @@ import static com.inovexcorp.queryservice.it.Qtt.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 
-/** The query endpoints on the query port: template rendering, Anzo call, JSON-LD output, error mapping. */
+/** The query endpoints (/query/&lt;routeId&gt;): template rendering, Anzo call, JSON-LD output, error mapping. */
 class QueryPathIT {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -155,7 +155,8 @@ class QueryPathIT {
     /**
      * Templates are written through the API and must not reach beyond the request. Each of these worked before:
      * {@code ?new} ran OS commands, {@code #include} read files under the working directory (here the route's own
-     * template file), and Java objects in the headers (Netty's channel context) exposed their methods.
+     * template file), and Java objects in the headers (Netty's channel context then, Vert.x socket addresses now)
+     * exposed their methods.
      */
     @Test
     void templatesCannotRunCommandsReadFilesOrCallJavaMethods() {
@@ -166,7 +167,7 @@ class QueryPathIT {
         String[][] attempts = {
                 {"${\"freemarker.template.utility.Execute\"?new()(\"id\")}", "not allowed in the template for security reasons"},
                 {"<#include \"/data/templates/" + id + ".ftl\" parse=false>", "Template inclusion failed"},
-                {"${headers.CamelNettyChannelHandlerContext.channel().isOpen()?c}", "TEMPLATE_ERROR"},
+                {"${headers.CamelVertxPlatformHttpLocalAddress.port()?c}", "TEMPLATE_ERROR"},
         };
         for (String[] attempt : attempts) {
             modifyRoute(id, ds, neverCalled, attempt[0], LAYER, null).then().statusCode(anyOf(is(200), is(201)));
@@ -175,7 +176,7 @@ class QueryPathIT {
                     .body(containsString(attempt[1]));
         }
         // Java objects still print as text, as before.
-        modifyRoute(id, ds, neverCalled, "SELECT * WHERE { ?s ?p \"${headers.CamelNettyChannelHandlerContext}\" }",
+        modifyRoute(id, ds, neverCalled, "SELECT * WHERE { ?s ?p \"${headers.CamelVertxPlatformHttpLocalAddress}\" }",
                 LAYER, null).then().statusCode(anyOf(is(200), is(201)));
         query().get("/" + id).then().statusCode(200);
         assertThat(anzoRequestCount("/sparql/graphmart/" + encodedGraphmart(neverCalled) + ".*"))
@@ -183,10 +184,57 @@ class QueryPathIT {
     }
 
     @Test
-    void anzoMetadataHeadersAreReturned() {
+    void anzoMetadataHeadersAreOnlyReturnedInDebugMode() {
+        // QUERY_DEBUG_HEADERS is off in the test stack: anzo.query would disclose the generated SPARQL.
         String route = newRoute(GRAPHMART);
         query().get("/" + route).then().statusCode(200)
-                .header("anzo.graphmart", equalTo(GRAPHMART))
-                .header("anzo.query_duration", not(emptyOrNullString()));
+                .header("anzo.graphmart", nullValue())
+                .header("anzo.query", nullValue())
+                .header("anzo.query_duration", nullValue());
+    }
+
+    @Test
+    void requestHeadersAreNotEchoed() {
+        String route = newRoute(GRAPHMART);
+        query().header("X-Api-Key", "SECRET-KEY").header("X-Custom", "echo").get("/" + route).then().statusCode(200)
+                .header("X-Api-Key", nullValue())
+                .header("X-Custom", nullValue());
+    }
+
+    @Test
+    void credentialsNeverReachTemplates() {
+        String id = uniqueId("it-q");
+        routes.add(id);
+        String marker = uniqueId("cred");
+        createRoute(id, ds, GRAPHMART, "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o } # " + marker
+                + " auth=${headers.Authorization!} cookie=${headers.Cookie!} fwd=${headers['X-Forwarded-For']!}",
+                LAYER, null).then().statusCode(201);
+        // With sign-in on, an invalid bearer token is refused (401) even on an open route, so send a real one.
+        String token = OIDC ? Tokens.clientCredentials("qtt-reader", "qtt-reader-test-secret") : "SECRET-TOKEN";
+        query().header("Authorization", "Bearer " + token).header("Cookie", "q_session=SECRET-COOKIE")
+                .header("X-Forwarded-For", "10.1.2.3").get("/" + id).then().statusCode(200);
+        String sparql = anzoQueryContaining(marker);
+        assertThat(sparql).contains("auth= cookie= fwd=");
+        assertThat(sparql).doesNotContain(token).doesNotContain("SECRET").doesNotContain("10.1.2.3");
+    }
+
+    @Test
+    void aMethodTheRouteDoesNotAllowIs405WithAllow() {
+        String route = newRoute(GRAPHMART); // httpMethodRestrict=GET,POST
+        query().delete("/" + route).then().statusCode(405)
+                .header("Allow", equalTo("GET, POST"));
+    }
+
+    @Test
+    void unknownPathsUnderQueryAreRefusedAnonymouslyAndJson404WithAToken() {
+        String path = "/no-such-" + System.nanoTime();
+        query().redirects().follow(false).get(path).then().statusCode(401)
+                .header("WWW-Authenticate", equalTo("Bearer realm=\"qtt\""));
+        if (OIDC) {
+            query().auth().oauth2(Tokens.clientCredentials("qtt-reader", "qtt-reader-test-secret")).get(path).then()
+                    .statusCode(404)
+                    .contentType(containsString("application/json"))
+                    .body("error", equalTo("Not Found"));
+        }
     }
 }
